@@ -9,6 +9,7 @@ A portfolio of production-style [n8n](https://n8n.io) automation workflows — c
   - [🎯 Overview](#-overview)
   - [🚀 Projects](#-projects)
     - [1. WhatsApp Doctor Appointment Booking](#1-whatsapp-doctor-appointment-booking)
+    - [2. AI Lead Generation Automation](#2-ai-lead-generation-automation)
   - [🛠️ Technologies Used](#️-technologies-used)
     - [Integrations](#integrations)
     - [n8n Features](#n8n-features)
@@ -62,15 +63,44 @@ Each project lives in its own folder containing the exported workflow JSON, read
 
 ---
 
+### 2. AI Lead Generation Automation
+
+**Folder:** [`AI Lead Generation Automation/`](./AI%20Lead%20Generation%20Automation/)
+
+**Description:** A two-workflow lead generation pipeline built around a conversational AI agent on Telegram. Users describe the leads they need (location, industry, job title) via text or voice, and the agent gathers requirements, triggers a scraping sub-workflow via Apify, and delivers deduplicated results as a Google Sheet emailed directly to the requester.
+
+**Key Features:**
+
+- 🤖 Conversational AI agent (GPT-5-mini) that collects search criteria one question at a time
+- 🎤 Voice message support — Telegram voice notes are transcribed via OpenAI Whisper before reaching the agent
+- 🧠 Persistent per-chat session memory backed by n8n Data Tables, with a conversation reset command
+- 🔍 Automated lead scraping through an Apify actor, called as a tool sub-workflow from the AI agent
+- 🧹 Deduplication of results across runs (matched by LinkedIn URL)
+- 📊 Results delivered as a fresh Google Sheet per request
+- 📧 Automatic email notification with the Google Sheet link via Gmail
+
+**Use Cases:**
+
+- Sales / business development lead prospecting through a chat interface
+- Automating manual lead research and handoff to a scraping tool
+- Reference pattern for AI agent + sub-workflow tool-calling in n8n
+
+---
+
 ## 🛠️ Technologies Used
 
 ### Integrations
 
 - **WhatsApp Business API** — messaging platform (trigger + send)
-- **Google Sheets** — booking records / logging
+- **Telegram** — messaging platform (trigger + send, text and voice)
+- **Google Sheets** — booking records / lead data logging
+- **Gmail** — automated email delivery
+- **Apify** — third-party actor for lead scraping
+- **OpenAI** — GPT models for conversational agents, Whisper for voice transcription
 
 ### n8n Features
 
+- AI Agent nodes with tool-calling sub-workflows
 - Data Tables (session & state persistence)
 - Switch / If routing for multi-step conversation logic
 - Aggregate nodes for slot-availability computation
@@ -84,8 +114,11 @@ Each project lives in its own folder containing the exported workflow JSON, read
 ```
 n8n_workflows_project/
 ├── README.md
-└── WhatsApp Doctor Appointment Booking/
-    └── whatsapp-doctor-appointment-booking.json
+├── WhatsApp Doctor Appointment Booking/
+│   └── whatsapp-doctor-appointment-booking.json
+└── AI Lead Generation Automation/
+    ├── ultimate-lead-generation-automation.json
+    └── lead-scraping.json
 ```
 
 Each project folder is self-contained and includes the exported workflow JSON. New projects will be added as additional top-level folders following the same convention.
@@ -106,7 +139,10 @@ Each project folder is self-contained and includes the exported workflow JSON. N
 
 2. **Required API Keys / Credentials**
    - WhatsApp Business API credentials
-   - Google Sheets OAuth2 credentials (where used)
+   - Telegram Bot API token
+   - Google Sheets / Gmail OAuth2 credentials
+   - Apify API token
+   - OpenAI API key
 
 ### Installation Steps
 
@@ -115,7 +151,7 @@ Each project folder is self-contained and includes the exported workflow JSON. N
    - In n8n: **Workflows → Import from File**, and select the JSON
 
 2. **Configure credentials**
-   - Set up the required integration credentials in n8n's Credentials panel (WhatsApp, Google Sheets, etc.)
+   - Set up the required integration credentials in n8n's Credentials panel (WhatsApp, Telegram, Google Sheets, Gmail, Apify, OpenAI, etc.)
 
 3. **Update workflow-specific settings**
    - Replace placeholder IDs (WhatsApp phone number ID, Data Table/Sheet IDs) with your own
@@ -141,7 +177,10 @@ Each project folder is self-contained and includes the exported workflow JSON. N
 ### Account Requirements
 
 - WhatsApp Business account with API access
-- Google Workspace account (for Sheets integration, where used)
+- Telegram account (for Bot creation via BotFather)
+- Google Workspace account (Sheets, Gmail)
+- Apify account (for lead scraping actor)
+- OpenAI account (for GPT models and Whisper transcription)
 
 ---
 

@@ -1,0 +1,875 @@
+{
+    "id":  "9W3cynfCEZMql0Yh",
+    "name":  "Lead Scraping",
+    "active":  true,
+    "isArchived":  false,
+    "connections":  {
+                        "When Executed by Another Workflow":  {
+                                                                  "main":  [
+                                                                               [
+                                                                                   {
+                                                                                       "node":  "Edit Fields",
+                                                                                       "type":  "main",
+                                                                                       "index":  0
+                                                                                   }
+                                                                               ]
+                                                                           ]
+                                                              },
+                        "Edit Fields":  {
+                                            "main":  [
+                                                         [
+                                                             {
+                                                                 "node":  "Modify Input for API",
+                                                                 "type":  "main",
+                                                                 "index":  0
+                                                             }
+                                                         ]
+                                                     ]
+                                        },
+                        "Run an Actor":  {
+                                             "main":  [
+                                                          [
+                                                              {
+                                                                  "node":  "Get dataset items",
+                                                                  "type":  "main",
+                                                                  "index":  0
+                                                              }
+                                                          ]
+                                                      ]
+                                         },
+                        "Get dataset items":  {
+                                                  "main":  [
+                                                               [
+                                                                   {
+                                                                       "node":  "Extract info",
+                                                                       "type":  "main",
+                                                                       "index":  0
+                                                                   }
+                                                               ]
+                                                           ]
+                                              },
+                        "Extract info":  {
+                                             "main":  [
+                                                          [
+                                                              {
+                                                                  "node":  "Remove Duplicates",
+                                                                  "type":  "main",
+                                                                  "index":  0
+                                                              }
+                                                          ]
+                                                      ]
+                                         },
+                        "Remove Duplicates":  {
+                                                  "main":  [
+                                                               [
+                                                                   {
+                                                                       "node":  "Save all data",
+                                                                       "type":  "main",
+                                                                       "index":  0
+                                                                   }
+                                                               ]
+                                                           ]
+                                              },
+                        "Append or update row in sheet":  {
+                                                              "main":  [
+                                                                           [
+                                                                               {
+                                                                                   "node":  "Search Count",
+                                                                                   "type":  "main",
+                                                                                   "index":  0
+                                                                               }
+                                                                           ]
+                                                                       ]
+                                                          },
+                        "Search Count":  {
+                                             "main":  [
+                                                          [
+                                                              {
+                                                                  "node":  "Limit",
+                                                                  "type":  "main",
+                                                                  "index":  0
+                                                              }
+                                                          ]
+                                                      ]
+                                         },
+                        "Create spreadsheet":  {
+                                                   "main":  [
+                                                                [
+                                                                    {
+                                                                        "node":  "Set Headers Name",
+                                                                        "type":  "main",
+                                                                        "index":  0
+                                                                    }
+                                                                ]
+                                                            ]
+                                               },
+                        "Modify Input for API":  {
+                                                     "main":  [
+                                                                  [
+                                                                      {
+                                                                          "node":  "Run an Actor",
+                                                                          "type":  "main",
+                                                                          "index":  0
+                                                                      }
+                                                                  ]
+                                                              ]
+                                                 },
+                        "Save all data":  {
+                                              "main":  [
+                                                           [
+                                                               {
+                                                                   "node":  "Create spreadsheet",
+                                                                   "type":  "main",
+                                                                   "index":  0
+                                                               }
+                                                           ]
+                                                       ]
+                                          },
+                        "Get All Data":  {
+                                             "main":  [
+                                                          [
+                                                              {
+                                                                  "node":  "Append or update row in sheet",
+                                                                  "type":  "main",
+                                                                  "index":  0
+                                                              }
+                                                          ]
+                                                      ]
+                                         },
+                        "Create Header Row":  {
+                                                  "main":  [
+                                                               [
+                                                                   {
+                                                                       "node":  "Get All Data",
+                                                                       "type":  "main",
+                                                                       "index":  0
+                                                                   }
+                                                               ]
+                                                           ]
+                                              },
+                        "Send a message":  {
+                                               "main":  [
+                                                            [
+                                                                {
+                                                                    "node":  "Response",
+                                                                    "type":  "main",
+                                                                    "index":  0
+                                                                }
+                                                            ]
+                                                        ]
+                                           },
+                        "Set Headers Name":  {
+                                                 "main":  [
+                                                              [
+                                                                  {
+                                                                      "node":  "Create Header Row",
+                                                                      "type":  "main",
+                                                                      "index":  0
+                                                                  }
+                                                              ]
+                                                          ]
+                                             },
+                        "Limit":  {
+                                      "main":  [
+                                                   [
+                                                       {
+                                                           "node":  "Send a message",
+                                                           "type":  "main",
+                                                           "index":  0
+                                                       }
+                                                   ]
+                                               ]
+                                  }
+                    },
+    "nodes":  [
+                  {
+                      "parameters":  {
+                                         "inputSource":  "jsonExample",
+                                         "jsonExample":  "{\n  \"email\": \"john.doe@example.com\",\n  \"locations\": [\n    \"Sydney+Australia\"\n  ],\n  \"businesses\": [\n    \"Software+Development\"\n  ],\n  \"job_titles\": [\n    \"Software+Developer\"\n  ]\n}",
+                                         "returnOutput":  "allRuns"
+                                     },
+                      "id":  "c055762a-8fe7-4141-a639-df2372f30060",
+                      "typeVersion":  1.1,
+                      "name":  "When Executed by Another Workflow",
+                      "type":  "n8n-nodes-base.executeWorkflowTrigger",
+                      "position":  [
+                                       272,
+                                       -176
+                                   ],
+                      "alwaysOutputData":  true
+                  },
+                  {
+                      "parameters":  {
+                                         "mode":  "raw",
+                                         "jsonOutput":  "={\n  \"query\": {{$json}}\n}",
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "type":  "n8n-nodes-base.set",
+                      "typeVersion":  3.4,
+                      "position":  [
+                                       496,
+                                       -176
+                                   ],
+                      "id":  "e7e1f20a-b590-457d-8e79-4d6531dd0c92",
+                      "name":  "Edit Fields"
+                  },
+                  {
+                      "parameters":  {
+                                         "actorId":  {
+                                                         "__rl":  true,
+                                                         "value":  "heLL6fUofdPgRXZie",
+                                                         "mode":  "list",
+                                                         "cachedResultName":  "ðŸ Leads Finder - like Apollo (microworlds/leads-finder)",
+                                                         "cachedResultUrl":  "https://console.apify.com/actors/heLL6fUofdPgRXZie/input"
+                                                     },
+                                         "customBody":  "={{ $json }}",
+                                         "timeout":  {
+
+                                                     }
+                                     },
+                      "type":  "@apify/n8n-nodes-apify.apify",
+                      "typeVersion":  1,
+                      "position":  [
+                                       944,
+                                       -176
+                                   ],
+                      "id":  "f8da2170-eead-45b1-a2a6-d8b52d6acd46",
+                      "name":  "Run an Actor"
+                  },
+                  {
+                      "parameters":  {
+                                         "resource":  "Datasets",
+                                         "datasetId":  "={{ $json.storageIds.datasets.default }}",
+                                         "offset":  {
+
+                                                    },
+                                         "limit":  100,
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "type":  "@apify/n8n-nodes-apify.apify",
+                      "typeVersion":  1,
+                      "position":  [
+                                       1168,
+                                       -176
+                                   ],
+                      "id":  "c6dc108c-030e-4061-ac24-06a0c44c70fb",
+                      "name":  "Get dataset items"
+                  },
+                  {
+                      "parameters":  {
+                                         "assignments":  {
+                                                             "assignments":  [
+                                                                                 {
+                                                                                     "id":  "de11204e-6717-403d-905a-3bc066811459",
+                                                                                     "name":  "fullName",
+                                                                                     "value":  "={{ $json.first_name }} {{ $json.last_name }}",
+                                                                                     "type":  "string"
+                                                                                 },
+                                                                                 {
+                                                                                     "id":  "75b7676c-2b80-4f91-b6c4-952989ea8e87",
+                                                                                     "name":  "emailAddress",
+                                                                                     "value":  "={{ $json.email }}",
+                                                                                     "type":  "string"
+                                                                                 },
+                                                                                 {
+                                                                                     "id":  "b5e59995-c61f-4734-bb1d-b2cc9fac175b",
+                                                                                     "name":  "linkedInURL",
+                                                                                     "value":  "={{ $json.linkedin_url }}",
+                                                                                     "type":  "string"
+                                                                                 },
+                                                                                 {
+                                                                                     "id":  "e8eaedbc-6009-4ee8-9493-e4dbddc29f5b",
+                                                                                     "name":  "seniority",
+                                                                                     "value":  "={{ $json.headline }}",
+                                                                                     "type":  "string"
+                                                                                 },
+                                                                                 {
+                                                                                     "id":  "08d7eeb9-aee7-47a3-a24a-410ef4ab3aef",
+                                                                                     "name":  "jobTitle",
+                                                                                     "value":  "={{ $json.title }}",
+                                                                                     "type":  "string"
+                                                                                 },
+                                                                                 {
+                                                                                     "id":  "3fd7ee7c-d192-4ea8-b55e-026b0187fecf",
+                                                                                     "name":  "companyName",
+                                                                                     "value":  "={{ $json.organization_name }}",
+                                                                                     "type":  "string"
+                                                                                 },
+                                                                                 {
+                                                                                     "id":  "3e6681da-4b2f-4d29-817a-6d46f324dd00",
+                                                                                     "name":  "location",
+                                                                                     "value":  "={{ $json.city }}",
+                                                                                     "type":  "string"
+                                                                                 },
+                                                                                 {
+                                                                                     "id":  "3edeafc5-d7b9-449f-87ef-43c8e8d8c8b3",
+                                                                                     "name":  "country",
+                                                                                     "value":  "={{ $json.country }}",
+                                                                                     "type":  "string"
+                                                                                 },
+                                                                                 {
+                                                                                     "id":  "b201589b-3648-4e0a-bcc8-67b099ec3878",
+                                                                                     "name":  "companyWebsite",
+                                                                                     "value":  "={{ $json.organization_website_url }}",
+                                                                                     "type":  "string"
+                                                                                 },
+                                                                                 {
+                                                                                     "id":  "955611c6-d6a0-4e12-a3da-9ddf153939a5",
+                                                                                     "name":  "companyLinkedInURL",
+                                                                                     "value":  "={{ $json.organization_linkedin_url }}",
+                                                                                     "type":  "string"
+                                                                                 }
+                                                                             ]
+                                                         },
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "type":  "n8n-nodes-base.set",
+                      "typeVersion":  3.4,
+                      "position":  [
+                                       1392,
+                                       -176
+                                   ],
+                      "id":  "4796aa8c-e5ad-47b5-b864-6703482f4a23",
+                      "name":  "Extract info"
+                  },
+                  {
+                      "parameters":  {
+                                         "operation":  "removeItemsSeenInPreviousExecutions",
+                                         "dedupeValue":  "={{ $json.linkedInURL }}",
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "type":  "n8n-nodes-base.removeDuplicates",
+                      "typeVersion":  2,
+                      "position":  [
+                                       1616,
+                                       -176
+                                   ],
+                      "id":  "745dfadb-9f61-4f57-ae0b-881b002dfffd",
+                      "name":  "Remove Duplicates"
+                  },
+                  {
+                      "parameters":  {
+                                         "operation":  "appendOrUpdate",
+                                         "documentId":  {
+                                                            "__rl":  true,
+                                                            "value":  "={{ $(\u0027Create spreadsheet\u0027).item.json.spreadsheetId }}",
+                                                            "mode":  "id"
+                                                        },
+                                         "sheetName":  {
+                                                           "__rl":  true,
+                                                           "value":  "gid=0",
+                                                           "mode":  "list",
+                                                           "cachedResultName":  "Sheet1",
+                                                           "cachedResultUrl":  "https://docs.google.com/spreadsheets/d/1xovW3uVm16cS1cC_57LCFfcONXxhe-shmeMC9ph1Vqk/edit#gid=0"
+                                                       },
+                                         "columns":  {
+                                                         "mappingMode":  "defineBelow",
+                                                         "value":  {
+                                                                       "Name":  "={{ $json.fullName }}",
+                                                                       "Email":  "={{ $json.emailAddress }}",
+                                                                       "Linkedin URL":  "={{ $json.linkedInURL }}",
+                                                                       "Seniority":  "={{ $json.seniority }}",
+                                                                       "Designation":  "={{ $json.jobTitle }}",
+                                                                       "City":  "={{ $json.location }}",
+                                                                       "Country":  "={{ $json.country }}",
+                                                                       "Organization Name":  "={{ $json.companyName }}",
+                                                                       "Organization Website":  "={{ $json.companyWebsite }}",
+                                                                       "Organization LinkedIn URL":  "={{ $json.companyLinkedInURL }}"
+                                                                   },
+                                                         "matchingColumns":  [
+                                                                                 "Linkedin URL"
+                                                                             ],
+                                                         "schema":  [
+                                                                        {
+                                                                            "id":  "Name",
+                                                                            "displayName":  "Name",
+                                                                            "required":  false,
+                                                                            "defaultMatch":  false,
+                                                                            "display":  true,
+                                                                            "type":  "string",
+                                                                            "canBeUsedToMatch":  true
+                                                                        },
+                                                                        {
+                                                                            "id":  "Email",
+                                                                            "displayName":  "Email",
+                                                                            "required":  false,
+                                                                            "defaultMatch":  false,
+                                                                            "display":  true,
+                                                                            "type":  "string",
+                                                                            "canBeUsedToMatch":  true
+                                                                        },
+                                                                        {
+                                                                            "id":  "Linkedin URL",
+                                                                            "displayName":  "Linkedin URL",
+                                                                            "required":  false,
+                                                                            "defaultMatch":  false,
+                                                                            "display":  true,
+                                                                            "type":  "string",
+                                                                            "canBeUsedToMatch":  true,
+                                                                            "removed":  false
+                                                                        },
+                                                                        {
+                                                                            "id":  "Seniority",
+                                                                            "displayName":  "Seniority",
+                                                                            "required":  false,
+                                                                            "defaultMatch":  false,
+                                                                            "display":  true,
+                                                                            "type":  "string",
+                                                                            "canBeUsedToMatch":  true
+                                                                        },
+                                                                        {
+                                                                            "id":  "Designation",
+                                                                            "displayName":  "Designation",
+                                                                            "required":  false,
+                                                                            "defaultMatch":  false,
+                                                                            "display":  true,
+                                                                            "type":  "string",
+                                                                            "canBeUsedToMatch":  true
+                                                                        },
+                                                                        {
+                                                                            "id":  "City",
+                                                                            "displayName":  "City",
+                                                                            "required":  false,
+                                                                            "defaultMatch":  false,
+                                                                            "display":  true,
+                                                                            "type":  "string",
+                                                                            "canBeUsedToMatch":  true
+                                                                        },
+                                                                        {
+                                                                            "id":  "Country",
+                                                                            "displayName":  "Country",
+                                                                            "required":  false,
+                                                                            "defaultMatch":  false,
+                                                                            "display":  true,
+                                                                            "type":  "string",
+                                                                            "canBeUsedToMatch":  true
+                                                                        },
+                                                                        {
+                                                                            "id":  "Organization Name",
+                                                                            "displayName":  "Organization Name",
+                                                                            "required":  false,
+                                                                            "defaultMatch":  false,
+                                                                            "display":  true,
+                                                                            "type":  "string",
+                                                                            "canBeUsedToMatch":  true
+                                                                        },
+                                                                        {
+                                                                            "id":  "Organization Website",
+                                                                            "displayName":  "Organization Website",
+                                                                            "required":  false,
+                                                                            "defaultMatch":  false,
+                                                                            "display":  true,
+                                                                            "type":  "string",
+                                                                            "canBeUsedToMatch":  true
+                                                                        },
+                                                                        {
+                                                                            "id":  "Organization LinkedIn URL",
+                                                                            "displayName":  "Organization LinkedIn URL",
+                                                                            "required":  false,
+                                                                            "defaultMatch":  false,
+                                                                            "display":  true,
+                                                                            "type":  "string",
+                                                                            "canBeUsedToMatch":  true
+                                                                        }
+                                                                    ],
+                                                         "attemptToConvertTypes":  false,
+                                                         "convertFieldsToString":  false
+                                                     },
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "type":  "n8n-nodes-base.googleSheets",
+                      "typeVersion":  4.7,
+                      "position":  [
+                                       2960,
+                                       -176
+                                   ],
+                      "id":  "14f4c13c-9e8e-4ca5-b6ff-a9c632974a95",
+                      "name":  "Append or update row in sheet"
+                  },
+                  {
+                      "parameters":  {
+                                         "assignments":  {
+                                                             "assignments":  [
+                                                                                 {
+                                                                                     "id":  "c27e520f-7f06-4bd6-9c14-0caf4b6a9700",
+                                                                                     "name":  "Output",
+                                                                                     "value":  "={{ $input.all().length }}",
+                                                                                     "type":  "string"
+                                                                                 }
+                                                                             ]
+                                                         },
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "type":  "n8n-nodes-base.set",
+                      "typeVersion":  3.4,
+                      "position":  [
+                                       3184,
+                                       -176
+                                   ],
+                      "id":  "5f518214-0e35-411f-a3d5-7e36b8c9d1a4",
+                      "name":  "Search Count"
+                  },
+                  {
+                      "parameters":  {
+
+                                     },
+                      "type":  "n8n-nodes-base.limit",
+                      "typeVersion":  1,
+                      "position":  [
+                                       3408,
+                                       -176
+                                   ],
+                      "id":  "e1cc501b-243b-42f4-84f2-01a43433b6c0",
+                      "name":  "Limit"
+                  },
+                  {
+                      "parameters":  {
+                                         "resource":  "spreadsheet",
+                                         "title":  "Lead Agent Generator Info",
+                                         "sheetsUi":  {
+                                                          "sheetValues":  [
+
+                                                                          ]
+                                                      },
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "type":  "n8n-nodes-base.googleSheets",
+                      "typeVersion":  4.7,
+                      "position":  [
+                                       2064,
+                                       -176
+                                   ],
+                      "id":  "4749549b-1ee6-4428-8b71-5afb9797a139",
+                      "name":  "Create spreadsheet"
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "const leads = $input.all();\n\nreturn [{\n  json: {\n    leads\n  }\n}];"
+                                     },
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       1840,
+                                       -176
+                                   ],
+                      "id":  "110015ba-63b7-4ad8-90e9-b254a01bf22f",
+                      "name":  "Save all data"
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "// Get the input JSON\nconst input = $input.first().json.query;\n\n// Helper function: replace \u0027+\u0027 with spaces and convert to lowercase\nconst cleanText = (value) =\u003e value.replace(/\\+/g, \" \").trim().toLowerCase();\n\n// Extract location (City + Country)\nlet city = \"\";\n\nif (Array.isArray(input.locations) \u0026\u0026 input.locations.length \u003e 0) {\n\tconst parts = input.locations[0].split(\"+\");\n\tcity = (parts[0] || \"\").trim().toLowerCase();\n}\n\n// Convert business keywords\nlet keywords = [];\n\nif (Array.isArray(input.businesses) \u0026\u0026 input.businesses.length \u003e 0) {\n\tkeywords = input.businesses.map(cleanText);\n}\n\n// Convert job titles\nlet jobTitles = [];\n\nif (Array.isArray(input.job_titles) \u0026\u0026 input.job_titles.length \u003e 0) {\n\tjobTitles = input.job_titles.map(cleanText);\n}\n\n// Return transformed JSON\nreturn [\n\t{\n\t\tjson: {\n\t\t\tcontact_email_exclude_catch_all_domains: false,\n\t\t\tcontact_job_titles: jobTitles,\n\t\t\tcontact_location: city ? [city] : [],\n\t\t\temail_status: [\"verified\"],\n\t\t\tkeywords: keywords,\n\t\t\tmax_result: 25\n\t\t}\n\t}\n];"
+                                     },
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       720,
+                                       -176
+                                   ],
+                      "id":  "3ecb47cd-1c9d-478d-ad69-87ca34969f2e",
+                      "name":  "Modify Input for API"
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "const leads = $(\u0027Save all data\u0027).first().json.leads;\n\nreturn leads;"
+                                     },
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       2736,
+                                       -176
+                                   ],
+                      "id":  "1081a44d-0328-42e3-a508-7dd916d6b5b2",
+                      "name":  "Get All Data"
+                  },
+                  {
+                      "parameters":  {
+                                         "operation":  "append",
+                                         "documentId":  {
+                                                            "__rl":  true,
+                                                            "value":  "={{ $(\u0027Create spreadsheet\u0027).item.json.spreadsheetId }}",
+                                                            "mode":  "id"
+                                                        },
+                                         "sheetName":  {
+                                                           "__rl":  true,
+                                                           "value":  "gid=0",
+                                                           "mode":  "list",
+                                                           "cachedResultName":  "Sheet1",
+                                                           "cachedResultUrl":  "https://docs.google.com/spreadsheets/d/1xovW3uVm16cS1cC_57LCFfcONXxhe-shmeMC9ph1Vqk/edit#gid=0"
+                                                       },
+                                         "columns":  {
+                                                         "mappingMode":  "autoMapInputData",
+                                                         "value":  {
+
+                                                                   },
+                                                         "matchingColumns":  [
+
+                                                                             ],
+                                                         "schema":  [
+                                                                        {
+                                                                            "id":  "Name",
+                                                                            "displayName":  "Name",
+                                                                            "required":  false,
+                                                                            "defaultMatch":  false,
+                                                                            "display":  true,
+                                                                            "type":  "string",
+                                                                            "canBeUsedToMatch":  true,
+                                                                            "removed":  false
+                                                                        },
+                                                                        {
+                                                                            "id":  "Email",
+                                                                            "displayName":  "Email",
+                                                                            "required":  false,
+                                                                            "defaultMatch":  false,
+                                                                            "display":  true,
+                                                                            "type":  "string",
+                                                                            "canBeUsedToMatch":  true,
+                                                                            "removed":  false
+                                                                        },
+                                                                        {
+                                                                            "id":  "Linkedin URL",
+                                                                            "displayName":  "Linkedin URL",
+                                                                            "required":  false,
+                                                                            "defaultMatch":  false,
+                                                                            "display":  true,
+                                                                            "type":  "string",
+                                                                            "canBeUsedToMatch":  true,
+                                                                            "removed":  false
+                                                                        },
+                                                                        {
+                                                                            "id":  "Seniority",
+                                                                            "displayName":  "Seniority",
+                                                                            "required":  false,
+                                                                            "defaultMatch":  false,
+                                                                            "display":  true,
+                                                                            "type":  "string",
+                                                                            "canBeUsedToMatch":  true,
+                                                                            "removed":  false
+                                                                        },
+                                                                        {
+                                                                            "id":  "Designation",
+                                                                            "displayName":  "Designation",
+                                                                            "required":  false,
+                                                                            "defaultMatch":  false,
+                                                                            "display":  true,
+                                                                            "type":  "string",
+                                                                            "canBeUsedToMatch":  true,
+                                                                            "removed":  false
+                                                                        },
+                                                                        {
+                                                                            "id":  "City",
+                                                                            "displayName":  "City",
+                                                                            "required":  false,
+                                                                            "defaultMatch":  false,
+                                                                            "display":  true,
+                                                                            "type":  "string",
+                                                                            "canBeUsedToMatch":  true,
+                                                                            "removed":  false
+                                                                        },
+                                                                        {
+                                                                            "id":  "Country",
+                                                                            "displayName":  "Country",
+                                                                            "required":  false,
+                                                                            "defaultMatch":  false,
+                                                                            "display":  true,
+                                                                            "type":  "string",
+                                                                            "canBeUsedToMatch":  true,
+                                                                            "removed":  false
+                                                                        },
+                                                                        {
+                                                                            "id":  "Organization Name",
+                                                                            "displayName":  "Organization Name",
+                                                                            "required":  false,
+                                                                            "defaultMatch":  false,
+                                                                            "display":  true,
+                                                                            "type":  "string",
+                                                                            "canBeUsedToMatch":  true,
+                                                                            "removed":  false
+                                                                        },
+                                                                        {
+                                                                            "id":  "Organization Website",
+                                                                            "displayName":  "Organization Website",
+                                                                            "required":  false,
+                                                                            "defaultMatch":  false,
+                                                                            "display":  true,
+                                                                            "type":  "string",
+                                                                            "canBeUsedToMatch":  true,
+                                                                            "removed":  false
+                                                                        },
+                                                                        {
+                                                                            "id":  "Organization LinkedIn URL",
+                                                                            "displayName":  "Organization LinkedIn URL",
+                                                                            "required":  false,
+                                                                            "defaultMatch":  false,
+                                                                            "display":  true,
+                                                                            "type":  "string",
+                                                                            "canBeUsedToMatch":  true,
+                                                                            "removed":  false
+                                                                        }
+                                                                    ],
+                                                         "attemptToConvertTypes":  false,
+                                                         "convertFieldsToString":  false
+                                                     },
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "type":  "n8n-nodes-base.googleSheets",
+                      "typeVersion":  4.7,
+                      "position":  [
+                                       2512,
+                                       -176
+                                   ],
+                      "id":  "003ae0a9-b540-4883-80a6-27591242b674",
+                      "name":  "Create Header Row"
+                  },
+                  {
+                      "parameters":  {
+                                         "sendTo":  "={{ $(\u0027Edit Fields\u0027).item.json.query.email }}",
+                                         "subject":  "Your Lead Generation Report",
+                                         "message":  "=\u003c!DOCTYPE html\u003e\n\u003chtml\u003e\n\u003chead\u003e\n  \u003cmeta charset=\"UTF-8\"\u003e\n\u003c/head\u003e\n\u003cbody style=\"margin:0;padding:0;background-color:#f4f6f9;font-family:Arial,Helvetica,sans-serif;\"\u003e\n\n  \u003ctable width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"background-color:#f4f6f9;padding:30px 0;\"\u003e\n    \u003ctr\u003e\n      \u003ctd align=\"center\"\u003e\n\n        \u003ctable width=\"600\" cellpadding=\"0\" cellspacing=\"0\" style=\"background:#ffffff;border-radius:8px;border:1px solid #e5e7eb;overflow:hidden;\"\u003e\n\n          \u003c!-- Header --\u003e\n          \u003ctr\u003e\n            \u003ctd style=\"background:#2563eb;padding:20px;text-align:center;\"\u003e\n              \u003ch2 style=\"margin:0;color:#ffffff;font-family:Arial,sans-serif;\"\u003e\n                Lead Generation Completed\n              \u003c/h2\u003e\n            \u003c/td\u003e\n          \u003c/tr\u003e\n\n          \u003c!-- Body --\u003e\n          \u003ctr\u003e\n            \u003ctd style=\"padding:30px;\"\u003e\n\n              \u003cp style=\"font-size:16px;color:#333333;margin-top:0;\"\u003e\n                Hi,\n              \u003c/p\u003e\n\n              \u003cp style=\"font-size:15px;color:#555555;line-height:1.7;\"\u003e\n                Your requested lead generation process has been completed successfully.\n              \u003c/p\u003e\n\n              \u003cp style=\"font-size:15px;color:#555555;line-height:1.7;\"\u003e\n                You can access the generated Google Sheet using the link below:\n              \u003c/p\u003e\n\n              \u003cp style=\"text-align:center;margin:30px 0;\"\u003e\n                \u003ca href=\"{{ $(\u0027Create spreadsheet\u0027).first().json.spreadsheetUrl }}\"\n                   style=\"background:#2563eb;color:#ffffff;padding:12px 24px;\n                          text-decoration:none;border-radius:5px;\n                          font-size:15px;font-weight:bold;\"\u003e\n                  Open Google Sheet\n                \u003c/a\u003e\n              \u003c/p\u003e\n\n              \u003cp style=\"font-size:15px;color:#555555;line-height:1.7;\"\u003e\n                If the button above doesn\u0027t work, you can copy and paste the following link into your browser:\n              \u003c/p\u003e\n\n              \u003cp style=\"word-break:break-all;font-size:14px;color:#2563eb;\"\u003e\n                {{ $(\u0027Create spreadsheet\u0027).first().json.spreadsheetUrl }}\n              \u003c/p\u003e\n\n              \u003chr style=\"border:none;border-top:1px solid #eeeeee;margin:30px 0;\"\u003e\n\n              \u003cp style=\"font-size:14px;color:#777777;line-height:1.7;\"\u003e\n                Thank you for using \u003cstrong\u003eLead Generator Tango\u003c/strong\u003e.\n              \u003c/p\u003e\n\n              \u003cp style=\"font-size:14px;color:#777777;line-height:1.7;margin-bottom:0;\"\u003e\n                Best Regards,\u003cbr\u003e\n                \u003cstrong\u003eLead Generator Tango\u003c/strong\u003e\n              \u003c/p\u003e\n\n            \u003c/td\u003e\n          \u003c/tr\u003e\n\n        \u003c/table\u003e\n\n      \u003c/td\u003e\n    \u003c/tr\u003e\n  \u003c/table\u003e\n\n\u003c/body\u003e\n\u003c/html\u003e",
+                                         "options":  {
+                                                         "appendAttribution":  false
+                                                     }
+                                     },
+                      "type":  "n8n-nodes-base.gmail",
+                      "typeVersion":  2.2,
+                      "position":  [
+                                       3632,
+                                       -176
+                                   ],
+                      "id":  "2b8ea046-a9bd-4c05-a9b2-de23d9457eef",
+                      "name":  "Send a message",
+                      "webhookId":  "3e2b9e29-7b57-4462-b63b-cf457536c1a3"
+                  },
+                  {
+                      "parameters":  {
+                                         "assignments":  {
+                                                             "assignments":  [
+                                                                                 {
+                                                                                     "id":  "6aa406bb-822f-4ffd-847c-2cad7dbba0c4",
+                                                                                     "name":  "Name",
+                                                                                     "value":  "=",
+                                                                                     "type":  "string"
+                                                                                 },
+                                                                                 {
+                                                                                     "id":  "d853a90a-9c29-463c-be3d-44423692ffc5",
+                                                                                     "name":  "Email",
+                                                                                     "value":  "",
+                                                                                     "type":  "string"
+                                                                                 },
+                                                                                 {
+                                                                                     "id":  "352f0d95-2c1c-407d-94fe-c44bbbc99677",
+                                                                                     "name":  "Linkedin URL",
+                                                                                     "value":  "",
+                                                                                     "type":  "string"
+                                                                                 },
+                                                                                 {
+                                                                                     "id":  "54f8e98d-6f07-4eec-bdcc-7b872d63403f",
+                                                                                     "name":  "Seniority",
+                                                                                     "value":  "",
+                                                                                     "type":  "string"
+                                                                                 },
+                                                                                 {
+                                                                                     "id":  "8cee55bb-0675-4f6e-9ea3-e6daa1653639",
+                                                                                     "name":  "Designation",
+                                                                                     "value":  "",
+                                                                                     "type":  "string"
+                                                                                 },
+                                                                                 {
+                                                                                     "id":  "1a05fd17-21a4-402b-935e-eca78331e380",
+                                                                                     "name":  "City",
+                                                                                     "value":  "",
+                                                                                     "type":  "string"
+                                                                                 },
+                                                                                 {
+                                                                                     "id":  "f234df0a-70a6-44ff-92ab-8fe94d1acadf",
+                                                                                     "name":  "Country",
+                                                                                     "value":  "",
+                                                                                     "type":  "string"
+                                                                                 },
+                                                                                 {
+                                                                                     "id":  "fb38a35a-f372-43fa-80b7-019ac94e7723",
+                                                                                     "name":  "Organization Name",
+                                                                                     "value":  "",
+                                                                                     "type":  "string"
+                                                                                 },
+                                                                                 {
+                                                                                     "id":  "1e74dec7-6f0d-4f6a-bf82-dca0a3d6a73a",
+                                                                                     "name":  "Organization Website",
+                                                                                     "value":  "",
+                                                                                     "type":  "string"
+                                                                                 },
+                                                                                 {
+                                                                                     "id":  "9cd9abb3-db5f-4db8-bb8f-0ce1c14a11a4",
+                                                                                     "name":  "Organization LinkedIn URL",
+                                                                                     "value":  "",
+                                                                                     "type":  "string"
+                                                                                 }
+                                                                             ]
+                                                         },
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "type":  "n8n-nodes-base.set",
+                      "typeVersion":  3.4,
+                      "position":  [
+                                       2288,
+                                       -176
+                                   ],
+                      "id":  "578b9881-4074-45c4-9c5d-15cd545fdc48",
+                      "name":  "Set Headers Name"
+                  },
+                  {
+                      "parameters":  {
+                                         "assignments":  {
+                                                             "assignments":  [
+                                                                                 {
+                                                                                     "id":  "16031895-e7a0-4249-b180-6fd15a7f491a",
+                                                                                     "name":  "count",
+                                                                                     "value":  "={{ $(\u0027Limit\u0027).item.json.Output }}",
+                                                                                     "type":  "string"
+                                                                                 }
+                                                                             ]
+                                                         },
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "type":  "n8n-nodes-base.set",
+                      "typeVersion":  3.4,
+                      "position":  [
+                                       3856,
+                                       -176
+                                   ],
+                      "id":  "1c462b04-e42f-4904-b5b0-9109d1f29e96",
+                      "name":  "Response"
+                  }
+              ],
+    "settings":  {
+                     "executionOrder":  "v1",
+                     "binaryMode":  "separate",
+                     "timeSavedMode":  "fixed",
+                     "callerPolicy":  "workflowsFromSameOwner"
+                 },
+    "tags":  [
+
+             ],
+    "meta":  {
+                 "templateCredsSetupCompleted":  true
+             }
+}

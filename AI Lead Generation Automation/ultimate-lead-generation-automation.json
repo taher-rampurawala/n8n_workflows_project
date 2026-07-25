@@ -1,0 +1,942 @@
+{
+    "id":  "jjBpYWq4rqJ1PRGU",
+    "name":  "Ultimate Lead Generation Automation",
+    "active":  true,
+    "isArchived":  false,
+    "connections":  {
+                        "Telegram Trigger":  {
+                                                 "main":  [
+                                                              [
+                                                                  {
+                                                                      "node":  "Switch",
+                                                                      "type":  "main",
+                                                                      "index":  0
+                                                                  }
+                                                              ]
+                                                          ]
+                                             },
+                        "Switch":  {
+                                       "main":  [
+                                                    [
+                                                        {
+                                                            "node":  "Download File",
+                                                            "type":  "main",
+                                                            "index":  0
+                                                        }
+                                                    ],
+                                                    [
+                                                        {
+                                                            "node":  "Text",
+                                                            "type":  "main",
+                                                            "index":  0
+                                                        }
+                                                    ]
+                                                ]
+                                   },
+                        "Download File":  {
+                                              "main":  [
+                                                           [
+                                                               {
+                                                                   "node":  "Transcribe",
+                                                                   "type":  "main",
+                                                                   "index":  0
+                                                               }
+                                                           ]
+                                                       ]
+                                          },
+                        "Transcribe":  {
+                                           "main":  [
+                                                        [
+                                                            {
+                                                                "node":  "If",
+                                                                "type":  "main",
+                                                                "index":  0
+                                                            }
+                                                        ]
+                                                    ]
+                                       },
+                        "OpenAI Chat Model":  {
+                                                  "ai_languageModel":  [
+                                                                           [
+                                                                               {
+                                                                                   "node":  "Lead Agent",
+                                                                                   "type":  "ai_languageModel",
+                                                                                   "index":  0
+                                                                               }
+                                                                           ]
+                                                                       ]
+                                              },
+                        "Text":  {
+                                     "main":  [
+                                                  [
+                                                      {
+                                                          "node":  "If",
+                                                          "type":  "main",
+                                                          "index":  0
+                                                      }
+                                                  ]
+                                              ]
+                                 },
+                        "Lead Agent":  {
+                                           "main":  [
+                                                        [
+                                                            {
+                                                                "node":  "Response",
+                                                                "type":  "main",
+                                                                "index":  0
+                                                            }
+                                                        ]
+                                                    ]
+                                       },
+                        "Lead Scraping":  {
+                                              "ai_tool":  [
+                                                              [
+                                                                  {
+                                                                      "node":  "Lead Agent",
+                                                                      "type":  "ai_tool",
+                                                                      "index":  0
+                                                                  }
+                                                              ]
+                                                          ]
+                                          },
+                        "Simple Memory":  {
+                                              "ai_memory":  [
+                                                                [
+                                                                    {
+                                                                        "node":  "Lead Agent",
+                                                                        "type":  "ai_memory",
+                                                                        "index":  0
+                                                                    }
+                                                                ]
+                                                            ]
+                                          },
+                        "If":  {
+                                   "main":  [
+                                                [
+                                                    {
+                                                        "node":  "Get row(s)",
+                                                        "type":  "main",
+                                                        "index":  0
+                                                    }
+                                                ],
+                                                [
+                                                    {
+                                                        "node":  "Get row(s)1",
+                                                        "type":  "main",
+                                                        "index":  0
+                                                    }
+                                                ]
+                                            ]
+                               },
+                        "Insert row":  {
+                                           "main":  [
+                                                        [
+                                                            {
+                                                                "node":  "Set SessionId",
+                                                                "type":  "main",
+                                                                "index":  0
+                                                            }
+                                                        ]
+                                                    ]
+                                       },
+                        "Get row(s)":  {
+                                           "main":  [
+                                                        [
+                                                            {
+                                                                "node":  "Code in JavaScript",
+                                                                "type":  "main",
+                                                                "index":  0
+                                                            }
+                                                        ]
+                                                    ]
+                                       },
+                        "Code in JavaScript":  {
+                                                   "main":  [
+                                                                [
+                                                                    {
+                                                                        "node":  "Update row(s)",
+                                                                        "type":  "main",
+                                                                        "index":  0
+                                                                    }
+                                                                ]
+                                                            ]
+                                               },
+                        "Update row(s)":  {
+                                              "main":  [
+                                                           [
+                                                               {
+                                                                   "node":  "Limit Update Record",
+                                                                   "type":  "main",
+                                                                   "index":  0
+                                                               }
+                                                           ]
+                                                       ]
+                                          },
+                        "Get row(s)1":  {
+                                            "main":  [
+                                                         [
+                                                             {
+                                                                 "node":  "If1",
+                                                                 "type":  "main",
+                                                                 "index":  0
+                                                             }
+                                                         ]
+                                                     ]
+                                        },
+                        "If1":  {
+                                    "main":  [
+                                                 [
+                                                     {
+                                                         "node":  "Limit Fetch Record",
+                                                         "type":  "main",
+                                                         "index":  0
+                                                     }
+                                                 ],
+                                                 [
+                                                     {
+                                                         "node":  "Insert row",
+                                                         "type":  "main",
+                                                         "index":  0
+                                                     }
+                                                 ]
+                                             ]
+                                },
+                        "Set New SessionId":  {
+                                                  "main":  [
+                                                               [
+                                                                   {
+                                                                       "node":  "Lead Agent",
+                                                                       "type":  "main",
+                                                                       "index":  0
+                                                                   }
+                                                               ]
+                                                           ]
+                                              },
+                        "Set SessionId":  {
+                                              "main":  [
+                                                           [
+                                                               {
+                                                                   "node":  "Lead Agent",
+                                                                   "type":  "main",
+                                                                   "index":  0
+                                                               }
+                                                           ]
+                                                       ]
+                                          },
+                        "Limit Fetch Record":  {
+                                                   "main":  [
+                                                                [
+                                                                    {
+                                                                        "node":  "Set SessionId",
+                                                                        "type":  "main",
+                                                                        "index":  0
+                                                                    }
+                                                                ]
+                                                            ]
+                                               },
+                        "Limit Update Record":  {
+                                                    "main":  [
+                                                                 [
+                                                                     {
+                                                                         "node":  "Set New SessionId",
+                                                                         "type":  "main",
+                                                                         "index":  0
+                                                                     }
+                                                                 ]
+                                                             ]
+                                                }
+                    },
+    "nodes":  [
+                  {
+                      "parameters":  {
+                                         "updates":  [
+                                                         "message"
+                                                     ],
+                                         "additionalFields":  {
+
+                                                              }
+                                     },
+                      "type":  "n8n-nodes-base.telegramTrigger",
+                      "typeVersion":  1.3,
+                      "position":  [
+                                       0,
+                                       80
+                                   ],
+                      "id":  "d3929002-3464-484c-b690-e3287c9af5a2",
+                      "name":  "Telegram Trigger",
+                      "webhookId":  "daf56488-c6ab-467e-be3f-22e6b00bdb63"
+                  },
+                  {
+                      "parameters":  {
+                                         "rules":  {
+                                                       "values":  [
+                                                                      {
+                                                                          "conditions":  {
+                                                                                             "options":  {
+                                                                                                             "caseSensitive":  true,
+                                                                                                             "leftValue":  "",
+                                                                                                             "typeValidation":  "strict",
+                                                                                                             "version":  3
+                                                                                                         },
+                                                                                             "conditions":  [
+                                                                                                                {
+                                                                                                                    "leftValue":  "={{ $json.message.voice.file_id }}",
+                                                                                                                    "rightValue":  "",
+                                                                                                                    "operator":  {
+                                                                                                                                     "type":  "string",
+                                                                                                                                     "operation":  "exists",
+                                                                                                                                     "singleValue":  true
+                                                                                                                                 },
+                                                                                                                    "id":  "41f8b0c8-6bcc-4dd4-9dbf-8af0c4786438"
+                                                                                                                }
+                                                                                                            ],
+                                                                                             "combinator":  "and"
+                                                                                         },
+                                                                          "renameOutput":  true,
+                                                                          "outputKey":  "Voice"
+                                                                      },
+                                                                      {
+                                                                          "conditions":  {
+                                                                                             "options":  {
+                                                                                                             "caseSensitive":  true,
+                                                                                                             "leftValue":  "",
+                                                                                                             "typeValidation":  "strict",
+                                                                                                             "version":  3
+                                                                                                         },
+                                                                                             "conditions":  [
+                                                                                                                {
+                                                                                                                    "id":  "67d7e6ca-659f-49a8-b5d4-bd47934cde51",
+                                                                                                                    "leftValue":  "={{ $json.message.text}}",
+                                                                                                                    "rightValue":  "",
+                                                                                                                    "operator":  {
+                                                                                                                                     "type":  "string",
+                                                                                                                                     "operation":  "exists",
+                                                                                                                                     "singleValue":  true
+                                                                                                                                 }
+                                                                                                                }
+                                                                                                            ],
+                                                                                             "combinator":  "and"
+                                                                                         },
+                                                                          "renameOutput":  true,
+                                                                          "outputKey":  "Text"
+                                                                      }
+                                                                  ]
+                                                   },
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "type":  "n8n-nodes-base.switch",
+                      "typeVersion":  3.4,
+                      "position":  [
+                                       224,
+                                       80
+                                   ],
+                      "id":  "fc99bbc1-60a1-41a3-8604-d606298aa7b0",
+                      "name":  "Switch"
+                  },
+                  {
+                      "parameters":  {
+                                         "resource":  "file",
+                                         "fileId":  "={{$json.message.voice.file_id}}",
+                                         "additionalFields":  {
+
+                                                              }
+                                     },
+                      "type":  "n8n-nodes-base.telegram",
+                      "typeVersion":  1.2,
+                      "position":  [
+                                       448,
+                                       -16
+                                   ],
+                      "id":  "45b35234-985d-40b2-a7a1-1c5b12e3041c",
+                      "name":  "Download File",
+                      "webhookId":  "a9455301-bfa2-437d-9728-75822b168702"
+                  },
+                  {
+                      "parameters":  {
+                                         "resource":  "audio",
+                                         "operation":  "transcribe",
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "type":  "@n8n/n8n-nodes-langchain.openAi",
+                      "typeVersion":  2.3,
+                      "position":  [
+                                       672,
+                                       -16
+                                   ],
+                      "id":  "60c4c433-4559-4251-ad24-f5369ad9dfbf",
+                      "name":  "Transcribe"
+                  },
+                  {
+                      "parameters":  {
+                                         "assignments":  {
+                                                             "assignments":  [
+                                                                                 {
+                                                                                     "id":  "e284f9a7-4b8d-4d4c-b27b-e0e1b0f658bd",
+                                                                                     "name":  "text",
+                                                                                     "value":  "={{ $json.message.text }}",
+                                                                                     "type":  "string"
+                                                                                 }
+                                                                             ]
+                                                         },
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "type":  "n8n-nodes-base.set",
+                      "typeVersion":  3.4,
+                      "position":  [
+                                       672,
+                                       176
+                                   ],
+                      "id":  "58b286f6-c998-4ff1-9201-042f92ab354c",
+                      "name":  "Text"
+                  },
+                  {
+                      "parameters":  {
+                                         "promptType":  "define",
+                                         "text":  "={{ $(\u0027If\u0027).item.json.text}}",
+                                         "options":  {
+                                                         "systemMessage":  "# Overview\n\nYou are **Lead Generator Tango**, an expert AI assistant responsible for researching and scraping high-quality leads from publicly available online sources. Your primary responsibility is to identify businesses, professionals, and decision-makers that match the user\u0027s search criteria by gathering information from social media platforms, company websites, business directories, and other publicly accessible resources.\n\n# Tool\n\n**Tool Name:** Lead Scrapping\n\nUse the **Lead Scrapping** tool to scrape leads into Google Sheets. Call this tool only **once** after gathering all the required information from the user. Always pass the request in the correct JSON format and never call the tool with incomplete or missing information.\n\n**Input JSON**\n\n```json\n{\n  \"email\": \"john.doe@example.com\",\n  \"locations\": [\n    \"Mumbai+India\",\n    \"Bangalore+India\"\n  ],\n  \"businesses\": [\n    \"Software+Development\",\n    \"Information+Technology\"\n  ],\n  \"job_titles\": [\n    \"Software+Engineer\",\n    \"Senior+Software+Engineer\"\n  ]\n}\n```\n\n# Rules\n\n1. Introduce yourself as **Lead Generator Tango** by saying **\"Hi! I\u0027m Lead Generator Tango. What leads would you like to scrape today?\"** only at the beginning of a new conversation or after the application starts a new chat session following a `reset` command.\n2. The application handles the `reset` command by creating a new chat session. When a new conversation starts after a reset, do not reference any previous conversation.\n3. Keep every response short, natural, and conversational.\n4. Ask **only one clarifying question at a time**. Never ask multiple questions or display long checklists in a single response.\n5. Gather information step by step until you have enough to call the **Lead Scrapping** tool.\n6. If the user provides enough information in a single message (such as **Location**, **Business Category/Industry**, and **Job Title/Profession**), do not ask unnecessary follow-up questions. Immediately call the **Lead Scrapping** tool if all required information is available.\n7. Before calling the tool, ensure you have the required information:\n   - **Location**\n   - **Business Category/Industry**\n   - **Job Title/Profession**\n   - **A valid email address**\n8. Ask the user for a **valid email address** so the Google Sheets link containing the scraped leads can be sent to them. Do not call the **Lead Scrapping** tool until a valid email address has been provided.\n9. If the user provides multiple locations, businesses, or job titles, include them as arrays in the tool input.\n10. **Each value in the `locations` array must always contain both the City and the Country in the format `City+Country` (for example: `Sydney+Australia`, `Mumbai+India`, `New+York+United+States`). Never store only the city or only the country. If the user provides only a city, ask which country it belongs to. If the user provides only a country, ask which city they want to target. Continue the conversation until every location is complete before calling the tool.**\n11. Always replace spaces with the `+` character in every search value before calling the tool. Examples:\n    - `Senior Software Developer` â†’ `Senior+Software+Developer`\n    - `Software Development` â†’ `Software+Development`\n    - `New York United States` â†’ `New+York+United+States`\n12. Always require a valid **LinkedIn profile URL** when researching an individual lead. If no LinkedIn URL is provided, ask the user for it before starting the research.\n13. Research only **one individual lead at a time** unless the user explicitly requests multiple.\n14. Never guess, infer, or fabricate any information. Use only information explicitly provided by the user or obtained from publicly available sources.\n15. Always call the **Lead Scrapping** tool exactly **once** using the correct JSON format after all required information has been collected.\n16. Include the user\u0027s email address in the `email` field of the JSON payload passed to the tool.\n17. Do not call any tool if required information is missing. Ask only the **next most relevant question** instead of asking for everything at once.\n18. Do not explain your internal reasoning, rules, or tool usage unless the user asks.\n19. Prioritize data accuracy and relevance over the number of leads returned.\n\n# Example Conversation\n\n**Assistant:** Hi! I\u0027m **Lead Generator Tango**. What leads would you like to scrape today?\n\n**User:** I want software developers in Sydney.\n\n**Assistant:** Which country is Sydney in for this search?\n\n**User:** Australia.\n\n**Assistant:** What email address should I use to send you the Google Sheets link containing the scraped leads?\n\n**User:** john.doe@example.com\n\n**Assistant:** Perfect! I\u0027ll now scrape the leads.\n\n**Tool Call: Lead Scrapping**\n\n```json\n{\n  \"email\": \"john.doe@example.com\",\n  \"locations\": [\n    \"Sydney+Australia\"\n  ],\n  \"businesses\": [\n    \"Software+Development\"\n  ],\n  \"job_titles\": [\n    \"Software+Developer\"\n  ]\n}\n```\n\n**Tool Response**\n\n```json\n{\n  \"count\": 157\n}\n```\n\n**Assistant:** Done! Successfully scraped **157 leads**. The Google Sheets link will be sent to **john.doe@example.com**.\n\n---\n\n**User:** Research this lead.\n\n**Assistant:** Please provide the LinkedIn profile URL.\n\n**User:** https://www.linkedin.com/in/john-doe/\n\n**Assistant:** Thanks! I\u0027ll now research this lead using publicly available information and return only verified details.\n\n---\n\n**User:** reset\n\n**System:** A new chat session is created by the application.\n\n**Assistant:** Hi! I\u0027m **Lead Generator Tango**. What leads would you like to scrape today?"
+                                                     }
+                                     },
+                      "type":  "@n8n/n8n-nodes-langchain.agent",
+                      "typeVersion":  3.1,
+                      "position":  [
+                                       2304,
+                                       80
+                                   ],
+                      "id":  "2ae8817d-839e-435e-890b-a7df7419b689",
+                      "name":  "Lead Agent"
+                  },
+                  {
+                      "parameters":  {
+                                         "model":  {
+                                                       "__rl":  true,
+                                                       "mode":  "list",
+                                                       "value":  "gpt-5-mini"
+                                                   },
+                                         "builtInTools":  {
+
+                                                          },
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "type":  "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+                      "typeVersion":  1.3,
+                      "position":  [
+                                       2240,
+                                       304
+                                   ],
+                      "id":  "a3ee6a56-99e5-438d-891b-7aef5b9b84d2",
+                      "name":  "OpenAI Chat Model"
+                  },
+                  {
+                      "parameters":  {
+                                         "chatId":  "={{ $(\u0027Telegram Trigger\u0027).item.json.message.chat.id }}",
+                                         "text":  "={{ $json.output }}",
+                                         "additionalFields":  {
+                                                                  "appendAttribution":  false
+                                                              }
+                                     },
+                      "type":  "n8n-nodes-base.telegram",
+                      "typeVersion":  1.2,
+                      "position":  [
+                                       2704,
+                                       80
+                                   ],
+                      "id":  "20fe541f-78b1-471e-b89f-48c9675ff4d6",
+                      "name":  "Response",
+                      "webhookId":  "68d43f7e-3c17-4ec8-ba66-c76137a21e20"
+                  },
+                  {
+                      "parameters":  {
+                                         "description":  "Call this tool to scrape leads into Google Sheets.\n\nOnly call this tool **once** after gathering all the required information from the user.\n\nPass the arguments as a **JSON object**, not as a JSON-encoded string.\n\nDo not wrap the JSON inside an `input` field or any other wrapper object unless the tool schema explicitly requires it.\n\nThe tool input must exactly match this structure:\n\n{\n  \"email\": \"\u003cuser email Id\u003e\",\n  \"locations\": [\n    \"\u003ccity, state, or country\u003e\"\n  ],\n  \"businesses\": [\n    \"\u003cbusiness category or industry\u003e\"\n  ],\n  \"job_titles\": [\n    \"\u003cjob title or profession\u003e\"\n  ]\n}",
+                                         "workflowId":  {
+                                                            "__rl":  true,
+                                                            "value":  "9W3cynfCEZMql0Yh",
+                                                            "mode":  "list",
+                                                            "cachedResultUrl":  "/workflow/9W3cynfCEZMql0Yh",
+                                                            "cachedResultName":  "Lead Scraping"
+                                                        },
+                                         "workflowInputs":  {
+                                                                "mappingMode":  "defineBelow",
+                                                                "value":  {
+                                                                              "email":  "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI(\u0027email\u0027, ``, \u0027string\u0027) }}",
+                                                                              "locations":  "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI(\u0027locations\u0027, ``, \u0027json\u0027) }}",
+                                                                              "businesses":  "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI(\u0027businesses\u0027, ``, \u0027json\u0027) }}",
+                                                                              "job_titles":  "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI(\u0027job_titles\u0027, ``, \u0027json\u0027) }}"
+                                                                          },
+                                                                "matchingColumns":  [
+
+                                                                                    ],
+                                                                "schema":  [
+                                                                               {
+                                                                                   "id":  "email",
+                                                                                   "displayName":  "email",
+                                                                                   "required":  false,
+                                                                                   "defaultMatch":  false,
+                                                                                   "display":  true,
+                                                                                   "canBeUsedToMatch":  true,
+                                                                                   "type":  "string",
+                                                                                   "removed":  false
+                                                                               },
+                                                                               {
+                                                                                   "id":  "locations",
+                                                                                   "displayName":  "locations",
+                                                                                   "required":  false,
+                                                                                   "defaultMatch":  false,
+                                                                                   "display":  true,
+                                                                                   "canBeUsedToMatch":  true,
+                                                                                   "type":  "array",
+                                                                                   "removed":  false
+                                                                               },
+                                                                               {
+                                                                                   "id":  "businesses",
+                                                                                   "displayName":  "businesses",
+                                                                                   "required":  false,
+                                                                                   "defaultMatch":  false,
+                                                                                   "display":  true,
+                                                                                   "canBeUsedToMatch":  true,
+                                                                                   "type":  "array",
+                                                                                   "removed":  false
+                                                                               },
+                                                                               {
+                                                                                   "id":  "job_titles",
+                                                                                   "displayName":  "job_titles",
+                                                                                   "required":  false,
+                                                                                   "defaultMatch":  false,
+                                                                                   "display":  true,
+                                                                                   "canBeUsedToMatch":  true,
+                                                                                   "type":  "array",
+                                                                                   "removed":  false
+                                                                               }
+                                                                           ],
+                                                                "attemptToConvertTypes":  false,
+                                                                "convertFieldsToString":  false
+                                                            }
+                                     },
+                      "type":  "@n8n/n8n-nodes-langchain.toolWorkflow",
+                      "typeVersion":  2.2,
+                      "position":  [
+                                       2496,
+                                       304
+                                   ],
+                      "id":  "22ecd322-da3a-47e5-87ce-40293e52fd23",
+                      "name":  "Lead Scraping"
+                  },
+                  {
+                      "parameters":  {
+                                         "sessionIdType":  "customKey",
+                                         "sessionKey":  "={{ $json.sessionId }}",
+                                         "contextWindowLength":  10
+                                     },
+                      "type":  "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+                      "typeVersion":  1.4,
+                      "position":  [
+                                       2368,
+                                       304
+                                   ],
+                      "id":  "03095587-cf2f-4bc5-a9c0-c092e22e83a8",
+                      "name":  "Simple Memory"
+                  },
+                  {
+                      "parameters":  {
+                                         "dataTableId":  {
+                                                             "__rl":  true,
+                                                             "value":  "TJxozrubU4bzloQk",
+                                                             "mode":  "list",
+                                                             "cachedResultName":  "chat_sessions",
+                                                             "cachedResultUrl":  "/projects/9BHEe9JfcXwcBzOl/datatables/TJxozrubU4bzloQk"
+                                                         },
+                                         "columns":  {
+                                                         "mappingMode":  "defineBelow",
+                                                         "value":  {
+                                                                       "chatId":  "={{ $(\u0027Telegram Trigger\u0027).item.json.message.chat.id }}",
+                                                                       "version":  "1"
+                                                                   },
+                                                         "matchingColumns":  [
+
+                                                                             ],
+                                                         "schema":  [
+                                                                        {
+                                                                            "id":  "chatId",
+                                                                            "displayName":  "chatId",
+                                                                            "required":  false,
+                                                                            "defaultMatch":  false,
+                                                                            "display":  true,
+                                                                            "type":  "string",
+                                                                            "readOnly":  false,
+                                                                            "removed":  false
+                                                                        },
+                                                                        {
+                                                                            "id":  "version",
+                                                                            "displayName":  "version",
+                                                                            "required":  false,
+                                                                            "defaultMatch":  false,
+                                                                            "display":  true,
+                                                                            "type":  "string",
+                                                                            "readOnly":  false,
+                                                                            "removed":  false
+                                                                        }
+                                                                    ],
+                                                         "attemptToConvertTypes":  false,
+                                                         "convertFieldsToString":  false
+                                                     },
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "type":  "n8n-nodes-base.dataTable",
+                      "typeVersion":  1.1,
+                      "position":  [
+                                       1792,
+                                       272
+                                   ],
+                      "id":  "e4479d96-e2c8-43c1-b6de-00a37273c0a7",
+                      "name":  "Insert row"
+                  },
+                  {
+                      "parameters":  {
+                                         "conditions":  {
+                                                            "options":  {
+                                                                            "caseSensitive":  true,
+                                                                            "leftValue":  "",
+                                                                            "typeValidation":  "strict",
+                                                                            "version":  3
+                                                                        },
+                                                            "conditions":  [
+                                                                               {
+                                                                                   "id":  "bd54d9bf-dd6a-4b9d-9795-e273f567c8c2",
+                                                                                   "leftValue":  "={{ $json.text }}",
+                                                                                   "rightValue":  "/reset",
+                                                                                   "operator":  {
+                                                                                                    "type":  "string",
+                                                                                                    "operation":  "equals",
+                                                                                                    "name":  "filter.operator.equals"
+                                                                                                }
+                                                                               },
+                                                                               {
+                                                                                   "id":  "45749a7e-6c9b-4551-9b4d-f4926fd49cfb",
+                                                                                   "leftValue":  "={{ $json.text }}",
+                                                                                   "rightValue":  "reset",
+                                                                                   "operator":  {
+                                                                                                    "type":  "string",
+                                                                                                    "operation":  "equals",
+                                                                                                    "name":  "filter.operator.equals"
+                                                                                                }
+                                                                               },
+                                                                               {
+                                                                                   "id":  "f3f0c6e3-54a7-4e78-a812-8d275ea51b33",
+                                                                                   "leftValue":  "={{ $json.text }}",
+                                                                                   "rightValue":  "Reset",
+                                                                                   "operator":  {
+                                                                                                    "type":  "string",
+                                                                                                    "operation":  "equals",
+                                                                                                    "name":  "filter.operator.equals"
+                                                                                                }
+                                                                               },
+                                                                               {
+                                                                                   "id":  "5aa17ed2-d58c-4733-8a6b-d1050669c649",
+                                                                                   "leftValue":  "={{ $json.text }}",
+                                                                                   "rightValue":  "=Reset",
+                                                                                   "operator":  {
+                                                                                                    "type":  "string",
+                                                                                                    "operation":  "contains"
+                                                                                                }
+                                                                               }
+                                                                           ],
+                                                            "combinator":  "or"
+                                                        },
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "type":  "n8n-nodes-base.if",
+                      "typeVersion":  2.3,
+                      "position":  [
+                                       896,
+                                       80
+                                   ],
+                      "id":  "93772a2f-6e65-4a51-85a2-ce83abeafcae",
+                      "name":  "If"
+                  },
+                  {
+                      "parameters":  {
+                                         "operation":  "get",
+                                         "dataTableId":  {
+                                                             "__rl":  true,
+                                                             "value":  "TJxozrubU4bzloQk",
+                                                             "mode":  "list",
+                                                             "cachedResultName":  "chat_sessions",
+                                                             "cachedResultUrl":  "/projects/9BHEe9JfcXwcBzOl/datatables/TJxozrubU4bzloQk"
+                                                         },
+                                         "matchType":  "allConditions",
+                                         "filters":  {
+                                                         "conditions":  [
+                                                                            {
+                                                                                "keyName":  "chatId",
+                                                                                "keyValue":  "={{ $(\u0027Telegram Trigger\u0027).item.json.message.chat.id }}"
+                                                                            }
+                                                                        ]
+                                                     }
+                                     },
+                      "type":  "n8n-nodes-base.dataTable",
+                      "typeVersion":  1.1,
+                      "position":  [
+                                       1120,
+                                       -112
+                                   ],
+                      "id":  "286d6961-7f36-40f1-b68e-e9af8342f0f9",
+                      "name":  "Get row(s)"
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "const version = Number($input.first().json.version) + 1;\n\nreturn [{\n  json: {\n    chatId: $input.first().json.chatId,\n    version: version\n  }\n}];"
+                                     },
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       1344,
+                                       -112
+                                   ],
+                      "id":  "079237d2-ffd4-46d8-a243-7c2b3faf6601",
+                      "name":  "Code in JavaScript"
+                  },
+                  {
+                      "parameters":  {
+                                         "operation":  "update",
+                                         "dataTableId":  {
+                                                             "__rl":  true,
+                                                             "value":  "TJxozrubU4bzloQk",
+                                                             "mode":  "list",
+                                                             "cachedResultName":  "chat_sessions",
+                                                             "cachedResultUrl":  "/projects/9BHEe9JfcXwcBzOl/datatables/TJxozrubU4bzloQk"
+                                                         },
+                                         "filters":  {
+                                                         "conditions":  [
+                                                                            {
+                                                                                "keyName":  "chatId",
+                                                                                "keyValue":  "={{ $json.chatId }}"
+                                                                            }
+                                                                        ]
+                                                     },
+                                         "columns":  {
+                                                         "mappingMode":  "defineBelow",
+                                                         "value":  {
+                                                                       "chatId":  "={{ $json.chatId }}",
+                                                                       "version":  "={{ $json.version }}"
+                                                                   },
+                                                         "matchingColumns":  [
+
+                                                                             ],
+                                                         "schema":  [
+                                                                        {
+                                                                            "id":  "chatId",
+                                                                            "displayName":  "chatId",
+                                                                            "required":  false,
+                                                                            "defaultMatch":  false,
+                                                                            "display":  true,
+                                                                            "type":  "string",
+                                                                            "readOnly":  false,
+                                                                            "removed":  false
+                                                                        },
+                                                                        {
+                                                                            "id":  "version",
+                                                                            "displayName":  "version",
+                                                                            "required":  false,
+                                                                            "defaultMatch":  false,
+                                                                            "display":  true,
+                                                                            "type":  "string",
+                                                                            "readOnly":  false,
+                                                                            "removed":  false
+                                                                        }
+                                                                    ],
+                                                         "attemptToConvertTypes":  false,
+                                                         "convertFieldsToString":  false
+                                                     },
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "type":  "n8n-nodes-base.dataTable",
+                      "typeVersion":  1.1,
+                      "position":  [
+                                       1568,
+                                       -112
+                                   ],
+                      "id":  "6e646810-3b2e-474f-8a24-121b88b9320f",
+                      "name":  "Update row(s)"
+                  },
+                  {
+                      "parameters":  {
+                                         "operation":  "get",
+                                         "dataTableId":  {
+                                                             "__rl":  true,
+                                                             "value":  "TJxozrubU4bzloQk",
+                                                             "mode":  "list",
+                                                             "cachedResultName":  "chat_sessions",
+                                                             "cachedResultUrl":  "/projects/9BHEe9JfcXwcBzOl/datatables/TJxozrubU4bzloQk"
+                                                         },
+                                         "matchType":  "allConditions",
+                                         "filters":  {
+                                                         "conditions":  [
+                                                                            {
+                                                                                "keyName":  "chatId",
+                                                                                "keyValue":  "={{ $(\u0027Telegram Trigger\u0027).item.json.message.chat.id }}"
+                                                                            }
+                                                                        ]
+                                                     }
+                                     },
+                      "type":  "n8n-nodes-base.dataTable",
+                      "typeVersion":  1.1,
+                      "position":  [
+                                       1344,
+                                       176
+                                   ],
+                      "id":  "ac437846-25b4-412a-a2eb-8c611597d0b4",
+                      "name":  "Get row(s)1",
+                      "alwaysOutputData":  true
+                  },
+                  {
+                      "parameters":  {
+                                         "conditions":  {
+                                                            "options":  {
+                                                                            "caseSensitive":  true,
+                                                                            "leftValue":  "",
+                                                                            "typeValidation":  "loose",
+                                                                            "version":  3
+                                                                        },
+                                                            "conditions":  [
+                                                                               {
+                                                                                   "id":  "aacd3c33-74bb-4c3d-9ea1-b72fa0855cc1",
+                                                                                   "leftValue":  "={{ $json.chatId }}",
+                                                                                   "rightValue":  "",
+                                                                                   "operator":  {
+                                                                                                    "type":  "string",
+                                                                                                    "operation":  "exists",
+                                                                                                    "singleValue":  true
+                                                                                                }
+                                                                               },
+                                                                               {
+                                                                                   "id":  "81d80874-fc51-4560-a1d6-d17cb891fa36",
+                                                                                   "leftValue":  "={{ $json.chatId }}",
+                                                                                   "rightValue":  "",
+                                                                                   "operator":  {
+                                                                                                    "type":  "string",
+                                                                                                    "operation":  "notEmpty",
+                                                                                                    "singleValue":  true
+                                                                                                }
+                                                                               }
+                                                                           ],
+                                                            "combinator":  "and"
+                                                        },
+                                         "looseTypeValidation":  true,
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "type":  "n8n-nodes-base.if",
+                      "typeVersion":  2.3,
+                      "position":  [
+                                       1568,
+                                       176
+                                   ],
+                      "id":  "6db5c959-713c-4128-b96f-44f139f9ce13",
+                      "name":  "If1",
+                      "alwaysOutputData":  false
+                  },
+                  {
+                      "parameters":  {
+                                         "assignments":  {
+                                                             "assignments":  [
+                                                                                 {
+                                                                                     "id":  "e73c46b0-2d7e-48ac-9f11-778dabdfe98d",
+                                                                                     "name":  "sessionId",
+                                                                                     "value":  "={{ $json.chatId + \"-\" + $json.version }}",
+                                                                                     "type":  "string"
+                                                                                 }
+                                                                             ]
+                                                         },
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "type":  "n8n-nodes-base.set",
+                      "typeVersion":  3.4,
+                      "position":  [
+                                       2016,
+                                       -112
+                                   ],
+                      "id":  "0ea4de64-581c-4350-bc96-8c9c23067085",
+                      "name":  "Set New SessionId"
+                  },
+                  {
+                      "parameters":  {
+                                         "assignments":  {
+                                                             "assignments":  [
+                                                                                 {
+                                                                                     "id":  "7812d4cc-7f59-4b43-a80a-cf3d375c5ddf",
+                                                                                     "name":  "=sessionId",
+                                                                                     "value":  "={{ $json.chatId + \"-\" + $json.version }}",
+                                                                                     "type":  "string"
+                                                                                 }
+                                                                             ]
+                                                         },
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "type":  "n8n-nodes-base.set",
+                      "typeVersion":  3.4,
+                      "position":  [
+                                       2016,
+                                       176
+                                   ],
+                      "id":  "4c30c476-0dcd-45ee-83da-a200c5aad611",
+                      "name":  "Set SessionId"
+                  },
+                  {
+                      "parameters":  {
+
+                                     },
+                      "type":  "n8n-nodes-base.limit",
+                      "typeVersion":  1,
+                      "position":  [
+                                       1792,
+                                       80
+                                   ],
+                      "id":  "5eaa914d-3b77-4ea9-8b5e-51aa28e4f2f7",
+                      "name":  "Limit Fetch Record"
+                  },
+                  {
+                      "parameters":  {
+
+                                     },
+                      "type":  "n8n-nodes-base.limit",
+                      "typeVersion":  1,
+                      "position":  [
+                                       1792,
+                                       -112
+                                   ],
+                      "id":  "e2cd6c61-351a-4cce-b83a-f521d73eba73",
+                      "name":  "Limit Update Record"
+                  }
+              ],
+    "settings":  {
+                     "executionOrder":  "v1",
+                     "binaryMode":  "separate",
+                     "timeSavedMode":  "fixed",
+                     "callerPolicy":  "workflowsFromSameOwner"
+                 },
+    "tags":  [
+
+             ],
+    "meta":  {
+                 "templateCredsSetupCompleted":  true
+             }
+}
