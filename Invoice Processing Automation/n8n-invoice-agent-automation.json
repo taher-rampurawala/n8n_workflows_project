@@ -1,0 +1,508 @@
+{
+    "id":  "KLTijaAiQCJDmVxI",
+    "name":  "n8n Invoice Agent Automation",
+    "active":  false,
+    "isArchived":  false,
+    "connections":  {
+                        "Google Drive Trigger":  {
+                                                     "main":  [
+                                                                  [
+                                                                      {
+                                                                          "node":  "Download file",
+                                                                          "type":  "main",
+                                                                          "index":  0
+                                                                      }
+                                                                  ]
+                                                              ]
+                                                 },
+                        "Download file":  {
+                                              "main":  [
+                                                           [
+                                                               {
+                                                                   "node":  "Extract from File",
+                                                                   "type":  "main",
+                                                                   "index":  0
+                                                               }
+                                                           ]
+                                                       ]
+                                          },
+                        "Extract from File":  {
+                                                  "main":  [
+                                                               [
+                                                                   {
+                                                                       "node":  "HTTP Request",
+                                                                       "type":  "main",
+                                                                       "index":  0
+                                                                   }
+                                                               ]
+                                                           ]
+                                              },
+                        "HTTP Request":  {
+                                             "main":  [
+                                                          [
+                                                              {
+                                                                  "node":  "Check Error",
+                                                                  "type":  "main",
+                                                                  "index":  0
+                                                              }
+                                                          ]
+                                                      ]
+                                         },
+                        "Code in JavaScript":  {
+                                                   "main":  [
+                                                                [
+                                                                    {
+                                                                        "node":  "Append row in sheet",
+                                                                        "type":  "main",
+                                                                        "index":  0
+                                                                    }
+                                                                ]
+                                                            ]
+                                               },
+                        "Append row in sheet":  {
+                                                    "main":  [
+                                                                 [
+                                                                     {
+                                                                         "node":  "Move to Processed Folder",
+                                                                         "type":  "main",
+                                                                         "index":  0
+                                                                     }
+                                                                 ]
+                                                             ]
+                                                },
+                        "Move to Processed Folder":  {
+                                                         "main":  [
+                                                                      [
+                                                                          {
+                                                                              "node":  "Update Filename",
+                                                                              "type":  "main",
+                                                                              "index":  0
+                                                                          }
+                                                                      ]
+                                                                  ]
+                                                     },
+                        "Check Error":  {
+                                            "main":  [
+                                                         [
+                                                             {
+                                                                 "node":  "Code in JavaScript",
+                                                                 "type":  "main",
+                                                                 "index":  0
+                                                             }
+                                                         ],
+                                                         [
+                                                             {
+                                                                 "node":  "Move to Error Invoice",
+                                                                 "type":  "main",
+                                                                 "index":  0
+                                                             }
+                                                         ]
+                                                     ]
+                                        }
+                    },
+    "nodes":  [
+                  {
+                      "parameters":  {
+                                         "pollTimes":  {
+                                                           "item":  [
+                                                                        {
+                                                                            "mode":  "everyMinute"
+                                                                        }
+                                                                    ]
+                                                       },
+                                         "triggerOn":  "specificFolder",
+                                         "folderToWatch":  {
+                                                               "__rl":  true,
+                                                               "value":  "11gVeSx5H2SVUGHQ-NVXETOuC2nGtUM1c",
+                                                               "mode":  "list",
+                                                               "cachedResultName":  "Unprocessed Invoice",
+                                                               "cachedResultUrl":  "https://drive.google.com/drive/folders/11gVeSx5H2SVUGHQ-NVXETOuC2nGtUM1c"
+                                                           },
+                                         "event":  "fileCreated",
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "type":  "n8n-nodes-base.googleDriveTrigger",
+                      "typeVersion":  1,
+                      "position":  [
+                                       0,
+                                       -64
+                                   ],
+                      "id":  "02525c3c-7ab5-4803-a088-7cdbf091d350",
+                      "name":  "Google Drive Trigger"
+                  },
+                  {
+                      "parameters":  {
+                                         "operation":  "download",
+                                         "fileId":  {
+                                                        "__rl":  true,
+                                                        "value":  "={{ $json.id }}",
+                                                        "mode":  "id"
+                                                    },
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "type":  "n8n-nodes-base.googleDrive",
+                      "typeVersion":  3,
+                      "position":  [
+                                       224,
+                                       -64
+                                   ],
+                      "id":  "8bae27a3-4815-4c09-869e-c39d0385f702",
+                      "name":  "Download file"
+                  },
+                  {
+                      "parameters":  {
+                                         "method":  "POST",
+                                         "url":  "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=YOUR_GOOGLE_API_KEY",
+                                         "sendQuery":  true,
+                                         "queryParameters":  {
+                                                                 "parameters":  [
+                                                                                    {
+                                                                                        "name":  "key",
+                                                                                        "value":  "YOUR_GOOGLE_API_KEY"
+                                                                                    }
+                                                                                ]
+                                                             },
+                                         "sendHeaders":  true,
+                                         "headerParameters":  {
+                                                                  "parameters":  [
+                                                                                     {
+                                                                                         "name":  "Content-Type",
+                                                                                         "value":  "application/json"
+                                                                                     }
+                                                                                 ]
+                                                              },
+                                         "sendBody":  true,
+                                         "specifyBody":  "json",
+                                         "jsonBody":  "={{\n{\n  systemInstruction: {\n    parts: [\n      {\n        text: \"You are an OCR document extraction engine. Your only job is to extract structured data and return a single valid JSON object. Never return Markdown, code fences, explanations, comments, or additional text.\"\n      }\n    ]\n  },\n  contents: [\n    {\n      parts: [\n        {\n          text: `Extract the information from the attached invoice or receipt.\n\nRules:\n- Read only information visible in the document.\n- Do not guess or infer missing values.\n- If a value is missing, use JSON null.\n- Convert dates to YYYY-MM-DD.\n- Return monetary values as JSON numbers without currency symbols.\n- Sum all taxes into total_tax.\n- Choose the best CRA expense category.\n- The response MUST start with { and end with }.\n- Return exactly one valid JSON object.\n\nRequired fields:\n- date\n- invoice_number\n- supplier_name\n- supplier_tax_id\n- buyer_name\n- cra_expense_category\n- description_summary\n- subtotal\n- total_tax\n- total_paid\n- payment_method\n- payment_reference`\n        },\n        {\n          inlineData: {\n            mimeType: $(\u0027Download file\u0027).item.json.mimeType,\n            data: $json.data\n          }\n        }\n      ]\n    }\n  ],\n  generationConfig: {\n    temperature: 0,\n    responseMimeType: \"application/json\",\n    responseSchema: {\n      type: \"OBJECT\",\n      properties: {\n        date: { type: \"STRING\", nullable: true },\n        invoice_number: { type: \"STRING\", nullable: true },\n        supplier_name: { type: \"STRING\", nullable: true },\n        supplier_tax_id: { type: \"STRING\", nullable: true },\n        buyer_name: { type: \"STRING\", nullable: true },\n        cra_expense_category: { type: \"STRING\", nullable: true },\n        description_summary: { type: \"STRING\", nullable: true },\n        subtotal: { type: \"NUMBER\", nullable: true },\n        total_tax: { type: \"NUMBER\", nullable: true },\n        total_paid: { type: \"NUMBER\", nullable: true },\n        payment_method: { type: \"STRING\", nullable: true },\n        payment_reference: { type: \"STRING\", nullable: true }\n      },\n      required: [\n        \"date\",\n        \"invoice_number\",\n        \"supplier_name\",\n        \"supplier_tax_id\",\n        \"buyer_name\",\n        \"cra_expense_category\",\n        \"description_summary\",\n        \"subtotal\",\n        \"total_tax\",\n        \"total_paid\",\n        \"payment_method\",\n        \"payment_reference\"\n      ]\n    }\n  }\n}\n}}",
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "type":  "n8n-nodes-base.httpRequest",
+                      "typeVersion":  4.4,
+                      "position":  [
+                                       672,
+                                       -64
+                                   ],
+                      "id":  "98794348-f295-4034-b01b-4ae8a1a3e0d0",
+                      "name":  "HTTP Request"
+                  },
+                  {
+                      "parameters":  {
+                                         "operation":  "binaryToPropery",
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "type":  "n8n-nodes-base.extractFromFile",
+                      "typeVersion":  1.1,
+                      "position":  [
+                                       448,
+                                       -64
+                                   ],
+                      "id":  "5cad222a-377b-4123-8fb1-15a40238ff29",
+                      "name":  "Extract from File"
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "// Retrieve the text string returned by Gemini\nconst rawText = $input.item.json.candidates[0].content.parts[0].text;\n\n// Parse the text into a standard JavaScript object\nconst parsedData = JSON.parse(rawText);\n\n// Return the parsed object directly so its keys become root-level fields in n8n\nreturn parsedData;"
+                                     },
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       1120,
+                                       -160
+                                   ],
+                      "id":  "99aaff04-8a71-48c7-8089-cfd8734d902c",
+                      "name":  "Code in JavaScript"
+                  },
+                  {
+                      "parameters":  {
+                                         "operation":  "append",
+                                         "documentId":  {
+                                                            "__rl":  true,
+                                                            "value":  "1AYiQiPlfC0dMg355Gy7VZAKt8Oy7_csugCDWtd_efcY",
+                                                            "mode":  "list",
+                                                            "cachedResultName":  "Invoice Data Maintenance Sheet",
+                                                            "cachedResultUrl":  "https://docs.google.com/spreadsheets/d/1AYiQiPlfC0dMg355Gy7VZAKt8Oy7_csugCDWtd_efcY/edit?usp=drivesdk"
+                                                        },
+                                         "sheetName":  {
+                                                           "__rl":  true,
+                                                           "value":  "gid=0",
+                                                           "mode":  "list",
+                                                           "cachedResultName":  "Invoice Data",
+                                                           "cachedResultUrl":  "https://docs.google.com/spreadsheets/d/1AYiQiPlfC0dMg355Gy7VZAKt8Oy7_csugCDWtd_efcY/edit#gid=0"
+                                                       },
+                                         "columns":  {
+                                                         "mappingMode":  "defineBelow",
+                                                         "value":  {
+                                                                       "Date":  "={{ $json.date }}",
+                                                                       "Invoice ID":  "={{ $json.invoice_number }}",
+                                                                       "Vendor/Merchant":  "={{ $json.supplier_name }}",
+                                                                       "Expense Type":  "={{ $json.cra_expense_category }}",
+                                                                       "Description":  "={{ $json.description_summary }}",
+                                                                       "Amount":  "={{ $json.subtotal }}",
+                                                                       "Total Tax":  "={{ $json.total_tax }}",
+                                                                       "Payment Method":  "={{ $json.payment_method }}",
+                                                                       "Status":  "Processed",
+                                                                       "Processed Date":  "={{$now.format(\u0027yyyy-MM-dd\u0027)}}",
+                                                                       "Receipt Location":  "={{ $(\u0027Download file\u0027).item.json.webViewLink }}"
+                                                                   },
+                                                         "matchingColumns":  [
+
+                                                                             ],
+                                                         "schema":  [
+                                                                        {
+                                                                            "id":  "Date",
+                                                                            "displayName":  "Date",
+                                                                            "required":  false,
+                                                                            "defaultMatch":  false,
+                                                                            "display":  true,
+                                                                            "type":  "string",
+                                                                            "canBeUsedToMatch":  true
+                                                                        },
+                                                                        {
+                                                                            "id":  "Invoice ID",
+                                                                            "displayName":  "Invoice ID",
+                                                                            "required":  false,
+                                                                            "defaultMatch":  false,
+                                                                            "display":  true,
+                                                                            "type":  "string",
+                                                                            "canBeUsedToMatch":  true
+                                                                        },
+                                                                        {
+                                                                            "id":  "Vendor/Merchant",
+                                                                            "displayName":  "Vendor/Merchant",
+                                                                            "required":  false,
+                                                                            "defaultMatch":  false,
+                                                                            "display":  true,
+                                                                            "type":  "string",
+                                                                            "canBeUsedToMatch":  true
+                                                                        },
+                                                                        {
+                                                                            "id":  "Expense Type",
+                                                                            "displayName":  "Expense Type",
+                                                                            "required":  false,
+                                                                            "defaultMatch":  false,
+                                                                            "display":  true,
+                                                                            "type":  "string",
+                                                                            "canBeUsedToMatch":  true
+                                                                        },
+                                                                        {
+                                                                            "id":  "Description",
+                                                                            "displayName":  "Description",
+                                                                            "required":  false,
+                                                                            "defaultMatch":  false,
+                                                                            "display":  true,
+                                                                            "type":  "string",
+                                                                            "canBeUsedToMatch":  true
+                                                                        },
+                                                                        {
+                                                                            "id":  "Amount",
+                                                                            "displayName":  "Amount",
+                                                                            "required":  false,
+                                                                            "defaultMatch":  false,
+                                                                            "display":  true,
+                                                                            "type":  "string",
+                                                                            "canBeUsedToMatch":  true
+                                                                        },
+                                                                        {
+                                                                            "id":  "Total Tax",
+                                                                            "displayName":  "Total Tax",
+                                                                            "required":  false,
+                                                                            "defaultMatch":  false,
+                                                                            "display":  true,
+                                                                            "type":  "string",
+                                                                            "canBeUsedToMatch":  true
+                                                                        },
+                                                                        {
+                                                                            "id":  "Payment Method",
+                                                                            "displayName":  "Payment Method",
+                                                                            "required":  false,
+                                                                            "defaultMatch":  false,
+                                                                            "display":  true,
+                                                                            "type":  "string",
+                                                                            "canBeUsedToMatch":  true
+                                                                        },
+                                                                        {
+                                                                            "id":  "Receipt Location",
+                                                                            "displayName":  "Receipt Location",
+                                                                            "required":  false,
+                                                                            "defaultMatch":  false,
+                                                                            "display":  true,
+                                                                            "type":  "string",
+                                                                            "canBeUsedToMatch":  true
+                                                                        },
+                                                                        {
+                                                                            "id":  "Status",
+                                                                            "displayName":  "Status",
+                                                                            "required":  false,
+                                                                            "defaultMatch":  false,
+                                                                            "display":  true,
+                                                                            "type":  "string",
+                                                                            "canBeUsedToMatch":  true
+                                                                        },
+                                                                        {
+                                                                            "id":  "Processed Date",
+                                                                            "displayName":  "Processed Date",
+                                                                            "required":  false,
+                                                                            "defaultMatch":  false,
+                                                                            "display":  true,
+                                                                            "type":  "string",
+                                                                            "canBeUsedToMatch":  true
+                                                                        }
+                                                                    ],
+                                                         "attemptToConvertTypes":  false,
+                                                         "convertFieldsToString":  false
+                                                     },
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "type":  "n8n-nodes-base.googleSheets",
+                      "typeVersion":  4.7,
+                      "position":  [
+                                       1344,
+                                       -160
+                                   ],
+                      "id":  "e890e1c7-ef14-4995-ba9d-51a23fd57535",
+                      "name":  "Append row in sheet"
+                  },
+                  {
+                      "parameters":  {
+                                         "operation":  "move",
+                                         "fileId":  {
+                                                        "__rl":  true,
+                                                        "value":  "={{ $(\u0027Download file\u0027).item.json.id }}",
+                                                        "mode":  "id"
+                                                    },
+                                         "driveId":  {
+                                                         "__rl":  true,
+                                                         "value":  "My Drive",
+                                                         "mode":  "list",
+                                                         "cachedResultName":  "My Drive",
+                                                         "cachedResultUrl":  "https://drive.google.com/drive/my-drive"
+                                                     },
+                                         "folderId":  {
+                                                          "__rl":  true,
+                                                          "value":  "1jS3A2P6uQVpP3zObNukhhouMdUseAyjk",
+                                                          "mode":  "list",
+                                                          "cachedResultName":  "Processed Invoice",
+                                                          "cachedResultUrl":  "https://drive.google.com/drive/folders/1jS3A2P6uQVpP3zObNukhhouMdUseAyjk"
+                                                      }
+                                     },
+                      "type":  "n8n-nodes-base.googleDrive",
+                      "typeVersion":  3,
+                      "position":  [
+                                       1568,
+                                       -160
+                                   ],
+                      "id":  "3c771501-5a4d-4530-a07a-e1658763cc52",
+                      "name":  "Move to Processed Folder"
+                  },
+                  {
+                      "parameters":  {
+                                         "operation":  "update",
+                                         "fileId":  {
+                                                        "__rl":  true,
+                                                        "value":  "={{ $(\u0027Download file\u0027).item.json.id }}",
+                                                        "mode":  "id"
+                                                    },
+                                         "newUpdatedFileName":  "={{$(\u0027Append row in sheet\u0027).item.json.Date.toDateTime().format(\u0027dd-MMM-yy\u0027)}}_{{ $(\u0027Append row in sheet\u0027).item.json[\u0027Vendor/Merchant\u0027] }}_{{ $(\u0027Append row in sheet\u0027).item.json[\u0027Invoice ID\u0027] }}_{{ $(\u0027Append row in sheet\u0027).item.json.Amount }}",
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "type":  "n8n-nodes-base.googleDrive",
+                      "typeVersion":  3,
+                      "position":  [
+                                       1792,
+                                       -160
+                                   ],
+                      "id":  "a267bae3-377f-474b-8527-3802145c9551",
+                      "name":  "Update Filename"
+                  },
+                  {
+                      "parameters":  {
+                                         "operation":  "move",
+                                         "fileId":  {
+                                                        "__rl":  true,
+                                                        "value":  "={{ $(\u0027Download file\u0027).item.json.id }}",
+                                                        "mode":  "id"
+                                                    },
+                                         "driveId":  {
+                                                         "__rl":  true,
+                                                         "mode":  "list",
+                                                         "value":  "My Drive"
+                                                     },
+                                         "folderId":  {
+                                                          "__rl":  true,
+                                                          "value":  "1vKYtY3J8RdxIeFOWAfUIkY-7yytDtxMt",
+                                                          "mode":  "list",
+                                                          "cachedResultName":  "Error Invoice",
+                                                          "cachedResultUrl":  "https://drive.google.com/drive/folders/1vKYtY3J8RdxIeFOWAfUIkY-7yytDtxMt"
+                                                      }
+                                     },
+                      "type":  "n8n-nodes-base.googleDrive",
+                      "typeVersion":  3,
+                      "position":  [
+                                       1120,
+                                       32
+                                   ],
+                      "id":  "ad50874a-2f74-4f23-8bac-cedbabe74e70",
+                      "name":  "Move to Error Invoice"
+                  },
+                  {
+                      "parameters":  {
+                                         "conditions":  {
+                                                            "options":  {
+                                                                            "caseSensitive":  true,
+                                                                            "leftValue":  "",
+                                                                            "typeValidation":  "strict",
+                                                                            "version":  3
+                                                                        },
+                                                            "conditions":  [
+                                                                               {
+                                                                                   "id":  "fe2cff74-df0c-4401-9b39-20985138fc47",
+                                                                                   "leftValue":  "={{ $json.candidates[0].content.parts[0].text }}",
+                                                                                   "rightValue":  "",
+                                                                                   "operator":  {
+                                                                                                    "type":  "string",
+                                                                                                    "operation":  "notEmpty",
+                                                                                                    "singleValue":  true
+                                                                                                }
+                                                                               }
+                                                                           ],
+                                                            "combinator":  "and"
+                                                        },
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "type":  "n8n-nodes-base.if",
+                      "typeVersion":  2.3,
+                      "position":  [
+                                       896,
+                                       -64
+                                   ],
+                      "id":  "48d037d7-396b-4245-8b06-02556f0dcdac",
+                      "name":  "Check Error"
+                  }
+              ],
+    "settings":  {
+                     "executionOrder":  "v1",
+                     "binaryMode":  "separate",
+                     "timeSavedMode":  "fixed",
+                     "callerPolicy":  "workflowsFromSameOwner"
+                 },
+    "tags":  [
+
+             ],
+    "meta":  {
+                 "templateCredsSetupCompleted":  true
+             }
+}

@@ -1,0 +1,900 @@
+{
+    "id":  "Dl7UCRtvjuOJnt0C",
+    "name":  "n8n Gmail Automation",
+    "active":  false,
+    "isArchived":  false,
+    "connections":  {
+                        "Gmail Trigger":  {
+                                              "main":  [
+                                                           [
+                                                               {
+                                                                   "node":  "Text Classifier",
+                                                                   "type":  "main",
+                                                                   "index":  0
+                                                               }
+                                                           ]
+                                                       ]
+                                          },
+                        "OpenAI Chat Model":  {
+                                                  "ai_languageModel":  [
+                                                                           [
+                                                                               {
+                                                                                   "node":  "Text Classifier",
+                                                                                   "type":  "ai_languageModel",
+                                                                                   "index":  0
+                                                                               }
+                                                                           ]
+                                                                       ]
+                                              },
+                        "Text Classifier":  {
+                                                "main":  [
+                                                             [
+                                                                 {
+                                                                     "node":  "Primary",
+                                                                     "type":  "main",
+                                                                     "index":  0
+                                                                 }
+                                                             ],
+                                                             [
+                                                                 {
+                                                                     "node":  "Social",
+                                                                     "type":  "main",
+                                                                     "index":  0
+                                                                 }
+                                                             ],
+                                                             [
+                                                                 {
+                                                                     "node":  "Promotion",
+                                                                     "type":  "main",
+                                                                     "index":  0
+                                                                 }
+                                                             ]
+                                                         ]
+                                            },
+                        "Promotion":  {
+                                          "main":  [
+                                                       [
+                                                           {
+                                                               "node":  "Mark as Read Promotion Mails",
+                                                               "type":  "main",
+                                                               "index":  0
+                                                           }
+                                                       ]
+                                                   ]
+                                      },
+                        "Social":  {
+                                       "main":  [
+                                                    [
+                                                        {
+                                                            "node":  "Send Message to Main Account",
+                                                            "type":  "main",
+                                                            "index":  0
+                                                        }
+                                                    ]
+                                                ]
+                                   },
+                        "Send Message to Main Account":  {
+                                                             "main":  [
+                                                                          [
+                                                                              {
+                                                                                  "node":  "Mark Read Social Mails",
+                                                                                  "type":  "main",
+                                                                                  "index":  0
+                                                                              }
+                                                                          ]
+                                                                      ]
+                                                         },
+                        "Primary":  {
+                                        "main":  [
+                                                     [
+                                                         {
+                                                             "node":  "Edit Fields",
+                                                             "type":  "main",
+                                                             "index":  0
+                                                         }
+                                                     ]
+                                                 ]
+                                    },
+                        "OpenAI Chat Model1":  {
+                                                   "ai_languageModel":  [
+                                                                            [
+                                                                                {
+                                                                                    "node":  "AI Agent",
+                                                                                    "type":  "ai_languageModel",
+                                                                                    "index":  0
+                                                                                }
+                                                                            ]
+                                                                        ]
+                                               },
+                        "Pinecone Vector Store":  {
+                                                      "ai_tool":  [
+                                                                      [
+                                                                          {
+                                                                              "node":  "AI Agent",
+                                                                              "type":  "ai_tool",
+                                                                              "index":  0
+                                                                          }
+                                                                      ]
+                                                                  ]
+                                                  },
+                        "Embeddings OpenAI":  {
+                                                  "ai_embedding":  [
+                                                                       [
+                                                                           {
+                                                                               "node":  "Pinecone Vector Store",
+                                                                               "type":  "ai_embedding",
+                                                                               "index":  0
+                                                                           }
+                                                                       ]
+                                                                   ]
+                                              },
+                        "Edit Fields":  {
+                                            "main":  [
+                                                         [
+                                                             {
+                                                                 "node":  "AI Classifier",
+                                                                 "type":  "main",
+                                                                 "index":  0
+                                                             }
+                                                         ]
+                                                     ]
+                                        },
+                        "OpenAI Chat Model2":  {
+                                                   "ai_languageModel":  [
+                                                                            [
+                                                                                {
+                                                                                    "node":  "AI Classifier",
+                                                                                    "type":  "ai_languageModel",
+                                                                                    "index":  0
+                                                                                }
+                                                                            ]
+                                                                        ]
+                                               },
+                        "Structured Output Parser":  {
+                                                         "ai_outputParser":  [
+                                                                                 [
+                                                                                     {
+                                                                                         "node":  "AI Classifier",
+                                                                                         "type":  "ai_outputParser",
+                                                                                         "index":  0
+                                                                                     }
+                                                                                 ]
+                                                                             ]
+                                                     },
+                        "AI Classifier":  {
+                                              "main":  [
+                                                           [
+                                                               {
+                                                                   "node":  "Switch",
+                                                                   "type":  "main",
+                                                                   "index":  0
+                                                               }
+                                                           ]
+                                                       ]
+                                          },
+                        "Switch":  {
+                                       "main":  [
+                                                    [
+                                                        {
+                                                            "node":  "AI Agent",
+                                                            "type":  "main",
+                                                            "index":  0
+                                                        }
+                                                    ],
+                                                    [
+                                                        {
+                                                            "node":  "AI Agent Email Writer",
+                                                            "type":  "main",
+                                                            "index":  0
+                                                        }
+                                                    ]
+                                                ]
+                                   },
+                        "Structured Output Parser1":  {
+                                                          "ai_outputParser":  [
+                                                                                  [
+                                                                                      {
+                                                                                          "node":  "AI Agent Email Writer",
+                                                                                          "type":  "ai_outputParser",
+                                                                                          "index":  0
+                                                                                      }
+                                                                                  ]
+                                                                              ]
+                                                      },
+                        "OpenAI Chat Model3":  {
+                                                   "ai_languageModel":  [
+                                                                            [
+                                                                                {
+                                                                                    "node":  "AI Agent Email Writer",
+                                                                                    "type":  "ai_languageModel",
+                                                                                    "index":  0
+                                                                                }
+                                                                            ]
+                                                                        ]
+                                               },
+                        "AI Agent Email Writer":  {
+                                                      "main":  [
+                                                                   [
+                                                                       {
+                                                                           "node":  "Switch1",
+                                                                           "type":  "main",
+                                                                           "index":  0
+                                                                       }
+                                                                   ]
+                                                               ]
+                                                  },
+                        "Structured Output Parser2":  {
+                                                          "ai_outputParser":  [
+                                                                                  [
+                                                                                      {
+                                                                                          "node":  "AI Agent",
+                                                                                          "type":  "ai_outputParser",
+                                                                                          "index":  0
+                                                                                      }
+                                                                                  ]
+                                                                              ]
+                                                      },
+                        "AI Agent":  {
+                                         "main":  [
+                                                      [
+                                                          {
+                                                              "node":  "Reply to a message",
+                                                              "type":  "main",
+                                                              "index":  0
+                                                          }
+                                                      ]
+                                                  ]
+                                     },
+                        "Switch1":  {
+                                        "main":  [
+                                                     [
+                                                         {
+                                                             "node":  "Create a draft",
+                                                             "type":  "main",
+                                                             "index":  0
+                                                         }
+                                                     ],
+                                                     [
+                                                         {
+                                                             "node":  "Mark as Read for NoReply",
+                                                             "type":  "main",
+                                                             "index":  0
+                                                         }
+                                                     ]
+                                                 ]
+                                    },
+                        "Reply to a message":  {
+                                                   "main":  [
+                                                                [
+                                                                    {
+                                                                        "node":  "Mark as Read for Sent Mail",
+                                                                        "type":  "main",
+                                                                        "index":  0
+                                                                    }
+                                                                ]
+                                                            ]
+                                               }
+                    },
+    "nodes":  [
+                  {
+                      "parameters":  {
+                                         "pollTimes":  {
+                                                           "item":  [
+                                                                        {
+                                                                            "mode":  "everyMinute"
+                                                                        }
+                                                                    ]
+                                                       },
+                                         "simple":  false,
+                                         "filters":  {
+
+                                                     },
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "type":  "n8n-nodes-base.gmailTrigger",
+                      "typeVersion":  1.4,
+                      "position":  [
+                                       -592,
+                                       208
+                                   ],
+                      "id":  "8879058f-29e1-488e-a886-190ca2bb8665",
+                      "name":  "Gmail Trigger"
+                  },
+                  {
+                      "parameters":  {
+                                         "inputText":  "=Subject : {{ $json.subject }}\nEmail Body : {{ $json.textAsHtml || $json.text }}",
+                                         "categories":  {
+                                                            "categories":  [
+                                                                               {
+                                                                                   "category":  "Primary",
+                                                                                   "description":  "It is the main inbox tab where your most important and personal messages are delivered"
+                                                                               },
+                                                                               {
+                                                                                   "category":  "Social",
+                                                                                   "description":  "Any email from any social media sites like Facebook, YouTube, Instagram or LinkedIn"
+                                                                               },
+                                                                               {
+                                                                                   "category":  "Promotions",
+                                                                                   "description":  "This email looking to sell me things via promotions"
+                                                                               }
+                                                                           ]
+                                                        },
+                                         "options":  {
+                                                         "enableAutoFixing":  true
+                                                     }
+                                     },
+                      "type":  "@n8n/n8n-nodes-langchain.textClassifier",
+                      "typeVersion":  1.1,
+                      "position":  [
+                                       -368,
+                                       192
+                                   ],
+                      "id":  "78841c7f-a639-4731-8c96-833a111fc5e4",
+                      "name":  "Text Classifier"
+                  },
+                  {
+                      "parameters":  {
+                                         "model":  {
+                                                       "__rl":  true,
+                                                       "mode":  "list",
+                                                       "value":  "gpt-5-mini"
+                                                   },
+                                         "builtInTools":  {
+
+                                                          },
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "type":  "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+                      "typeVersion":  1.3,
+                      "position":  [
+                                       -288,
+                                       448
+                                   ],
+                      "id":  "ffad1f08-7dc0-47d9-b2d9-65448fe2ac1b",
+                      "name":  "OpenAI Chat Model"
+                  },
+                  {
+                      "parameters":  {
+                                         "operation":  "addLabels",
+                                         "messageId":  "={{ $(\u0027Gmail Trigger\u0027).item.json.id }}",
+                                         "labelIds":  [
+                                                          "CATEGORY_PROMOTIONS"
+                                                      ]
+                                     },
+                      "type":  "n8n-nodes-base.gmail",
+                      "typeVersion":  2.2,
+                      "position":  [
+                                       -16,
+                                       384
+                                   ],
+                      "id":  "d7e9da55-4778-4a41-b2f4-25f19db16cad",
+                      "name":  "Promotion",
+                      "webhookId":  "7b88c0f7-8fe3-424f-a089-12fa16cd3213"
+                  },
+                  {
+                      "parameters":  {
+                                         "operation":  "addLabels",
+                                         "messageId":  "={{ $(\u0027Gmail Trigger\u0027).item.json.id }}",
+                                         "labelIds":  [
+                                                          "CATEGORY_SOCIAL"
+                                                      ]
+                                     },
+                      "type":  "n8n-nodes-base.gmail",
+                      "typeVersion":  2.2,
+                      "position":  [
+                                       -16,
+                                       192
+                                   ],
+                      "id":  "9f350cdd-6027-44f3-af7c-b4ea5db34626",
+                      "name":  "Social",
+                      "webhookId":  "377dc3ff-a6c5-4c8d-b52e-017bf1581f8f"
+                  },
+                  {
+                      "parameters":  {
+                                         "operation":  "addLabels",
+                                         "messageId":  "={{ $(\u0027Gmail Trigger\u0027).item.json.id }}",
+                                         "labelIds":  [
+                                                          "IMPORTANT"
+                                                      ]
+                                     },
+                      "type":  "n8n-nodes-base.gmail",
+                      "typeVersion":  2.2,
+                      "position":  [
+                                       -16,
+                                       -96
+                                   ],
+                      "id":  "78042d05-4547-4556-85ac-53fbfe763051",
+                      "name":  "Primary",
+                      "webhookId":  "377dc3ff-a6c5-4c8d-b52e-017bf1581f8f"
+                  },
+                  {
+                      "parameters":  {
+                                         "sendTo":  "REDACTED_EMAIL@example.com",
+                                         "subject":  "={{ $(\u0027Gmail Trigger\u0027).item.json.subject }}",
+                                         "message":  "={{ $(\u0027Gmail Trigger\u0027).item.json.html }}",
+                                         "options":  {
+                                                         "appendAttribution":  false
+                                                     }
+                                     },
+                      "type":  "n8n-nodes-base.gmail",
+                      "typeVersion":  2.2,
+                      "position":  [
+                                       208,
+                                       192
+                                   ],
+                      "id":  "45bb2089-13d8-4dbc-927d-18d63d4a7dc7",
+                      "name":  "Send Message to Main Account",
+                      "webhookId":  "ace52bee-23bf-48f7-8df9-11d28cd096a7"
+                  },
+                  {
+                      "parameters":  {
+                                         "operation":  "markAsRead",
+                                         "messageId":  "={{ $(\u0027Gmail Trigger\u0027).item.json.id }}"
+                                     },
+                      "type":  "n8n-nodes-base.gmail",
+                      "typeVersion":  2.2,
+                      "position":  [
+                                       496,
+                                       192
+                                   ],
+                      "id":  "4bd86bf8-b010-4625-9e29-be26b118527e",
+                      "name":  "Mark Read Social Mails",
+                      "webhookId":  "74c78891-482f-4683-92df-221a9b56e406"
+                  },
+                  {
+                      "parameters":  {
+                                         "operation":  "markAsRead",
+                                         "messageId":  "={{ $json.id }}"
+                                     },
+                      "type":  "n8n-nodes-base.gmail",
+                      "typeVersion":  2.2,
+                      "position":  [
+                                       208,
+                                       384
+                                   ],
+                      "id":  "be6803d7-287f-470a-86b8-6f98198e34be",
+                      "name":  "Mark as Read Promotion Mails",
+                      "webhookId":  "74c78891-482f-4683-92df-221a9b56e406"
+                  },
+                  {
+                      "parameters":  {
+                                         "promptType":  "define",
+                                         "text":  "={{ $json.output.searchQuery }}",
+                                         "hasOutputParser":  true,
+                                         "options":  {
+                                                         "systemMessage":  "# System Prompt â€“ AI Recruitment Assistant for Taher Rampurawala\n\nYou are an AI Recruitment Assistant with access to a Pinecone vector database containing the CV and professional profile of **Taher Rampurawala**.\n\n## Primary Objective\n\nYour responsibility is to draft professional email replies for queries related to Taher Rampurawala using ONLY the information retrieved from the Pinecone vector database.\n\n## Mandatory Retrieval Rules\n\n- Before answering any question related to Taher Rampurawala, ALWAYS perform a semantic search against the Pinecone vector store.\n- Never answer candidate-related questions without first retrieving relevant context.\n- Base every response solely on the retrieved documents.\n- Do not rely on your internal knowledge or make assumptions.\n- If multiple relevant chunks are returned, combine them into a complete and accurate response.\n- If the retrieved information is insufficient, clearly state that the requested information is not available in the candidate\u0027s profile.\n- If no documents are retrieved, respond politely stating that no information could be found in the candidate database.\n\n## Candidate Details\n\nThe Pinecone vector store contains Taher Rampurawala\u0027s professional information, including:\n\n- Profile Summary\n- Work Experience\n- Technical Skills\n- Functional Skills\n- Certifications\n- Education\n- Awards \u0026 Achievements\n- Banking Domain Experience\n- Cloud Experience\n- DevOps Experience\n- API Development Experience\n- Project History\n- Technology Stack\n- Architecture Experience\n- Leadership Experience\n\n## Response Guidelines\n\nWhen generating a response:\n\n- Draft a professional business email.\n- Use ONLY information retrieved from the vector database.\n- Never invent project names, employers, technologies, certifications or experience.\n- If a requested technology or skill is not found in the retrieved documents, politely mention that it is not available in the candidate\u0027s profile.\n- If the user requests a summary, combine the retrieved profile, skills and experience into a concise overview.\n- Keep the email clear, concise and professional.\n\n## Output Format\n\nReturn ONLY valid JSON.\n\nThe JSON must follow exactly this schema:\n\n{\n  \"subject\": \"\u003cappropriate reply subject\u003e\",\n  \"reply\": \"\u003cHTML email body\u003e\"\n}\n\n### Subject Rules\n\n- If the original email contains a subject, prefix it with \"Re: \" unless it already begins with \"Re:\".\n- Otherwise generate a concise professional subject based on the query.\n\n### Reply Rules\n\nThe \"reply\" field MUST contain valid HTML.\n\nRequirements:\n\n- Begin with a professional greeting.\n  - If the sender\u0027s name is available, use:\n    \u003cp\u003eDear \u0026lt;Sender Name\u0026gt;,\u003c/p\u003e\n  - Otherwise use:\n    \u003cp\u003eHello,\u003c/p\u003e\n\n- Organize the email using HTML paragraphs (\u003cp\u003e...\u003c/p\u003e).\n\n- Use unordered lists (\u003cul\u003e\u003cli\u003e) whenever listing skills, certifications, technologies, projects or experience.\n\n- Do not use Markdown.\n\n- If information is unavailable after retrieval, politely mention that the requested information could not be found in Taher Rampurawala\u0027s profile.\n\n- End every email exactly as follows:\n\n\u003cp\u003eBest Regards,\u003cbr\u003e\nTaher\u003c/p\u003e\n\n## Example Output\n\n{\n  \"subject\": \"Re: Request for AWS Experience\",\n  \"reply\": \"\u003cp\u003eDear John,\u003c/p\u003e\u003cp\u003eThank you for your email.\u003c/p\u003e\u003cp\u003eBased on Taher Rampurawala\u0027s profile, he has experience with the following AWS services:\u003c/p\u003e\u003cul\u003e\u003cli\u003eAmazon EC2\u003c/li\u003e\u003cli\u003eAmazon S3\u003c/li\u003e\u003cli\u003eAWS Lambda\u003c/li\u003e\u003c/ul\u003e\u003cp\u003ePlease let me know if you need any additional information.\u003c/p\u003e\u003cp\u003eBest Regards,\u003cbr\u003eTaher\u003c/p\u003e\"\n}\n\n## Final Rules\n\n- Always retrieve from Pinecone before answering.\n- Never answer from memory.\n- Never fabricate information.\n- Return ONLY the JSON object.\n- Ensure the HTML is valid.\n- Ensure the JSON is valid.\n- Escape quotation marks inside HTML when necessary."
+                                                     }
+                                     },
+                      "type":  "@n8n/n8n-nodes-langchain.agent",
+                      "typeVersion":  3.1,
+                      "position":  [
+                                       1152,
+                                       -560
+                                   ],
+                      "id":  "dd03c3ac-f37e-4752-a027-7d50b9a6a3e6",
+                      "name":  "AI Agent"
+                  },
+                  {
+                      "parameters":  {
+                                         "model":  {
+                                                       "__rl":  true,
+                                                       "mode":  "list",
+                                                       "value":  "gpt-5-mini"
+                                                   },
+                                         "builtInTools":  {
+
+                                                          },
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "type":  "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+                      "typeVersion":  1.3,
+                      "position":  [
+                                       1008,
+                                       -336
+                                   ],
+                      "id":  "50fba6e8-2839-43f1-a841-8a12e4078f41",
+                      "name":  "OpenAI Chat Model1"
+                  },
+                  {
+                      "parameters":  {
+                                         "mode":  "retrieve-as-tool",
+                                         "toolDescription":  "Fetch details about the individual name Taher",
+                                         "pineconeIndex":  {
+                                                               "__rl":  true,
+                                                               "value":  "resumeai",
+                                                               "mode":  "list",
+                                                               "cachedResultName":  "resumeai"
+                                                           },
+                                         "options":  {
+                                                         "pineconeNamespace":  "personal_data"
+                                                     }
+                                     },
+                      "type":  "@n8n/n8n-nodes-langchain.vectorStorePinecone",
+                      "typeVersion":  1.3,
+                      "position":  [
+                                       1136,
+                                       -336
+                                   ],
+                      "id":  "e45e2ce2-6b2e-4e44-9040-3ecba2e8b2ba",
+                      "name":  "Pinecone Vector Store"
+                  },
+                  {
+                      "parameters":  {
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "type":  "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+                      "typeVersion":  1.2,
+                      "position":  [
+                                       1216,
+                                       -128
+                                   ],
+                      "id":  "dc38714e-c6db-440f-a87e-3ce01e9803b6",
+                      "name":  "Embeddings OpenAI"
+                  },
+                  {
+                      "parameters":  {
+                                         "assignments":  {
+                                                             "assignments":  [
+                                                                                 {
+                                                                                     "id":  "e66ece79-0857-4f33-bc40-f23367103724",
+                                                                                     "name":  "email_text",
+                                                                                     "value":  "={{ $(\u0027Gmail Trigger\u0027).item.json.subject + \"\\n\\n\" + ($json.textPlain || $json.snippet || $json.textHtml) }}",
+                                                                                     "type":  "string"
+                                                                                 }
+                                                                             ]
+                                                         },
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "type":  "n8n-nodes-base.set",
+                      "typeVersion":  3.4,
+                      "position":  [
+                                       208,
+                                       -96
+                                   ],
+                      "id":  "06cdc6b8-9c88-4666-b09a-e324e2a3e67b",
+                      "name":  "Edit Fields"
+                  },
+                  {
+                      "parameters":  {
+                                         "model":  {
+                                                       "__rl":  true,
+                                                       "mode":  "list",
+                                                       "value":  "gpt-5-mini"
+                                                   },
+                                         "builtInTools":  {
+
+                                                          },
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "type":  "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+                      "typeVersion":  1.3,
+                      "position":  [
+                                       448,
+                                       16
+                                   ],
+                      "id":  "4444ce84-b878-4ad9-bb57-10707f526d65",
+                      "name":  "OpenAI Chat Model2"
+                  },
+                  {
+                      "parameters":  {
+                                         "rules":  {
+                                                       "values":  [
+                                                                      {
+                                                                          "conditions":  {
+                                                                                             "options":  {
+                                                                                                             "caseSensitive":  true,
+                                                                                                             "leftValue":  "",
+                                                                                                             "typeValidation":  "strict",
+                                                                                                             "version":  3
+                                                                                                         },
+                                                                                             "conditions":  [
+                                                                                                                {
+                                                                                                                    "leftValue":  "={{ $json.output.isRecipientQuery }}",
+                                                                                                                    "rightValue":  "",
+                                                                                                                    "operator":  {
+                                                                                                                                     "type":  "boolean",
+                                                                                                                                     "operation":  "true",
+                                                                                                                                     "singleValue":  true
+                                                                                                                                 },
+                                                                                                                    "id":  "6e11dde2-85a9-4749-9d20-e93ad450076e"
+                                                                                                                }
+                                                                                                            ],
+                                                                                             "combinator":  "and"
+                                                                                         }
+                                                                      },
+                                                                      {
+                                                                          "conditions":  {
+                                                                                             "options":  {
+                                                                                                             "caseSensitive":  true,
+                                                                                                             "leftValue":  "",
+                                                                                                             "typeValidation":  "strict",
+                                                                                                             "version":  3
+                                                                                                         },
+                                                                                             "conditions":  [
+                                                                                                                {
+                                                                                                                    "id":  "26f56ccb-111c-4554-9392-76b43928458f",
+                                                                                                                    "leftValue":  "={{ $json.output.isRecipientQuery }}",
+                                                                                                                    "rightValue":  false,
+                                                                                                                    "operator":  {
+                                                                                                                                     "type":  "boolean",
+                                                                                                                                     "operation":  "false",
+                                                                                                                                     "singleValue":  true
+                                                                                                                                 }
+                                                                                                                }
+                                                                                                            ],
+                                                                                             "combinator":  "and"
+                                                                                         }
+                                                                      }
+                                                                  ]
+                                                   },
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "type":  "n8n-nodes-base.switch",
+                      "typeVersion":  3.4,
+                      "position":  [
+                                       784,
+                                       -96
+                                   ],
+                      "id":  "a6ed9643-fe88-4bf2-850f-d060dc73588a",
+                      "name":  "Switch"
+                  },
+                  {
+                      "parameters":  {
+                                         "jsonSchemaExample":  "{\n  \"isRecipientQuery\": true,\n  \"personName\": \"Taher Rampurawala\",\n  \"searchQuery\": \"\u003cconcise search query containing only the requested information\u003e\"\n}"
+                                     },
+                      "type":  "@n8n/n8n-nodes-langchain.outputParserStructured",
+                      "typeVersion":  1.3,
+                      "position":  [
+                                       576,
+                                       16
+                                   ],
+                      "id":  "8883ca3d-3822-4f11-ab8d-804271bf3d14",
+                      "name":  "Structured Output Parser"
+                  },
+                  {
+                      "parameters":  {
+                                         "promptType":  "define",
+                                         "text":  "={{ $json.email_text }}",
+                                         "hasOutputParser":  true,
+                                         "options":  {
+                                                         "systemMessage":  "You are an intelligent email classifier.\n\nYour task is to analyze the incoming email and determine whether the sender is requesting professional information about the recipient of the email.\n\nThe recipient is the person to whom the email has been sent. The sender may refer to the recipient by name (for example, \"Taher\"), or by using words such as \"you\", \"your\", or \"your profile\".\n\nProfessional information includes, but is not limited to:\n- Resume or CV\n- Profile summary\n- Skills or technical expertise\n- Work experience\n- Projects\n- Certifications\n- Educational background\n- Employment history\n- Portfolio\n- Contact information\n- Professional achievements\n- Any other career-related information\n\nIf the incoming email is requesting professional information about the recipient, return:\n\n{\n  \"isRecipientQuery\": true,\n  \"personName\": \"Taher Rampurawala\",\n  \"searchQuery\": \"\u003cconcise search query containing only the requested information\u003e\"\n}\n\nIf the incoming email is NOT requesting professional information about the recipient, return:\n\n{\n  \"isRecipientQuery\": false,\n  \"personName\": \"\",\n  \"searchQuery\": \"\"\n}\n\nExamples\n\nExample 1:\nEmail:\n\"Hi Taher, could you please send me your latest resume and AWS experience?\"\n\nOutput:\n{\n  \"isRecipientQuery\": true,\n  \"personName\": \"Taher Rampurawala\",\n  \"searchQuery\": \"latest resume AWS experience\"\n}\n\nExample 2:\nEmail:\n\"Can you share your certifications and recent projects?\"\n\nOutput:\n{\n  \"isRecipientQuery\": true,\n  \"personName\": \"Taher Rampurawala\",\n  \"searchQuery\": \"certifications recent projects\"\n}\n\nRules:\n1. Return ONLY valid JSON.\n2. Do not include markdown or explanations.\n3. Do not answer the email.\n4. If the sender refers to the recipient as \"you\", \"your\", or similar without mentioning a name, consider \"personName\" as \"Taher Rampurawala\".\n5. Do not guess or infer names that are not explicitly present.\n6. The \"searchQuery\" should contain only the information that needs to be searched in the vector database, not the person\u0027s name."
+                                                     }
+                                     },
+                      "type":  "@n8n/n8n-nodes-langchain.agent",
+                      "typeVersion":  3.1,
+                      "position":  [
+                                       432,
+                                       -208
+                                   ],
+                      "id":  "dd7bf23f-f0e2-4e7f-b294-00f31e8a276b",
+                      "name":  "AI Classifier"
+                  },
+                  {
+                      "parameters":  {
+                                         "promptType":  "define",
+                                         "text":  "={{ $(\u0027Edit Fields\u0027).item.json.email_text }}",
+                                         "hasOutputParser":  true,
+                                         "options":  {
+                                                         "systemMessage":  "You are an intelligent email response assistant.\n\nYour task is to analyze the incoming email and determine whether a reply should be drafted.\n\nStep 1: Determine if a reply is required.\n\nDo NOT generate a reply for emails that are:\n- Sent from no-reply, do-not-reply or automated email addresses.\n- Auto-generated notifications.\n- Marketing or promotional emails.\n- Newsletters.\n- Subscription updates.\n- System alerts.\n- OTP or verification emails.\n- Payment confirmations or receipts.\n- Shipping or delivery notifications.\n- Calendar invitations that do not require a response.\n- Informational emails where no response is expected.\n\nIf the email does NOT require a reply, return ONLY the following JSON:\n\n{\n  \"shouldReply\": false,\n  \"reason\": \"\u003cshort reason\u003e\",\n  \"subject\": \"\",\n  \"reply\": \"\"\n}\n\nStep 2: Generate a reply if required.\n\nIf the email requires a response, determine whether the requested information can be answered from the email context.\n\nIf sufficient information is available:\n- Draft a professional, concise and courteous reply.\n\nIf sufficient information is NOT available:\n- Do NOT invent facts.\n- Politely acknowledge the sender\u0027s request.\n- Inform the sender that the request has been received and will be reviewed.\n- Mention that someone will get back with the requested information.\n\nThe generated reply MUST:\n\n- Be valid HTML only.\n- Begin with an appropriate greeting using the sender\u0027s name whenever available (for example, \"Dear John,\"). If the sender\u0027s name is unavailable, use \"Hello,\".\n- Organize the email using HTML paragraphs (\u003cp\u003e...\u003c/p\u003e).\n- Use unordered or ordered lists only if necessary.\n- Maintain a professional business tone.\n- End with the following signature exactly:\n\n\u003cp\u003eBest Regards,\u003cbr\u003e\nTaher\u003c/p\u003e\n\nGenerate a suitable email subject for the reply.\n\nThe subject should normally follow these rules:\n- If the original email already has a subject, prefix it with \"Re: \" unless it already starts with \"Re:\".\n- If the original email has no meaningful subject, generate a concise professional subject.\n\nReturn ONLY valid JSON in the following format:\n\n{\n  \"shouldReply\": true,\n  \"reason\": \"Reply required\",\n  \"subject\": \"\u003creply subject\u003e\",\n  \"reply\": \"\u003ccomplete HTML email body\u003e\"\n}\n\nRules:\n\n1. Return ONLY valid JSON.\n2. Do not include markdown.\n3. Do not include explanations.\n4. Do not invent facts.\n5. Ensure the reply is valid HTML.\n6. Escape any quotation marks within the HTML so the JSON remains valid.\n7. Do not wrap the HTML inside markdown code blocks.\n8. Keep replies concise unless the sender\u0027s request requires a detailed response.\n9. Preserve a professional and courteous tone at all times."
+                                                     }
+                                     },
+                      "type":  "@n8n/n8n-nodes-langchain.agent",
+                      "typeVersion":  3.1,
+                      "position":  [
+                                       1152,
+                                       160
+                                   ],
+                      "id":  "89a42a36-d489-4d49-9b93-2810c7b3361c",
+                      "name":  "AI Agent Email Writer"
+                  },
+                  {
+                      "parameters":  {
+                                         "jsonSchemaExample":  "{\n  \"shouldReply\": true,\n  \"reason\": \"Reply required\",\n  \"subject\": \"Re: Request for Meeting\",\n  \"reply\": \"\u003cp\u003eDear John,\u003c/p\u003e\u003cp\u003eThank you for reaching out. I appreciate your email.\u003c/p\u003e\u003cp\u003eI would be happy to discuss this further. Please let me know a suitable time for the meeting, and I will do my best to accommodate.\u003c/p\u003e\u003cp\u003eBest Regards,\u003cbr\u003eTaher\u003c/p\u003e\"\n}"
+                                     },
+                      "type":  "@n8n/n8n-nodes-langchain.outputParserStructured",
+                      "typeVersion":  1.3,
+                      "position":  [
+                                       1280,
+                                       384
+                                   ],
+                      "id":  "9ae30fcc-1168-4f97-b1fa-1eb1f4bd83b6",
+                      "name":  "Structured Output Parser1"
+                  },
+                  {
+                      "parameters":  {
+                                         "model":  {
+                                                       "__rl":  true,
+                                                       "mode":  "list",
+                                                       "value":  "gpt-5-mini"
+                                                   },
+                                         "builtInTools":  {
+
+                                                          },
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "type":  "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+                      "typeVersion":  1.3,
+                      "position":  [
+                                       1152,
+                                       384
+                                   ],
+                      "id":  "3058c0d3-b023-46b6-8f56-5e0aaf58357b",
+                      "name":  "OpenAI Chat Model3"
+                  },
+                  {
+                      "parameters":  {
+                                         "resource":  "draft",
+                                         "subject":  "={{ $(\u0027AI Agent Email Writer\u0027).item.json.output.subject }}",
+                                         "emailType":  "html",
+                                         "message":  "={{ $(\u0027AI Agent Email Writer\u0027).item.json.output.reply }}",
+                                         "options":  {
+                                                         "sendTo":  "={{ $(\u0027Gmail Trigger\u0027).item.json.from.value[0].address }}"
+                                                     }
+                                     },
+                      "type":  "n8n-nodes-base.gmail",
+                      "typeVersion":  2.2,
+                      "position":  [
+                                       1856,
+                                       64
+                                   ],
+                      "id":  "f0908006-072f-4294-8aa2-575a1f0e01b0",
+                      "name":  "Create a draft",
+                      "webhookId":  "f536f6d6-5599-41b2-b00d-268e0296a1fe"
+                  },
+                  {
+                      "parameters":  {
+                                         "jsonSchemaExample":  "{\n  \"subject\": \"...\",\n  \"reply\": \"\u003cp\u003e...\u003c/p\u003e\"\n}"
+                                     },
+                      "type":  "@n8n/n8n-nodes-langchain.outputParserStructured",
+                      "typeVersion":  1.3,
+                      "position":  [
+                                       1424,
+                                       -336
+                                   ],
+                      "id":  "27a5c650-64ba-4241-838a-ac0c5dce11d1",
+                      "name":  "Structured Output Parser2"
+                  },
+                  {
+                      "parameters":  {
+                                         "operation":  "reply",
+                                         "messageId":  "={{ $(\u0027Gmail Trigger\u0027).item.json.threadId }}",
+                                         "message":  "={{ $json.output.reply }}",
+                                         "options":  {
+                                                         "appendAttribution":  false
+                                                     }
+                                     },
+                      "type":  "n8n-nodes-base.gmail",
+                      "typeVersion":  2.2,
+                      "position":  [
+                                       1632,
+                                       -352
+                                   ],
+                      "id":  "265be16c-6fd7-4ab9-ac35-4d8e6ce45248",
+                      "name":  "Reply to a message",
+                      "webhookId":  "86c158d0-e686-40e7-9dd1-52ec9fd83dd5"
+                  },
+                  {
+                      "parameters":  {
+                                         "rules":  {
+                                                       "values":  [
+                                                                      {
+                                                                          "conditions":  {
+                                                                                             "options":  {
+                                                                                                             "caseSensitive":  true,
+                                                                                                             "leftValue":  "",
+                                                                                                             "typeValidation":  "strict",
+                                                                                                             "version":  3
+                                                                                                         },
+                                                                                             "conditions":  [
+                                                                                                                {
+                                                                                                                    "leftValue":  "={{ $json.output.shouldReply }}",
+                                                                                                                    "rightValue":  false,
+                                                                                                                    "operator":  {
+                                                                                                                                     "type":  "boolean",
+                                                                                                                                     "operation":  "true",
+                                                                                                                                     "singleValue":  true
+                                                                                                                                 },
+                                                                                                                    "id":  "1af16782-e1e5-4fee-b2e9-48bc5cbc9299"
+                                                                                                                }
+                                                                                                            ],
+                                                                                             "combinator":  "and"
+                                                                                         }
+                                                                      },
+                                                                      {
+                                                                          "conditions":  {
+                                                                                             "options":  {
+                                                                                                             "caseSensitive":  true,
+                                                                                                             "leftValue":  "",
+                                                                                                             "typeValidation":  "strict",
+                                                                                                             "version":  3
+                                                                                                         },
+                                                                                             "conditions":  [
+                                                                                                                {
+                                                                                                                    "id":  "69392504-1bc8-4996-b16d-56cf498ce055",
+                                                                                                                    "leftValue":  "={{ $json.output.shouldReply }}",
+                                                                                                                    "rightValue":  false,
+                                                                                                                    "operator":  {
+                                                                                                                                     "type":  "boolean",
+                                                                                                                                     "operation":  "false",
+                                                                                                                                     "singleValue":  true
+                                                                                                                                 }
+                                                                                                                }
+                                                                                                            ],
+                                                                                             "combinator":  "and"
+                                                                                         }
+                                                                      }
+                                                                  ]
+                                                   },
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "type":  "n8n-nodes-base.switch",
+                      "typeVersion":  3.4,
+                      "position":  [
+                                       1632,
+                                       160
+                                   ],
+                      "id":  "23322cca-dadd-40fc-bb87-83c5b14073d5",
+                      "name":  "Switch1"
+                  },
+                  {
+                      "parameters":  {
+                                         "operation":  "markAsRead",
+                                         "messageId":  "={{ $(\u0027Gmail Trigger\u0027).item.json.id }}"
+                                     },
+                      "type":  "n8n-nodes-base.gmail",
+                      "typeVersion":  2.2,
+                      "position":  [
+                                       1856,
+                                       -352
+                                   ],
+                      "id":  "05f87fd2-442e-46f9-9165-abdee37afc50",
+                      "name":  "Mark as Read for Sent Mail",
+                      "webhookId":  "74c78891-482f-4683-92df-221a9b56e406"
+                  },
+                  {
+                      "parameters":  {
+                                         "operation":  "markAsRead",
+                                         "messageId":  "={{ $(\u0027Gmail Trigger\u0027).item.json.id }}"
+                                     },
+                      "type":  "n8n-nodes-base.gmail",
+                      "typeVersion":  2.2,
+                      "position":  [
+                                       1824,
+                                       352
+                                   ],
+                      "id":  "ab2243a2-1e4e-442a-9430-3677c02758d9",
+                      "name":  "Mark as Read for NoReply",
+                      "webhookId":  "74c78891-482f-4683-92df-221a9b56e406"
+                  }
+              ],
+    "settings":  {
+                     "executionOrder":  "v1",
+                     "binaryMode":  "separate",
+                     "timeSavedMode":  "fixed",
+                     "callerPolicy":  "workflowsFromSameOwner"
+                 },
+    "tags":  [
+
+             ],
+    "meta":  {
+                 "templateCredsSetupCompleted":  true
+             }
+}
