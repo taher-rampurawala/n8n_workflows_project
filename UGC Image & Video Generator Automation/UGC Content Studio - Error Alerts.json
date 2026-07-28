@@ -1,0 +1,62 @@
+{
+  "id": "uOX8EXcXWOY91KQ2",
+  "name": "UGC Content Studio — Error Alerts",
+  "active": true,
+  "connections": {
+    "Error Trigger": {
+      "main": [[{ "node": "Build Alert", "type": "main", "index": 0 }]]
+    },
+    "Build Alert": {
+      "main": [[{ "node": "Notify Admin", "type": "main", "index": 0 }]]
+    }
+  },
+  "nodes": [
+    {
+      "id": "8f16e2ff-659f-498c-a488-1758e537e57b",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [0, 0],
+      "parameters": {}
+    },
+    {
+      "id": "e268c4fb-2be2-4902-b968-0b37f887401e",
+      "name": "Build Alert",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [260, 0],
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "alertText",
+              "name": "alertText",
+              "type": "string",
+              "value": "={{ '⚠️ Workflow failed: ' + $json.workflow.name + '\\nNode: ' + $json.execution.lastNodeExecuted + '\\nError: ' + $json.execution.error.message + '\\nExecution: ' + $json.execution.url }}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "5f94ae2a-cd04-45e4-8783-fb70fe6e96b2",
+      "name": "Notify Admin",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [480, 0],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $vars.adminTelegramChatId }}",
+        "text": "={{ $json.alertText }}",
+        "additionalFields": { "appendAttribution": false }
+      },
+      "webhookId": "fe40d1aa-4b5e-4140-ac28-6c97acb4b2dd"
+    }
+  ],
+  "pinData": {},
+  "settings": { "executionOrder": "v1", "availableInMCP": true },
+  "tags": []
+}

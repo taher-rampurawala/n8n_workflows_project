@@ -1,6 +1,6 @@
 # n8n Workflows Project
 
-A portfolio of production-style [n8n](https://n8n.io) automation workflows — covering conversational booking systems, integrations, and business process automation, built to solve real-world operational problems.
+A curated portfolio of [n8n](https://n8n.io) automation projects, showcasing practical, production-oriented workflow design across AI agents, integrations, and business process automation. This repository is actively maintained and grows as new projects are added.
 
 ## 📋 Table of Contents
 
@@ -13,6 +13,7 @@ A portfolio of production-style [n8n](https://n8n.io) automation workflows — c
     - [3. Gmail Inbox Assistant](#3-gmail-inbox-assistant)
     - [4. Invoice Processing Automation](#4-invoice-processing-automation)
     - [5. Job Search Automation](#5-job-search-automation)
+    - [6. UGC Image \& Video Generator Automation](#6-ugc-image--video-generator-automation)
   - [🛠️ Technologies Used](#️-technologies-used)
     - [Integrations](#integrations)
     - [n8n Features](#n8n-features)
@@ -161,6 +162,37 @@ Each project lives in its own folder containing the exported workflow JSON, read
 
 ---
 
+### 6. UGC Image & Video Generator Automation
+
+**Folder:** [`UGC Image & Video Generator Automation/`](./UGC%20Image%20&%20Video%20Generator%20Automation/)
+
+**Description:** A Telegram bot that turns a single product photo into UGC-style (user-generated-content) marketing assets. Users send a product photo and answer a short guided conversation — generation mode, caption, and visual style — and a vision-enabled AI agent researches current short-form trends before writing tailored image and video prompts. Assets are then generated via Kie.ai (Nano Banana 2 for images, Veo 3.1 for video) and delivered back into the chat. Ships as a three-workflow set: the main bot, a catch-all error alerter, and an hourly session-cleanup job.
+
+**Key Features:**
+
+- 🤖 Vision-enabled AI agent (GPT-5-mini) that reads the actual product photo and grounds every prompt in what it sees
+- 🔎 Live trend research via a Tavily search tool called by the agent before prompt generation
+- 📐 Structured output parsing with an auto-fixing parser, producing separate `image_prompt` and `video_prompt` fields
+- 🎨 Image generation via Kie.ai **Nano Banana 2** (Gemini 3.1 Flash Image), 9:16 vertical, 2K
+- 🎬 Video generation via Kie.ai **Veo 3.1** (`veo3_fast`, reference-to-video) with native audio
+- 🗂️ Stateful multi-step conversation backed by Postgres (`ugc_sessions`), routed by a step-based state machine
+- ⏳ Asynchronous job polling — create-task → wait → poll status → extract result URL, for both media types
+- 🛡️ Guard nodes that detect API-level failures returned as HTTP 200 with an error `code`, routing them into real retry loops
+- 🔁 Bounded retry-with-backoff around both generation paths, with graceful user-facing failure messages
+- 🚨 Companion error-alert workflow that notifies an admin chat with the failing node and execution link
+- 🧹 Hourly cleanup of abandoned mid-conversation sessions (Postgres has no native TTL)
+
+**Use Cases:**
+
+- Rapid UGC-style ad creative generation for e-commerce and D2C product listings
+- Turning a single catalogue photo into social-ready vertical image and video assets
+- Reference pattern for async third-party job APIs (create → poll → deliver) in n8n
+- Template for Postgres-backed conversational state machines on Telegram
+
+> **Note:** The Telegram bot token embedded in this workflow's `Build Image URL` node has been replaced with the placeholder `YOUR_TELEGRAM_BOT_TOKEN` for portfolio publication. Replace it with your own token (or an n8n variable) before importing.
+
+---
+
 ## 🛠️ Technologies Used
 
 ### Integrations
@@ -174,6 +206,9 @@ Each project lives in its own folder containing the exported workflow JSON, read
 - **Apify** — third-party actors for lead scraping and job scraping
 - **OpenAI** — GPT models for conversational agents and classifiers, Whisper for voice transcription, embeddings for RAG
 - **Google Gemini** — vision-capable LLM for invoice OCR extraction
+- **Kie.ai** — unified API for Nano Banana 2 (image) and Veo 3.1 (video) generation
+- **Tavily** — live web search tool for AI-agent trend research
+- **PostgreSQL** — session/state persistence for the UGC bot conversation
 
 ### n8n Features
 
@@ -186,6 +221,9 @@ Each project lives in its own folder containing the exported workflow JSON, read
 - Loop / batch processing (Split In Batches)
 - HTTP Request nodes
 - Webhook, schedule, and file-watcher triggers
+- Error Trigger workflows for centralized failure alerting
+- Wait nodes for asynchronous job polling loops
+- Per-node error outputs (`onError: continueErrorOutput`) with bounded retry branches
 
 ---
 
@@ -203,8 +241,12 @@ n8n_workflows_project/
 │   └── n8n-gmail-automation.json
 ├── Invoice Processing Automation/
 │   └── n8n-invoice-agent-automation.json
-└── Job Search Automation/
-    └── indeed-job-search-automation.json
+├── Job Search Automation/
+│   └── indeed-job-search-automation.json
+└── UGC Image & Video Generator Automation/
+    ├── UGC Content Studio - Telegram Bot.json
+    ├── UGC Content Studio - Error Alerts.json
+    └── UGC Content Studio - Session Cleanup.json
 ```
 
 Each project folder is self-contained and includes the exported workflow JSON. New projects will be added as additional top-level folders following the same convention.
@@ -231,6 +273,9 @@ Each project folder is self-contained and includes the exported workflow JSON. N
    - Apify API token
    - OpenAI API key
    - Google Gemini API key
+   - Kie.ai API key (image/video generation)
+   - Tavily API key (agent web search)
+   - PostgreSQL connection (UGC bot session store)
 
 ### Installation Steps
 
@@ -272,6 +317,9 @@ Each project folder is self-contained and includes the exported workflow JSON. N
 - Apify account (for lead and job scraping actors)
 - OpenAI account (for GPT models, Whisper transcription, and embeddings)
 - Google AI Studio account (for Gemini API access)
+- Kie.ai account with credits (for Nano Banana 2 image and Veo 3.1 video generation)
+- Tavily account (for AI-agent web search)
+- PostgreSQL database (for UGC bot conversation state)
 
 ---
 

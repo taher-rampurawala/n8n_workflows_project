@@ -1,0 +1,2681 @@
+{
+    "id":  "y1p7qyqTrcfgKnPZ",
+    "name":  "UGC Content Studio — Telegram Bot",
+    "active":  true,
+    "nodes":  [
+                  {
+                      "parameters":  {
+                                         "updates":  [
+                                                         "message",
+                                                         "callback_query"
+                                                     ],
+                                         "additionalFields":  {
+                                                                  "download":  true,
+                                                                  "imageSize":  "large"
+                                                              }
+                                     },
+                      "id":  "893ed39a-61b5-4b80-b57e-508ec4905881",
+                      "name":  "Telegram Trigger",
+                      "type":  "n8n-nodes-base.telegramTrigger",
+                      "typeVersion":  1.3,
+                      "position":  [
+                                       0,
+                                       592
+                                   ],
+                      "webhookId":  "de4b5ee2-cc55-4e45-a6b2-f304ab73f010"
+                  },
+                  {
+                      "parameters":  {
+                                         "assignments":  {
+                                                             "assignments":  [
+                                                                                 {
+                                                                                     "id":  "chatId",
+                                                                                     "name":  "chatId",
+                                                                                     "type":  "string",
+                                                                                     "value":  "={{ $json.message?.chat?.id ?? $json.callback_query?.message?.chat?.id }}"
+                                                                                 },
+                                                                                 {
+                                                                                     "id":  "updateType",
+                                                                                     "name":  "updateType",
+                                                                                     "type":  "string",
+                                                                                     "value":  "={{ $json.callback_query ? \u0027callback\u0027 : ($json.message?.photo ? \u0027photo\u0027 : ($json.message?.text ? \u0027text\u0027 : \u0027other\u0027)) }}"
+                                                                                 },
+                                                                                 {
+                                                                                     "id":  "messageText",
+                                                                                     "name":  "messageText",
+                                                                                     "type":  "string",
+                                                                                     "value":  "={{ $json.message?.text ?? \u0027\u0027 }}"
+                                                                                 },
+                                                                                 {
+                                                                                     "id":  "callbackData",
+                                                                                     "name":  "callbackData",
+                                                                                     "type":  "string",
+                                                                                     "value":  "={{ $json.callback_query?.data ?? \u0027\u0027 }}"
+                                                                                 },
+                                                                                 {
+                                                                                     "id":  "callbackQueryId",
+                                                                                     "name":  "callbackQueryId",
+                                                                                     "type":  "string",
+                                                                                     "value":  "={{ $json.callback_query?.id ?? \u0027\u0027 }}"
+                                                                                 },
+                                                                                 {
+                                                                                     "id":  "incomingPhotoFileId",
+                                                                                     "name":  "incomingPhotoFileId",
+                                                                                     "type":  "string",
+                                                                                     "value":  "={{ $json.message?.photo ? $json.message.photo[$json.message.photo.length - 1].file_id : \u0027\u0027 }}"
+                                                                                 }
+                                                                             ]
+                                                         },
+                                         "includeOtherFields":  true,
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "b7117791-0222-4893-afb3-8c9b43ae98c2",
+                      "name":  "Normalize Update",
+                      "type":  "n8n-nodes-base.set",
+                      "typeVersion":  3.4,
+                      "position":  [
+                                       224,
+                                       592
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "operation":  "executeQuery",
+                                         "query":  "SELECT step, mode, caption, style, image_file_id, image_url FROM ugc_sessions WHERE chat_id = $1",
+                                         "options":  {
+                                                         "queryReplacement":  "={{ [$json.chatId] }}"
+                                                     }
+                                     },
+                      "id":  "46f6d36e-77ad-4f59-8a4b-15c113f25444",
+                      "name":  "Get Session",
+                      "type":  "n8n-nodes-base.postgres",
+                      "typeVersion":  2.6,
+                      "position":  [
+                                       448,
+                                       592
+                                   ],
+                      "alwaysOutputData":  true,
+                      "retryOnFail":  true,
+                      "maxTries":  3,
+                      "waitBetweenTries":  5000,
+                      "onError":  "continueErrorOutput"
+                  },
+                  {
+                      "parameters":  {
+                                         "assignments":  {
+                                                             "assignments":  [
+                                                                                 {
+                                                                                     "id":  "chatId",
+                                                                                     "name":  "chatId",
+                                                                                     "type":  "string",
+                                                                                     "value":  "={{ $(\u0027Normalize Update\u0027).item.json.chatId }}"
+                                                                                 },
+                                                                                 {
+                                                                                     "id":  "updateType",
+                                                                                     "name":  "updateType",
+                                                                                     "type":  "string",
+                                                                                     "value":  "={{ $(\u0027Normalize Update\u0027).item.json.updateType }}"
+                                                                                 },
+                                                                                 {
+                                                                                     "id":  "messageText",
+                                                                                     "name":  "messageText",
+                                                                                     "type":  "string",
+                                                                                     "value":  "={{ $(\u0027Normalize Update\u0027).item.json.messageText }}"
+                                                                                 },
+                                                                                 {
+                                                                                     "id":  "callbackData",
+                                                                                     "name":  "callbackData",
+                                                                                     "type":  "string",
+                                                                                     "value":  "={{ $(\u0027Normalize Update\u0027).item.json.callbackData }}"
+                                                                                 },
+                                                                                 {
+                                                                                     "id":  "callbackQueryId",
+                                                                                     "name":  "callbackQueryId",
+                                                                                     "type":  "string",
+                                                                                     "value":  "={{ $(\u0027Normalize Update\u0027).item.json.callbackQueryId }}"
+                                                                                 },
+                                                                                 {
+                                                                                     "id":  "incomingPhotoFileId",
+                                                                                     "name":  "incomingPhotoFileId",
+                                                                                     "type":  "string",
+                                                                                     "value":  "={{ $(\u0027Normalize Update\u0027).item.json.incomingPhotoFileId }}"
+                                                                                 },
+                                                                                 {
+                                                                                     "id":  "step",
+                                                                                     "name":  "step",
+                                                                                     "type":  "string",
+                                                                                     "value":  "={{ $json.step ?? \u0027NEW\u0027 }}"
+                                                                                 },
+                                                                                 {
+                                                                                     "id":  "mode",
+                                                                                     "name":  "mode",
+                                                                                     "type":  "string",
+                                                                                     "value":  "={{ $json.mode ?? \u0027\u0027 }}"
+                                                                                 },
+                                                                                 {
+                                                                                     "id":  "caption",
+                                                                                     "name":  "caption",
+                                                                                     "type":  "string",
+                                                                                     "value":  "={{ $json.caption ?? \u0027\u0027 }}"
+                                                                                 },
+                                                                                 {
+                                                                                     "id":  "style",
+                                                                                     "name":  "style",
+                                                                                     "type":  "string",
+                                                                                     "value":  "={{ $json.style ?? \u0027\u0027 }}"
+                                                                                 },
+                                                                                 {
+                                                                                     "id":  "imageFileId",
+                                                                                     "name":  "imageFileId",
+                                                                                     "type":  "string",
+                                                                                     "value":  "={{ $json.image_file_id ?? \u0027\u0027 }}"
+                                                                                 },
+                                                                                 {
+                                                                                     "id":  "imageUrl",
+                                                                                     "name":  "imageUrl",
+                                                                                     "type":  "string",
+                                                                                     "value":  "={{ $json.image_url ?? \u0027\u0027 }}"
+                                                                                 }
+                                                                             ]
+                                                         },
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "b507cfdc-a165-4715-974c-da4b98b18993",
+                      "name":  "Resolve Step",
+                      "type":  "n8n-nodes-base.set",
+                      "typeVersion":  3.4,
+                      "position":  [
+                                       672,
+                                       1056
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "rules":  {
+                                                       "values":  [
+                                                                      {
+                                                                          "conditions":  {
+                                                                                             "options":  {
+                                                                                                             "caseSensitive":  true,
+                                                                                                             "leftValue":  "",
+                                                                                                             "typeValidation":  "strict",
+                                                                                                             "version":  1
+                                                                                                         },
+                                                                                             "combinator":  "or",
+                                                                                             "conditions":  [
+                                                                                                                {
+                                                                                                                    "leftValue":  "={{ $json.step }}",
+                                                                                                                    "operator":  {
+                                                                                                                                     "type":  "string",
+                                                                                                                                     "operation":  "equals"
+                                                                                                                                 },
+                                                                                                                    "rightValue":  "NEW"
+                                                                                                                },
+                                                                                                                {
+                                                                                                                    "leftValue":  "={{ $json.step }}",
+                                                                                                                    "operator":  {
+                                                                                                                                     "type":  "string",
+                                                                                                                                     "operation":  "equals"
+                                                                                                                                 },
+                                                                                                                    "rightValue":  "DONE"
+                                                                                                                }
+                                                                                                            ]
+                                                                                         }
+                                                                      },
+                                                                      {
+                                                                          "conditions":  {
+                                                                                             "options":  {
+                                                                                                             "caseSensitive":  true,
+                                                                                                             "leftValue":  "",
+                                                                                                             "typeValidation":  "strict",
+                                                                                                             "version":  1
+                                                                                                         },
+                                                                                             "combinator":  "and",
+                                                                                             "conditions":  [
+                                                                                                                {
+                                                                                                                    "leftValue":  "={{ $json.step }}",
+                                                                                                                    "operator":  {
+                                                                                                                                     "type":  "string",
+                                                                                                                                     "operation":  "equals"
+                                                                                                                                 },
+                                                                                                                    "rightValue":  "AWAITING_MODE"
+                                                                                                                }
+                                                                                                            ]
+                                                                                         }
+                                                                      },
+                                                                      {
+                                                                          "conditions":  {
+                                                                                             "options":  {
+                                                                                                             "caseSensitive":  true,
+                                                                                                             "leftValue":  "",
+                                                                                                             "typeValidation":  "strict",
+                                                                                                             "version":  1
+                                                                                                         },
+                                                                                             "combinator":  "and",
+                                                                                             "conditions":  [
+                                                                                                                {
+                                                                                                                    "leftValue":  "={{ $json.step }}",
+                                                                                                                    "operator":  {
+                                                                                                                                     "type":  "string",
+                                                                                                                                     "operation":  "equals"
+                                                                                                                                 },
+                                                                                                                    "rightValue":  "AWAITING_CAPTION"
+                                                                                                                }
+                                                                                                            ]
+                                                                                         }
+                                                                      },
+                                                                      {
+                                                                          "conditions":  {
+                                                                                             "options":  {
+                                                                                                             "caseSensitive":  true,
+                                                                                                             "leftValue":  "",
+                                                                                                             "typeValidation":  "strict",
+                                                                                                             "version":  1
+                                                                                                         },
+                                                                                             "combinator":  "and",
+                                                                                             "conditions":  [
+                                                                                                                {
+                                                                                                                    "leftValue":  "={{ $json.step }}",
+                                                                                                                    "operator":  {
+                                                                                                                                     "type":  "string",
+                                                                                                                                     "operation":  "equals"
+                                                                                                                                 },
+                                                                                                                    "rightValue":  "AWAITING_STYLE"
+                                                                                                                }
+                                                                                                            ]
+                                                                                         }
+                                                                      }
+                                                                  ]
+                                                   },
+                                         "options":  {
+                                                         "fallbackOutput":  "extra",
+                                                         "renameFallbackOutput":  "Still Processing"
+                                                     }
+                                     },
+                      "id":  "6689c1c6-fb01-4ad6-ba21-0d65da772f11",
+                      "name":  "Route by Step",
+                      "type":  "n8n-nodes-base.switch",
+                      "typeVersion":  3.4,
+                      "position":  [
+                                       896,
+                                       1008
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "conditions":  {
+                                                            "options":  {
+                                                                            "caseSensitive":  true,
+                                                                            "leftValue":  "",
+                                                                            "typeValidation":  "strict",
+                                                                            "version":  1
+                                                                        },
+                                                            "combinator":  "and",
+                                                            "conditions":  [
+                                                                               {
+                                                                                   "leftValue":  "={{ $json.updateType }}",
+                                                                                   "operator":  {
+                                                                                                    "type":  "string",
+                                                                                                    "operation":  "equals"
+                                                                                                },
+                                                                                   "rightValue":  "photo"
+                                                                               }
+                                                                           ]
+                                                        },
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "d7f2cf7a-26e1-4f73-890e-c6e81e9c2f50",
+                      "name":  "Has Photo?",
+                      "type":  "n8n-nodes-base.if",
+                      "typeVersion":  2.3,
+                      "position":  [
+                                       3984,
+                                       496
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "resource":  "file",
+                                         "fileId":  "={{ $json.incomingPhotoFileId }}",
+                                         "additionalFields":  {
+
+                                                              }
+                                     },
+                      "id":  "91c1fbce-5c86-49c3-b471-5752eafee827",
+                      "name":  "Download Product Photo",
+                      "type":  "n8n-nodes-base.telegram",
+                      "typeVersion":  1.2,
+                      "position":  [
+                                       4208,
+                                       400
+                                   ],
+                      "retryOnFail":  true,
+                      "maxTries":  3,
+                      "waitBetweenTries":  5000,
+                      "webhookId":  "a758e969-1bbe-4f2f-987b-24a398e69b2b"
+                  },
+                  {
+                      "parameters":  {
+                                         "assignments":  {
+                                                             "assignments":  [
+                                                                                 {
+                                                                                     "id":  "imageUrl",
+                                                                                     "name":  "imageUrl",
+                                                                                     "type":  "string",
+                                                                                     "value":  "={{ \u0027https://api.telegram.org/file/botYOUR_TELEGRAM_BOT_TOKEN/\u0027 + $json.result.file_path }}"
+                                                                                 },
+                                                                                 {
+                                                                                     "id":  "imageFileId",
+                                                                                     "name":  "imageFileId",
+                                                                                     "type":  "string",
+                                                                                     "value":  "={{ $(\u0027Resolve Step\u0027).item.json.incomingPhotoFileId }}"
+                                                                                 }
+                                                                             ]
+                                                         },
+                                         "includeOtherFields":  true,
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "ec5d5c4a-dc15-4e41-a00c-87b5c4a9b0ed",
+                      "name":  "Build Image URL",
+                      "type":  "n8n-nodes-base.set",
+                      "typeVersion":  3.4,
+                      "position":  [
+                                       4432,
+                                       400
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "operation":  "executeQuery",
+                                         "query":  "INSERT INTO ugc_sessions (chat_id, step, image_file_id, image_url, mode, caption, style, updated_at) VALUES ($1,$2,$3,$4,NULL,NULL,NULL,now()) ON CONFLICT (chat_id) DO UPDATE SET step = EXCLUDED.step, image_file_id = EXCLUDED.image_file_id, image_url = EXCLUDED.image_url, mode = NULL, caption = NULL, style = NULL, updated_at = now()",
+                                         "options":  {
+                                                         "queryReplacement":  "={{ [$(\u0027Normalize Update\u0027).item.json.chatId, \u0027AWAITING_MODE\u0027, $json.imageFileId, $json.imageUrl] }}"
+                                                     }
+                                     },
+                      "id":  "6d970893-7c64-47ed-b0a1-92c1fb1f4519",
+                      "name":  "Save Photo \u0026 Ask Mode",
+                      "type":  "n8n-nodes-base.postgres",
+                      "typeVersion":  2.6,
+                      "position":  [
+                                       4656,
+                                       400
+                                   ],
+                      "retryOnFail":  true,
+                      "maxTries":  3,
+                      "waitBetweenTries":  5000,
+                      "onError":  "continueErrorOutput"
+                  },
+                  {
+                      "parameters":  {
+                                         "chatId":  "={{ $(\u0027Resolve Step\u0027).item.json.chatId }}",
+                                         "text":  "What would you like us to generate from this photo?",
+                                         "replyMarkup":  "inlineKeyboard",
+                                         "inlineKeyboard":  {
+                                                                "rows":  [
+                                                                             {
+                                                                                 "row":  {
+                                                                                             "buttons":  [
+                                                                                                             {
+                                                                                                                 "text":  "🖼️ UGC Image",
+                                                                                                                 "additionalFields":  {
+                                                                                                                                          "callback_data":  "mode_image"
+                                                                                                                                      }
+                                                                                                             },
+                                                                                                             {
+                                                                                                                 "text":  "🎬 UGC Video",
+                                                                                                                 "additionalFields":  {
+                                                                                                                                          "callback_data":  "mode_video"
+                                                                                                                                      }
+                                                                                                             },
+                                                                                                             {
+                                                                                                                 "text":  "✨ Both",
+                                                                                                                 "additionalFields":  {
+                                                                                                                                          "callback_data":  "mode_both"
+                                                                                                                                      }
+                                                                                                             }
+                                                                                                         ]
+                                                                                         }
+                                                                             }
+                                                                         ]
+                                                            },
+                                         "additionalFields":  {
+                                                                  "appendAttribution":  false
+                                                              }
+                                     },
+                      "id":  "f46bc1fd-51c4-444b-a3f3-3fd957f4932b",
+                      "name":  "Ask Generation Mode",
+                      "type":  "n8n-nodes-base.telegram",
+                      "typeVersion":  1.2,
+                      "position":  [
+                                       4880,
+                                       864
+                                   ],
+                      "retryOnFail":  true,
+                      "maxTries":  3,
+                      "waitBetweenTries":  5000,
+                      "webhookId":  "dde2f677-94e2-4708-b1f7-f6be1e6c48bc"
+                  },
+                  {
+                      "parameters":  {
+                                         "chatId":  "={{ $json.chatId }}",
+                                         "text":  "Please send a photo of your product to get started 📸",
+                                         "additionalFields":  {
+                                                                  "appendAttribution":  false
+                                                              }
+                                     },
+                      "id":  "61f23f08-4174-4bd0-a700-c25b626ff718",
+                      "name":  "Ask For Photo",
+                      "type":  "n8n-nodes-base.telegram",
+                      "typeVersion":  1.2,
+                      "position":  [
+                                       4208,
+                                       592
+                                   ],
+                      "webhookId":  "fc5bd548-f957-416f-b5a2-27f3caa890be"
+                  },
+                  {
+                      "parameters":  {
+                                         "conditions":  {
+                                                            "options":  {
+                                                                            "caseSensitive":  true,
+                                                                            "leftValue":  "",
+                                                                            "typeValidation":  "strict",
+                                                                            "version":  1
+                                                                        },
+                                                            "combinator":  "and",
+                                                            "conditions":  [
+                                                                               {
+                                                                                   "leftValue":  "={{ $json.updateType }}",
+                                                                                   "operator":  {
+                                                                                                    "type":  "string",
+                                                                                                    "operation":  "equals"
+                                                                                                },
+                                                                                   "rightValue":  "callback"
+                                                                               },
+                                                                               {
+                                                                                   "leftValue":  "={{ $json.callbackData }}",
+                                                                                   "operator":  {
+                                                                                                    "type":  "string",
+                                                                                                    "operation":  "startsWith"
+                                                                                                },
+                                                                                   "rightValue":  "mode_"
+                                                                               }
+                                                                           ]
+                                                        },
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "087f4f84-64c1-4081-84af-887667a0c09e",
+                      "name":  "Is Mode Selection?",
+                      "type":  "n8n-nodes-base.if",
+                      "typeVersion":  2.3,
+                      "position":  [
+                                       3984,
+                                       880
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "resource":  "callback",
+                                         "queryId":  "={{ $json.callbackQueryId }}",
+                                         "additionalFields":  {
+
+                                                              }
+                                     },
+                      "id":  "c9255308-a427-4830-80fe-92e6b28c464c",
+                      "name":  "Acknowledge Button",
+                      "type":  "n8n-nodes-base.telegram",
+                      "typeVersion":  1.2,
+                      "position":  [
+                                       4208,
+                                       784
+                                   ],
+                      "webhookId":  "f2e1a125-cb9b-423c-9d59-8d95a85ebf3f"
+                  },
+                  {
+                      "parameters":  {
+                                         "assignments":  {
+                                                             "assignments":  [
+                                                                                 {
+                                                                                     "id":  "modeValue",
+                                                                                     "name":  "modeValue",
+                                                                                     "type":  "string",
+                                                                                     "value":  "={{ $(\u0027Resolve Step\u0027).item.json.callbackData.replace(\u0027mode_\u0027, \u0027\u0027) }}"
+                                                                                 }
+                                                                             ]
+                                                         },
+                                         "includeOtherFields":  true,
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "4fa4108c-6a18-4906-9720-b10bfc977de2",
+                      "name":  "Extract Mode",
+                      "type":  "n8n-nodes-base.set",
+                      "typeVersion":  3.4,
+                      "position":  [
+                                       4432,
+                                       784
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "operation":  "executeQuery",
+                                         "query":  "UPDATE ugc_sessions SET step = $2, mode = $3, updated_at = now() WHERE chat_id = $1",
+                                         "options":  {
+                                                         "queryReplacement":  "={{ [$(\u0027Resolve Step\u0027).item.json.chatId, \u0027AWAITING_CAPTION\u0027, $json.modeValue] }}"
+                                                     }
+                                     },
+                      "id":  "99fc50f1-eeb4-4714-aa91-1dc12d2508a4",
+                      "name":  "Save Mode \u0026 Ask Caption",
+                      "type":  "n8n-nodes-base.postgres",
+                      "typeVersion":  2.6,
+                      "position":  [
+                                       4656,
+                                       784
+                                   ],
+                      "retryOnFail":  true,
+                      "maxTries":  3,
+                      "waitBetweenTries":  5000,
+                      "onError":  "continueErrorOutput"
+                  },
+                  {
+                      "parameters":  {
+                                         "chatId":  "={{ $(\u0027Resolve Step\u0027).item.json.chatId }}",
+                                         "text":  "Great choice! What caption should appear with your content?",
+                                         "additionalFields":  {
+                                                                  "appendAttribution":  false
+                                                              }
+                                     },
+                      "id":  "8405ec20-1a2e-434b-819c-85f1718e6079",
+                      "name":  "Ask Caption",
+                      "type":  "n8n-nodes-base.telegram",
+                      "typeVersion":  1.2,
+                      "position":  [
+                                       4880,
+                                       1264
+                                   ],
+                      "retryOnFail":  true,
+                      "maxTries":  3,
+                      "waitBetweenTries":  5000,
+                      "webhookId":  "60b38687-bfc3-462d-9665-008b898a6b1f"
+                  },
+                  {
+                      "parameters":  {
+                                         "chatId":  "={{ $json.chatId }}",
+                                         "text":  "Please tap one of the buttons above 👆",
+                                         "additionalFields":  {
+                                                                  "appendAttribution":  false
+                                                              }
+                                     },
+                      "id":  "06b35729-6afe-427f-949a-fa72b84c2fff",
+                      "name":  "Reprompt Mode",
+                      "type":  "n8n-nodes-base.telegram",
+                      "typeVersion":  1.2,
+                      "position":  [
+                                       4208,
+                                       976
+                                   ],
+                      "webhookId":  "007c8b84-90e7-400e-90e0-06cd9a00a175"
+                  },
+                  {
+                      "parameters":  {
+                                         "conditions":  {
+                                                            "options":  {
+                                                                            "caseSensitive":  true,
+                                                                            "leftValue":  "",
+                                                                            "typeValidation":  "strict",
+                                                                            "version":  1
+                                                                        },
+                                                            "combinator":  "and",
+                                                            "conditions":  [
+                                                                               {
+                                                                                   "leftValue":  "={{ $json.updateType }}",
+                                                                                   "operator":  {
+                                                                                                    "type":  "string",
+                                                                                                    "operation":  "equals"
+                                                                                                },
+                                                                                   "rightValue":  "text"
+                                                                               }
+                                                                           ]
+                                                        },
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "11820fbf-308a-416c-90fc-c70b5ff4aaf0",
+                      "name":  "Is Text (Caption)?",
+                      "type":  "n8n-nodes-base.if",
+                      "typeVersion":  2.3,
+                      "position":  [
+                                       4432,
+                                       1152
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "operation":  "executeQuery",
+                                         "query":  "UPDATE ugc_sessions SET step = $2, caption = $3, updated_at = now() WHERE chat_id = $1",
+                                         "options":  {
+                                                         "queryReplacement":  "={{ [$json.chatId, \u0027AWAITING_STYLE\u0027, $json.messageText] }}"
+                                                     }
+                                     },
+                      "id":  "5dbb180d-0516-4851-a015-cf8b80dd3b95",
+                      "name":  "Save Caption \u0026 Ask Style",
+                      "type":  "n8n-nodes-base.postgres",
+                      "typeVersion":  2.6,
+                      "position":  [
+                                       4656,
+                                       1056
+                                   ],
+                      "retryOnFail":  true,
+                      "maxTries":  3,
+                      "waitBetweenTries":  5000,
+                      "onError":  "continueErrorOutput"
+                  },
+                  {
+                      "parameters":  {
+                                         "chatId":  "={{ $(\u0027Resolve Step\u0027).item.json.chatId }}",
+                                         "text":  "How would you like it styled? (e.g. \"casual handheld selfie unboxing\" or \"clean cinematic studio ad\")",
+                                         "additionalFields":  {
+                                                                  "appendAttribution":  false
+                                                              }
+                                     },
+                      "id":  "3399b05f-0dfc-4fce-8e6c-f410304ef616",
+                      "name":  "Ask Style",
+                      "type":  "n8n-nodes-base.telegram",
+                      "typeVersion":  1.2,
+                      "position":  [
+                                       4880,
+                                       1536
+                                   ],
+                      "retryOnFail":  true,
+                      "maxTries":  3,
+                      "waitBetweenTries":  5000,
+                      "webhookId":  "46522221-dd5f-4ec4-a0f1-08061cb021d9"
+                  },
+                  {
+                      "parameters":  {
+                                         "chatId":  "={{ $json.chatId }}",
+                                         "text":  "Please reply with a caption as text ✍️",
+                                         "additionalFields":  {
+                                                                  "appendAttribution":  false
+                                                              }
+                                     },
+                      "id":  "5709707e-6dab-43a6-ad3f-f5c70b96858f",
+                      "name":  "Reprompt Caption",
+                      "type":  "n8n-nodes-base.telegram",
+                      "typeVersion":  1.2,
+                      "position":  [
+                                       4656,
+                                       1248
+                                   ],
+                      "webhookId":  "a174a846-8f56-4d96-838a-efaa78b6c72c"
+                  },
+                  {
+                      "parameters":  {
+                                         "conditions":  {
+                                                            "options":  {
+                                                                            "caseSensitive":  true,
+                                                                            "leftValue":  "",
+                                                                            "typeValidation":  "strict",
+                                                                            "version":  1
+                                                                        },
+                                                            "combinator":  "and",
+                                                            "conditions":  [
+                                                                               {
+                                                                                   "leftValue":  "={{ $json.updateType }}",
+                                                                                   "operator":  {
+                                                                                                    "type":  "string",
+                                                                                                    "operation":  "equals"
+                                                                                                },
+                                                                                   "rightValue":  "text"
+                                                                               }
+                                                                           ]
+                                                        },
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "26a6ad2e-9dc9-4cbc-80f8-78367c1f6351",
+                      "name":  "Is Text (Style)?",
+                      "type":  "n8n-nodes-base.if",
+                      "typeVersion":  2.3,
+                      "position":  [
+                                       1120,
+                                       2480
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "operation":  "executeQuery",
+                                         "query":  "UPDATE ugc_sessions SET step = $2, style = $3, updated_at = now() WHERE chat_id = $1",
+                                         "options":  {
+                                                         "queryReplacement":  "={{ [$json.chatId, \u0027PROCESSING\u0027, $json.messageText] }}"
+                                                     }
+                                     },
+                      "id":  "dc1c52d6-3555-4feb-8f42-f95a85dac881",
+                      "name":  "Save Style \u0026 Mark Processing",
+                      "type":  "n8n-nodes-base.postgres",
+                      "typeVersion":  2.6,
+                      "position":  [
+                                       1344,
+                                       2384
+                                   ],
+                      "retryOnFail":  true,
+                      "maxTries":  3,
+                      "waitBetweenTries":  5000,
+                      "onError":  "continueErrorOutput"
+                  },
+                  {
+                      "parameters":  {
+                                         "chatId":  "={{ $(\u0027Resolve Step\u0027).item.json.chatId }}",
+                                         "text":  "Got it — we have everything we need. Your UGC content is being generated now and I\u0027ll send it over shortly.",
+                                         "additionalFields":  {
+                                                                  "appendAttribution":  false
+                                                              }
+                                     },
+                      "id":  "4c24ae82-7d5b-45d0-9094-920dfde11d56",
+                      "name":  "Send Confirmation",
+                      "type":  "n8n-nodes-base.telegram",
+                      "typeVersion":  1.2,
+                      "position":  [
+                                       1568,
+                                       2560
+                                   ],
+                      "retryOnFail":  true,
+                      "maxTries":  3,
+                      "waitBetweenTries":  5000,
+                      "webhookId":  "568effd6-7c28-487b-8f3e-11d2baac1295"
+                  },
+                  {
+                      "parameters":  {
+                                         "resource":  "file",
+                                         "fileId":  "={{ $(\u0027Resolve Step\u0027).item.json.imageFileId }}",
+                                         "additionalFields":  {
+
+                                                              }
+                                     },
+                      "id":  "aa260819-f25b-4404-ae66-2108bf50c788",
+                      "name":  "Refetch Product Photo",
+                      "type":  "n8n-nodes-base.telegram",
+                      "typeVersion":  1.2,
+                      "position":  [
+                                       1792,
+                                       2560
+                                   ],
+                      "retryOnFail":  true,
+                      "maxTries":  3,
+                      "waitBetweenTries":  5000,
+                      "webhookId":  "b893bf71-6127-4cd3-8019-a85e587c0c1a"
+                  },
+                  {
+                      "parameters":  {
+                                         "promptType":  "define",
+                                         "text":  "=Product caption: {{ $(\u0027Resolve Step\u0027).item.json.caption }}\nRequested style: {{ $(\u0027Resolve Step\u0027).item.json.messageText }}\nRequested output type: {{ $(\u0027Resolve Step\u0027).item.json.mode }}\n\nThe attached photo is the real product photo — look at it directly and ground every prompt in what you actually see (color, shape, material, packaging).",
+                                         "hasOutputParser":  true,
+                                         "options":  {
+                                                         "systemMessage":  "=You are an expert UGC (user-generated-content style) advertising prompt engineer. Today\u0027s date is {{ $now.format(\u0027DDDD\u0027) }}.\n\nYou will be given a product caption, the user\u0027s requested style, the requested output type (image, video, or both), and a photo of the real product attached to this message. Look at the photo directly and ground every prompt in what you actually see.\n\nBefore writing prompts, always call the \"Search UGC Trends\" tool once to check current trends and context for this kind of product in short-form video marketing, and factor that research in.\n\nHouse rules (non-negotiable):\n- Never invent product claims, certifications, or statistics that aren\u0027t visible or given to you.\n- Never add third-party logos, trademarks, or brands other than the product itself.\n- Default to vertical 9:16, mobile-first framing unless the requested style clearly calls for something else.\n- Respect the user\u0027s caption, requested style, and requested output type as hard constraints — the research is supporting context only, never a reason to override them.\n\nYou must return exactly two fields, always both regardless of the requested output type:\n1. image_prompt — for an AI photo editor (Nano Banana 2). Describe ONLY the static image: composition, framing, lighting, background/setting, mood. No camera movement, no duration, no dialogue.\n2. video_prompt — for an AI video generator (Veo 3.1) with native audio. Describe the scene AND its motion: camera movement/framing, pacing, and realistic ambient sound or spoken dialogue matching an authentic UGC feel, as a single short clip.",
+                                                         "maxIterations":  15,
+                                                         "passthroughBinaryImages":  true
+                                                     }
+                                     },
+                      "id":  "8ebd65ef-c6e2-43a4-99e4-a5938daac7f3",
+                      "name":  "Prompt Modification",
+                      "type":  "@n8n/n8n-nodes-langchain.agent",
+                      "typeVersion":  3.1,
+                      "position":  [
+                                       2080,
+                                       2560
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "model":  {
+                                                       "__rl":  true,
+                                                       "mode":  "list",
+                                                       "value":  "gpt-5-mini"
+                                                   },
+                                         "builtInTools":  {
+
+                                                          },
+                                         "options":  {
+                                                         "reasoningEffort":  "low",
+                                                         "timeout":  30000,
+                                                         "maxRetries":  3
+                                                     }
+                                     },
+                      "id":  "9f8fdf21-bef0-4876-887b-7c125726b9b7",
+                      "name":  "OpenAI Model",
+                      "type":  "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+                      "typeVersion":  1.3,
+                      "position":  [
+                                       2016,
+                                       2784
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "method":  "POST",
+                                         "url":  "https://api.tavily.com/search",
+                                         "authentication":  "genericCredentialType",
+                                         "genericAuthType":  "httpHeaderAuth",
+                                         "sendBody":  true,
+                                         "specifyBody":  "json",
+                                         "jsonBody":  "={{\n  {\n    \"query\": \"What is \" + $(\"Resolve Step\").item.json.caption + \" typically used for, and what current short-form video/UGC ad trends fit it?\",\n    \"topic\": \"general\",\n    \"search_depth\": \"advanced\",\n    \"chunks_per_source\": 3,\n    \"max_results\": 3,\n    \"include_answer\": true,\n    \"include_raw_content\": false,\n    \"include_images\": false\n  }\n}}",
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "910b0a1c-a3fa-4dfe-aa05-863c8cabd12a",
+                      "name":  "Search UGC Trends",
+                      "type":  "n8n-nodes-base.httpRequestTool",
+                      "typeVersion":  4.2,
+                      "position":  [
+                                       2144,
+                                       2784
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "schemaType":  "manual",
+                                         "inputSchema":  "{\"type\":\"object\",\"properties\":{\"image_prompt\":{\"type\":\"string\",\"description\":\"Static composition/lighting/framing instructions for editing the product photo into a UGC-style marketing image. No camera motion or duration language.\"},\"video_prompt\":{\"type\":\"string\",\"description\":\"Cinematic motion prompt: camera movement, pacing, dialogue/ambient audio cues, and framing for a short vertical UGC-style video.\"}},\"required\":[\"image_prompt\",\"video_prompt\"]}",
+                                         "autoFix":  true
+                                     },
+                      "id":  "f8db7434-342c-43b3-aa5a-a22972b3c308",
+                      "name":  "Prompt Output Parser",
+                      "type":  "@n8n/n8n-nodes-langchain.outputParserStructured",
+                      "typeVersion":  1.3,
+                      "position":  [
+                                       2272,
+                                       2784
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "model":  {
+                                                       "__rl":  true,
+                                                       "mode":  "list",
+                                                       "value":  "gpt-5-mini"
+                                                   },
+                                         "builtInTools":  {
+
+                                                          },
+                                         "options":  {
+                                                         "reasoningEffort":  "low",
+                                                         "timeout":  30000,
+                                                         "maxRetries":  3
+                                                     }
+                                     },
+                      "id":  "8c9e32c5-4dcc-4365-88a6-6b21b7602831",
+                      "name":  "Prompt Fixer Model",
+                      "type":  "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+                      "typeVersion":  1.3,
+                      "position":  [
+                                       2352,
+                                       2992
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "conditions":  {
+                                                            "options":  {
+                                                                            "caseSensitive":  true,
+                                                                            "leftValue":  "",
+                                                                            "typeValidation":  "strict",
+                                                                            "version":  1
+                                                                        },
+                                                            "combinator":  "or",
+                                                            "conditions":  [
+                                                                               {
+                                                                                   "leftValue":  "={{ $(\u0027Resolve Step\u0027).item.json.mode }}",
+                                                                                   "operator":  {
+                                                                                                    "type":  "string",
+                                                                                                    "operation":  "equals"
+                                                                                                },
+                                                                                   "rightValue":  "image"
+                                                                               },
+                                                                               {
+                                                                                   "leftValue":  "={{ $(\u0027Resolve Step\u0027).item.json.mode }}",
+                                                                                   "operator":  {
+                                                                                                    "type":  "string",
+                                                                                                    "operation":  "equals"
+                                                                                                },
+                                                                                   "rightValue":  "both"
+                                                                               }
+                                                                           ]
+                                                        },
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "a3b7a086-9084-4e16-a139-98ecde1eb192",
+                      "name":  "Wants Image?",
+                      "type":  "n8n-nodes-base.if",
+                      "typeVersion":  2.3,
+                      "position":  [
+                                       3088,
+                                       2016
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "operation":  "sendPhoto",
+                                         "chatId":  "={{ $(\u0027Resolve Step\u0027).item.json.chatId }}",
+                                         "file":  "={{ $json.imageResultUrl }}",
+                                         "additionalFields":  {
+                                                                  "caption":  "={{ $(\u0027Resolve Step\u0027).item.json.caption }}"
+                                                              }
+                                     },
+                      "id":  "88d3238d-b5c3-460d-974b-0b453ea08118",
+                      "name":  "Send Generated Image",
+                      "type":  "n8n-nodes-base.telegram",
+                      "typeVersion":  1.2,
+                      "position":  [
+                                       4880,
+                                       1920
+                                   ],
+                      "retryOnFail":  true,
+                      "maxTries":  3,
+                      "waitBetweenTries":  5000,
+                      "webhookId":  "b44faeb1-e8f1-4103-a149-d8d9b3a5fdc3"
+                  },
+                  {
+                      "parameters":  {
+                                         "operation":  "executeQuery",
+                                         "query":  "UPDATE ugc_sessions SET step = \u0027DONE\u0027, updated_at = now() WHERE chat_id = $1",
+                                         "options":  {
+                                                         "queryReplacement":  "={{ [$(\u0027Resolve Step\u0027).item.json.chatId] }}"
+                                                     }
+                                     },
+                      "id":  "7cb23447-9dc6-4061-a2c0-9f32063c9d18",
+                      "name":  "Mark Session Done (Image)",
+                      "type":  "n8n-nodes-base.postgres",
+                      "typeVersion":  2.6,
+                      "position":  [
+                                       5104,
+                                       1920
+                                   ],
+                      "retryOnFail":  true,
+                      "maxTries":  3,
+                      "waitBetweenTries":  5000,
+                      "onError":  "continueErrorOutput"
+                  },
+                  {
+                      "parameters":  {
+                                         "chatId":  "={{ $(\u0027Resolve Step\u0027).item.json.chatId }}",
+                                         "text":  "We hit a snag generating your content — please try again in a moment.",
+                                         "additionalFields":  {
+                                                                  "appendAttribution":  false
+                                                              }
+                                     },
+                      "id":  "a3b335ac-5982-41e9-8b46-efb6be22c347",
+                      "name":  "Notify Generation Error",
+                      "type":  "n8n-nodes-base.telegram",
+                      "typeVersion":  1.2,
+                      "position":  [
+                                       4208,
+                                       1824
+                                   ],
+                      "webhookId":  "79baf733-3ebe-4ea1-a6c6-56da112f0cf8"
+                  },
+                  {
+                      "parameters":  {
+                                         "chatId":  "={{ $json.chatId }}",
+                                         "text":  "Please reply with a style preference as text 🎨",
+                                         "additionalFields":  {
+                                                                  "appendAttribution":  false
+                                                              }
+                                     },
+                      "id":  "aedc8cfa-825a-4f8c-996f-074747766967",
+                      "name":  "Reprompt Style",
+                      "type":  "n8n-nodes-base.telegram",
+                      "typeVersion":  1.2,
+                      "position":  [
+                                       1344,
+                                       2576
+                                   ],
+                      "webhookId":  "44317e4a-5aa0-4c32-a3ce-13eef010f05e"
+                  },
+                  {
+                      "parameters":  {
+                                         "chatId":  "={{ $json.chatId }}",
+                                         "text":  "Still working on your last request — I\u0027ll send it over shortly!",
+                                         "additionalFields":  {
+                                                                  "appendAttribution":  false
+                                                              }
+                                     },
+                      "id":  "705b5acd-53fe-42df-af94-1f25716edaa9",
+                      "name":  "Still Processing",
+                      "type":  "n8n-nodes-base.telegram",
+                      "typeVersion":  1.2,
+                      "position":  [
+                                       1120,
+                                       2672
+                                   ],
+                      "webhookId":  "43bed820-4ecd-4def-a39f-97b33167fb88"
+                  },
+                  {
+                      "parameters":  {
+                                         "conditions":  {
+                                                            "options":  {
+                                                                            "caseSensitive":  true,
+                                                                            "leftValue":  "",
+                                                                            "typeValidation":  "strict",
+                                                                            "version":  1
+                                                                        },
+                                                            "combinator":  "or",
+                                                            "conditions":  [
+                                                                               {
+                                                                                   "leftValue":  "={{ $(\u0027Resolve Step\u0027).item.json.mode }}",
+                                                                                   "operator":  {
+                                                                                                    "type":  "string",
+                                                                                                    "operation":  "equals"
+                                                                                                },
+                                                                                   "rightValue":  "video"
+                                                                               },
+                                                                               {
+                                                                                   "leftValue":  "={{ $(\u0027Resolve Step\u0027).item.json.mode }}",
+                                                                                   "operator":  {
+                                                                                                    "type":  "string",
+                                                                                                    "operation":  "equals"
+                                                                                                },
+                                                                                   "rightValue":  "both"
+                                                                               }
+                                                                           ]
+                                                        },
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "4c386674-236a-45e3-bbb2-be2ced4cc5dd",
+                      "name":  "Wants Video?",
+                      "type":  "n8n-nodes-base.if",
+                      "typeVersion":  2.3,
+                      "position":  [
+                                       2640,
+                                       2768
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "mode":  "manual",
+                                         "assignments":  {
+                                                             "assignments":  [
+                                                                                 {
+                                                                                     "id":  "veoModel",
+                                                                                     "name":  "veoModel",
+                                                                                     "type":  "string",
+                                                                                     "value":  "veo3_fast"
+                                                                                 },
+                                                                                 {
+                                                                                     "id":  "aspectRatio",
+                                                                                     "name":  "aspectRatio",
+                                                                                     "type":  "string",
+                                                                                     "value":  "9:16"
+                                                                                 },
+                                                                                 {
+                                                                                     "id":  "generationType",
+                                                                                     "name":  "generationType",
+                                                                                     "type":  "string",
+                                                                                     "value":  "REFERENCE_2_VIDEO"
+                                                                                 }
+                                                                             ]
+                                                         },
+                                         "includeOtherFields":  true,
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "daaa7f67-6c82-4ef8-892f-11315eedf511",
+                      "name":  "Video Model Config",
+                      "type":  "n8n-nodes-base.set",
+                      "typeVersion":  3.4,
+                      "position":  [
+                                       2864,
+                                       2768
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "method":  "POST",
+                                         "url":  "https://api.kie.ai/api/v1/veo/generate",
+                                         "authentication":  "genericCredentialType",
+                                         "genericAuthType":  "httpHeaderAuth",
+                                         "sendBody":  true,
+                                         "specifyBody":  "json",
+                                         "jsonBody":  "={{\n  {\n    \"prompt\": $(\"Prompt Modification\").item.json.output.video_prompt,\n    \"model\": $json.veoModel,\n    \"imageUrls\": [ $(\"Resolve Step\").item.json.imageUrl ],\n    \"generationType\": $json.generationType,\n    \"aspect_ratio\": $json.aspectRatio\n  }\n}}",
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "dd8c03f8-d8e7-42f7-900d-2d677018d7e3",
+                      "name":  "Create Video",
+                      "type":  "n8n-nodes-base.httpRequest",
+                      "typeVersion":  4.2,
+                      "position":  [
+                                       3312,
+                                       2768
+                                   ],
+                      "retryOnFail":  false,
+                      "maxTries":  3,
+                      "waitBetweenTries":  5000,
+                      "onError":  "continueErrorOutput"
+                  },
+                  {
+                      "parameters":  {
+                                         "amount":  20
+                                     },
+                      "id":  "1a0b93b4-80b2-47c5-9d58-bc3fc5e1e0f3",
+                      "name":  "Wait For Video",
+                      "type":  "n8n-nodes-base.wait",
+                      "typeVersion":  1.1,
+                      "position":  [
+                                       3536,
+                                       2768
+                                   ],
+                      "webhookId":  "03e73be0-71c9-4e37-b597-ffd28a4f398a"
+                  },
+                  {
+                      "parameters":  {
+                                         "url":  "https://api.kie.ai/api/v1/veo/record-info",
+                                         "authentication":  "genericCredentialType",
+                                         "genericAuthType":  "httpHeaderAuth",
+                                         "sendQuery":  true,
+                                         "queryParameters":  {
+                                                                 "parameters":  [
+                                                                                    {
+                                                                                        "name":  "taskId",
+                                                                                        "value":  "={{ $(\u0027Create Video\u0027).item.json.data.taskId }}"
+                                                                                    }
+                                                                                ]
+                                                             },
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "95dcb06c-a587-44fc-9401-1676db05b375",
+                      "name":  "Grab Video",
+                      "type":  "n8n-nodes-base.httpRequest",
+                      "typeVersion":  4.2,
+                      "position":  [
+                                       3760,
+                                       2704
+                                   ],
+                      "retryOnFail":  true,
+                      "maxTries":  3,
+                      "waitBetweenTries":  5000,
+                      "onError":  "continueErrorOutput"
+                  },
+                  {
+                      "parameters":  {
+                                         "rules":  {
+                                                       "values":  [
+                                                                      {
+                                                                          "conditions":  {
+                                                                                             "options":  {
+                                                                                                             "caseSensitive":  true,
+                                                                                                             "leftValue":  "",
+                                                                                                             "typeValidation":  "strict",
+                                                                                                             "version":  1
+                                                                                                         },
+                                                                                             "combinator":  "and",
+                                                                                             "conditions":  [
+                                                                                                                {
+                                                                                                                    "leftValue":  "={{ $json.data.successFlag }}",
+                                                                                                                    "operator":  {
+                                                                                                                                     "type":  "number",
+                                                                                                                                     "operation":  "equals"
+                                                                                                                                 },
+                                                                                                                    "rightValue":  1
+                                                                                                                }
+                                                                                                            ]
+                                                                                         }
+                                                                      },
+                                                                      {
+                                                                          "conditions":  {
+                                                                                             "options":  {
+                                                                                                             "caseSensitive":  true,
+                                                                                                             "leftValue":  "",
+                                                                                                             "typeValidation":  "strict",
+                                                                                                             "version":  1
+                                                                                                         },
+                                                                                             "combinator":  "and",
+                                                                                             "conditions":  [
+                                                                                                                {
+                                                                                                                    "leftValue":  "={{ $json.data.successFlag }}",
+                                                                                                                    "operator":  {
+                                                                                                                                     "type":  "number",
+                                                                                                                                     "operation":  "equals"
+                                                                                                                                 },
+                                                                                                                    "rightValue":  0
+                                                                                                                }
+                                                                                                            ]
+                                                                                         }
+                                                                      }
+                                                                  ]
+                                                   },
+                                         "options":  {
+                                                         "fallbackOutput":  "extra",
+                                                         "renameFallbackOutput":  "Failed"
+                                                     }
+                                     },
+                      "id":  "0a966f06-0bf8-4c44-ae5f-8270a44b9633",
+                      "name":  "Check Video Status",
+                      "type":  "n8n-nodes-base.switch",
+                      "typeVersion":  3.4,
+                      "position":  [
+                                       3984,
+                                       2608
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "mode":  "manual",
+                                         "assignments":  {
+                                                             "assignments":  [
+                                                                                 {
+                                                                                     "id":  "videoUrl",
+                                                                                     "name":  "videoUrl",
+                                                                                     "type":  "string",
+                                                                                     "value":  "={{ $json.data.response.resultUrls[0] }}"
+                                                                                 }
+                                                                             ]
+                                                         },
+                                         "includeOtherFields":  true,
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "fa019a43-66b1-450f-9bfa-da6712e58897",
+                      "name":  "Extract Video URL",
+                      "type":  "n8n-nodes-base.set",
+                      "typeVersion":  3.4,
+                      "position":  [
+                                       4208,
+                                       2672
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "operation":  "sendVideo",
+                                         "chatId":  "={{ $(\u0027Resolve Step\u0027).item.json.chatId }}",
+                                         "file":  "={{ $json.videoUrl }}",
+                                         "additionalFields":  {
+                                                                  "caption":  "={{ $(\u0027Resolve Step\u0027).item.json.caption }}"
+                                                              }
+                                     },
+                      "id":  "451f421a-1b9f-4b27-b933-c50240c1587d",
+                      "name":  "Send Generated Video",
+                      "type":  "n8n-nodes-base.telegram",
+                      "typeVersion":  1.2,
+                      "position":  [
+                                       4432,
+                                       2672
+                                   ],
+                      "retryOnFail":  true,
+                      "maxTries":  3,
+                      "waitBetweenTries":  5000,
+                      "webhookId":  "bc0d79bd-63c4-4555-9052-951ab5380608"
+                  },
+                  {
+                      "parameters":  {
+                                         "operation":  "executeQuery",
+                                         "query":  "UPDATE ugc_sessions SET step = \u0027DONE\u0027, updated_at = now() WHERE chat_id = $1",
+                                         "options":  {
+                                                         "queryReplacement":  "={{ [$(\u0027Resolve Step\u0027).item.json.chatId] }}"
+                                                     }
+                                     },
+                      "id":  "d994e523-545e-4784-8c3c-16033e4c864c",
+                      "name":  "Mark Session Done (Video)",
+                      "type":  "n8n-nodes-base.postgres",
+                      "typeVersion":  2.6,
+                      "position":  [
+                                       4656,
+                                       2672
+                                   ],
+                      "retryOnFail":  true,
+                      "maxTries":  3,
+                      "waitBetweenTries":  5000,
+                      "onError":  "continueErrorOutput"
+                  },
+                  {
+                      "parameters":  {
+                                         "operation":  "executeQuery",
+                                         "query":  "UPDATE ugc_sessions SET step = \u0027DONE\u0027, updated_at = now() WHERE chat_id = $1",
+                                         "options":  {
+                                                         "queryReplacement":  "={{ [$(\u0027Normalize Update\u0027).item.json.chatId] }}"
+                                                     }
+                                     },
+                      "id":  "b9ba4292-5d35-4885-9dad-50d71ba6a643",
+                      "name":  "Reset Session on Error",
+                      "type":  "n8n-nodes-base.postgres",
+                      "typeVersion":  2.6,
+                      "position":  [
+                                       5104,
+                                       1392
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "content":  "## How to set this up\n1. Attach credentials:\n   - Telegram account (already linked)\n   - OpenAI account (already linked)\n   - Google Gemini(PaLM) Api account (already linked)\n   - **New**: Postgres credential named \"Postgres - UGC Sessions\" — create a `ugc_sessions` table first: `chat_id text primary key, step text, mode text, caption text, style text, image_file_id text, image_url text, updated_at timestamptz default now()`\n   - **New**: HTTP Header Auth credential named \"Tavily API\" (Authorization: Bearer \u003ctoken\u003e)\n   - **New**: HTTP Header Auth credential named \"Kie.ai API\" (Authorization: Bearer \u003ctoken\u003e)\n2. Add n8n environment variable `telegramBotToken` (Settings → Variables) with your bot token — used to build direct Telegram file URLs for Kie.ai.\n3. Assign \"UGC Content Studio — Error Alerts\" as this workflow\u0027s Error Workflow (Workflow Settings), and set `adminTelegramChatId` as an n8n variable too.\n4. Activate this workflow and the \"UGC Content Studio — Session Cleanup\" schedule workflow.\n\n### How it works\nTelegram Trigger → session lookup/FSM (Postgres) walks the user through: send photo → pick Image/Video/Both → caption → style. Then an AI Agent (vision-enabled, Tavily-researched) writes a still-image prompt and a motion-video prompt, which feed Nano Banana 2 (image edit) and/or Kie.ai Veo 3.1 (video) in parallel. Results are sent back into the same chat; failures notify the user and reset their session instead of hanging.",
+                                         "height":  732,
+                                         "width":  608
+                                     },
+                      "id":  "7e8e83bb-dc44-4943-a771-4b69f7c0c5c0",
+                      "name":  "Setup Notes",
+                      "type":  "n8n-nodes-base.stickyNote",
+                      "typeVersion":  1,
+                      "position":  [
+                                       0,
+                                       0
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "chatId":  "={{ $(\u0027Normalize Update\u0027).item.json.chatId }}",
+                                         "text":  "We hit a snag saving your progress — please try again in a moment.",
+                                         "additionalFields":  {
+                                                                  "appendAttribution":  false
+                                                              }
+                                     },
+                      "id":  "d0fc856a-8a84-43e0-a890-c325af347a1f",
+                      "name":  "Notify DB Error",
+                      "type":  "n8n-nodes-base.telegram",
+                      "typeVersion":  1.2,
+                      "position":  [
+                                       4880,
+                                       672
+                                   ],
+                      "webhookId":  "f846bfe8-99bc-42e3-82d4-8b6d6770be28"
+                  },
+                  {
+                      "parameters":  {
+                                         "assignments":  {
+                                                             "assignments":  [
+                                                                                 {
+                                                                                     "id":  "retryCount",
+                                                                                     "name":  "retryCount",
+                                                                                     "type":  "number",
+                                                                                     "value":  "={{ $json.retryCount ?? 0 }}"
+                                                                                 }
+                                                                             ]
+                                                         },
+                                         "includeOtherFields":  true,
+                                         "options":  {
+                                                         "stripBinary":  false
+                                                     }
+                                     },
+                      "id":  "28cca760-b480-4198-953f-f3297b60f777",
+                      "name":  "Init Image Retry Count",
+                      "type":  "n8n-nodes-base.set",
+                      "typeVersion":  3.4,
+                      "position":  [
+                                       3536,
+                                       2016
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "conditions":  {
+                                                            "options":  {
+                                                                            "caseSensitive":  true,
+                                                                            "leftValue":  "",
+                                                                            "typeValidation":  "strict",
+                                                                            "version":  1
+                                                                        },
+                                                            "combinator":  "and",
+                                                            "conditions":  [
+                                                                               {
+                                                                                   "leftValue":  "={{ $json.retryCount }}",
+                                                                                   "operator":  {
+                                                                                                    "type":  "number",
+                                                                                                    "operation":  "lt"
+                                                                                                },
+                                                                                   "rightValue":  1
+                                                                               }
+                                                                           ]
+                                                        },
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "9113adc8-853c-4a65-9908-7bbd6aad9640",
+                      "name":  "Can Retry Image Gen?",
+                      "type":  "n8n-nodes-base.if",
+                      "typeVersion":  2.3,
+                      "position":  [
+                                       3760,
+                                       1728
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "assignments":  {
+                                                             "assignments":  [
+                                                                                 {
+                                                                                     "id":  "retryCount",
+                                                                                     "name":  "retryCount",
+                                                                                     "type":  "number",
+                                                                                     "value":  "={{ $json.retryCount + 1 }}"
+                                                                                 }
+                                                                             ]
+                                                         },
+                                         "includeOtherFields":  true,
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "6028b947-e5d1-4492-9102-35a4a0c89820",
+                      "name":  "Increment Image Retry Count",
+                      "type":  "n8n-nodes-base.set",
+                      "typeVersion":  3.4,
+                      "position":  [
+                                       3984,
+                                       1664
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "amount":  30
+                                     },
+                      "id":  "80eca067-13c1-4f13-811c-e7a8026488b5",
+                      "name":  "Wait Before Image Retry",
+                      "type":  "n8n-nodes-base.wait",
+                      "typeVersion":  1.1,
+                      "position":  [
+                                       4208,
+                                       1664
+                                   ],
+                      "webhookId":  "84332500-61c0-43e9-8979-2e44cce6defd"
+                  },
+                  {
+                      "parameters":  {
+                                         "assignments":  {
+                                                             "assignments":  [
+                                                                                 {
+                                                                                     "id":  "retryCount",
+                                                                                     "name":  "retryCount",
+                                                                                     "type":  "number",
+                                                                                     "value":  "={{ $json.retryCount ?? 0 }}"
+                                                                                 }
+                                                                             ]
+                                                         },
+                                         "includeOtherFields":  true,
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "3a1220ff-cdb6-46c6-b118-8d1450dd3b07",
+                      "name":  "Init Video Retry Count",
+                      "type":  "n8n-nodes-base.set",
+                      "typeVersion":  3.4,
+                      "position":  [
+                                       3088,
+                                       2768
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "conditions":  {
+                                                            "options":  {
+                                                                            "caseSensitive":  true,
+                                                                            "leftValue":  "",
+                                                                            "typeValidation":  "strict",
+                                                                            "version":  1
+                                                                        },
+                                                            "combinator":  "and",
+                                                            "conditions":  [
+                                                                               {
+                                                                                   "leftValue":  "={{ $json.retryCount }}",
+                                                                                   "operator":  {
+                                                                                                    "type":  "number",
+                                                                                                    "operation":  "lt"
+                                                                                                },
+                                                                                   "rightValue":  1
+                                                                               }
+                                                                           ]
+                                                        },
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "38d1fadd-004f-41f6-af72-9cf347f297f8",
+                      "name":  "Can Retry Video Gen?",
+                      "type":  "n8n-nodes-base.if",
+                      "typeVersion":  2.3,
+                      "position":  [
+                                       3536,
+                                       2368
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "assignments":  {
+                                                             "assignments":  [
+                                                                                 {
+                                                                                     "id":  "retryCount",
+                                                                                     "name":  "retryCount",
+                                                                                     "type":  "number",
+                                                                                     "value":  "={{ $json.retryCount + 1 }}"
+                                                                                 }
+                                                                             ]
+                                                         },
+                                         "includeOtherFields":  true,
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "ed04a32b-7ef1-4dfe-873f-fce40dddcf8d",
+                      "name":  "Increment Video Retry Count",
+                      "type":  "n8n-nodes-base.set",
+                      "typeVersion":  3.4,
+                      "position":  [
+                                       3760,
+                                       2304
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "amount":  30
+                                     },
+                      "id":  "c314962b-7a23-4e84-b305-52dca286123b",
+                      "name":  "Wait Before Video Retry",
+                      "type":  "n8n-nodes-base.wait",
+                      "typeVersion":  1.1,
+                      "position":  [
+                                       3984,
+                                       2304
+                                   ],
+                      "webhookId":  "1f54927d-4b17-4ec2-bf44-e6d5b5d608c6"
+                  },
+                  {
+                      "parameters":  {
+                                         "assignments":  {
+                                                             "assignments":  [
+                                                                                 {
+                                                                                     "id":  "nanoModel",
+                                                                                     "name":  "nanoModel",
+                                                                                     "type":  "string",
+                                                                                     "value":  "nano-banana-2"
+                                                                                 },
+                                                                                 {
+                                                                                     "id":  "aspectRatio",
+                                                                                     "name":  "aspectRatio",
+                                                                                     "type":  "string",
+                                                                                     "value":  "9:16"
+                                                                                 },
+                                                                                 {
+                                                                                     "id":  "resolution",
+                                                                                     "name":  "resolution",
+                                                                                     "type":  "string",
+                                                                                     "value":  "2K"
+                                                                                 },
+                                                                                 {
+                                                                                     "id":  "outputFormat",
+                                                                                     "name":  "outputFormat",
+                                                                                     "type":  "string",
+                                                                                     "value":  "png"
+                                                                                 }
+                                                                             ]
+                                                         },
+                                         "includeOtherFields":  true,
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "bf472bc6-42f1-4642-b9fd-502d42805045",
+                      "name":  "Image Model Config",
+                      "type":  "n8n-nodes-base.set",
+                      "typeVersion":  3.4,
+                      "position":  [
+                                       3312,
+                                       2016
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "method":  "POST",
+                                         "url":  "https://api.kie.ai/api/v1/jobs/createTask",
+                                         "authentication":  "genericCredentialType",
+                                         "genericAuthType":  "httpHeaderAuth",
+                                         "sendBody":  true,
+                                         "specifyBody":  "json",
+                                         "jsonBody":  "={{\n  {\n    \"model\": $json.nanoModel,\n    \"input\": {\n      \"prompt\": $(\"Prompt Modification\").item.json.output.image_prompt,\n      \"image_input\": [ $(\"Resolve Step\").item.json.imageUrl ],\n      \"aspect_ratio\": $json.aspectRatio,\n      \"resolution\": $json.resolution,\n      \"output_format\": $json.outputFormat\n    }\n  }\n}}",
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "44ca3881-7261-4ab8-91b5-507b26f81db2",
+                      "name":  "Create Image",
+                      "type":  "n8n-nodes-base.httpRequest",
+                      "typeVersion":  4.2,
+                      "position":  [
+                                       3760,
+                                       2016
+                                   ],
+                      "retryOnFail":  false,
+                      "maxTries":  3,
+                      "waitBetweenTries":  5000,
+                      "onError":  "continueErrorOutput"
+                  },
+                  {
+                      "parameters":  {
+                                         "amount":  20
+                                     },
+                      "id":  "eb310791-7c25-4491-86bc-c2dad8866aea",
+                      "name":  "Wait For Image",
+                      "type":  "n8n-nodes-base.wait",
+                      "typeVersion":  1.1,
+                      "position":  [
+                                       3984,
+                                       2016
+                                   ],
+                      "webhookId":  "dd2bb619-3f58-4069-a988-904a85bf12d2"
+                  },
+                  {
+                      "parameters":  {
+                                         "url":  "https://api.kie.ai/api/v1/jobs/recordInfo",
+                                         "authentication":  "genericCredentialType",
+                                         "genericAuthType":  "httpHeaderAuth",
+                                         "sendQuery":  true,
+                                         "queryParameters":  {
+                                                                 "parameters":  [
+                                                                                    {
+                                                                                        "name":  "taskId",
+                                                                                        "value":  "={{ $(\u0027Create Image\u0027).item.json.data.taskId }}"
+                                                                                    }
+                                                                                ]
+                                                             },
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "bc7384d4-4f42-4f5a-bd15-ccac75560270",
+                      "name":  "Grab Image",
+                      "type":  "n8n-nodes-base.httpRequest",
+                      "typeVersion":  4.2,
+                      "position":  [
+                                       4208,
+                                       1952
+                                   ],
+                      "retryOnFail":  true,
+                      "maxTries":  3,
+                      "waitBetweenTries":  5000,
+                      "onError":  "continueErrorOutput"
+                  },
+                  {
+                      "parameters":  {
+                                         "rules":  {
+                                                       "values":  [
+                                                                      {
+                                                                          "conditions":  {
+                                                                                             "options":  {
+                                                                                                             "caseSensitive":  true,
+                                                                                                             "leftValue":  "",
+                                                                                                             "typeValidation":  "strict",
+                                                                                                             "version":  1
+                                                                                                         },
+                                                                                             "combinator":  "and",
+                                                                                             "conditions":  [
+                                                                                                                {
+                                                                                                                    "leftValue":  "={{ $json.data.state }}",
+                                                                                                                    "operator":  {
+                                                                                                                                     "type":  "string",
+                                                                                                                                     "operation":  "equals"
+                                                                                                                                 },
+                                                                                                                    "rightValue":  "success"
+                                                                                                                }
+                                                                                                            ]
+                                                                                         }
+                                                                      },
+                                                                      {
+                                                                          "conditions":  {
+                                                                                             "options":  {
+                                                                                                             "caseSensitive":  true,
+                                                                                                             "leftValue":  "",
+                                                                                                             "typeValidation":  "strict",
+                                                                                                             "version":  1
+                                                                                                         },
+                                                                                             "combinator":  "or",
+                                                                                             "conditions":  [
+                                                                                                                {
+                                                                                                                    "leftValue":  "={{ $json.data.state }}",
+                                                                                                                    "operator":  {
+                                                                                                                                     "type":  "string",
+                                                                                                                                     "operation":  "equals"
+                                                                                                                                 },
+                                                                                                                    "rightValue":  "waiting"
+                                                                                                                },
+                                                                                                                {
+                                                                                                                    "leftValue":  "={{ $json.data.state }}",
+                                                                                                                    "operator":  {
+                                                                                                                                     "type":  "string",
+                                                                                                                                     "operation":  "equals"
+                                                                                                                                 },
+                                                                                                                    "rightValue":  "queuing"
+                                                                                                                },
+                                                                                                                {
+                                                                                                                    "leftValue":  "={{ $json.data.state }}",
+                                                                                                                    "operator":  {
+                                                                                                                                     "type":  "string",
+                                                                                                                                     "operation":  "equals"
+                                                                                                                                 },
+                                                                                                                    "rightValue":  "generating"
+                                                                                                                }
+                                                                                                            ]
+                                                                                         }
+                                                                      }
+                                                                  ]
+                                                   },
+                                         "options":  {
+                                                         "fallbackOutput":  "extra",
+                                                         "renameFallbackOutput":  "Failed"
+                                                     }
+                                     },
+                      "id":  "13d79cd2-ffa3-4854-aeb9-fd5eac2b8795",
+                      "name":  "Check Image Status",
+                      "type":  "n8n-nodes-base.switch",
+                      "typeVersion":  3.4,
+                      "position":  [
+                                       4432,
+                                       1856
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "assignments":  {
+                                                             "assignments":  [
+                                                                                 {
+                                                                                     "id":  "imageResultUrl",
+                                                                                     "name":  "imageResultUrl",
+                                                                                     "type":  "string",
+                                                                                     "value":  "={{ JSON.parse($json.data.resultJson).resultUrls[0] }}"
+                                                                                 }
+                                                                             ]
+                                                         },
+                                         "includeOtherFields":  true,
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "341204bc-b639-4082-8c2c-7c8b54dfca84",
+                      "name":  "Extract Image URL",
+                      "type":  "n8n-nodes-base.set",
+                      "typeVersion":  3.4,
+                      "position":  [
+                                       4656,
+                                       1920
+                                   ]
+                  },
+                  {
+                      "id":  "ab77c3f5-ddef-40b8-bc53-3a19e2cf9a80",
+                      "name":  "Video Task Created?",
+                      "type":  "n8n-nodes-base.if",
+                      "typeVersion":  2.3,
+                      "position":  [
+                                       3424,
+                                       2944
+                                   ],
+                      "parameters":  {
+                                         "conditions":  {
+                                                            "options":  {
+                                                                            "caseSensitive":  true,
+                                                                            "leftValue":  "",
+                                                                            "typeValidation":  "strict",
+                                                                            "version":  1
+                                                                        },
+                                                            "combinator":  "and",
+                                                            "conditions":  [
+                                                                               {
+                                                                                   "leftValue":  "={{ $json.code }}",
+                                                                                   "operator":  {
+                                                                                                    "type":  "number",
+                                                                                                    "operation":  "equals"
+                                                                                                },
+                                                                                   "rightValue":  200
+                                                                               }
+                                                                           ]
+                                                        },
+                                         "options":  {
+
+                                                     }
+                                     }
+                  },
+                  {
+                      "id":  "86a68b37-2ff6-4389-8da1-a88a0aa48576",
+                      "name":  "Image Task Created?",
+                      "type":  "n8n-nodes-base.if",
+                      "typeVersion":  2.3,
+                      "position":  [
+                                       3872,
+                                       2192
+                                   ],
+                      "parameters":  {
+                                         "conditions":  {
+                                                            "options":  {
+                                                                            "caseSensitive":  true,
+                                                                            "leftValue":  "",
+                                                                            "typeValidation":  "strict",
+                                                                            "version":  1
+                                                                        },
+                                                            "combinator":  "and",
+                                                            "conditions":  [
+                                                                               {
+                                                                                   "leftValue":  "={{ $json.code }}",
+                                                                                   "operator":  {
+                                                                                                    "type":  "number",
+                                                                                                    "operation":  "equals"
+                                                                                                },
+                                                                                   "rightValue":  200
+                                                                               }
+                                                                           ]
+                                                        },
+                                         "options":  {
+
+                                                     }
+                                     }
+                  }
+              ],
+    "connections":  {
+                        "Telegram Trigger":  {
+                                                 "main":  [
+                                                              [
+                                                                  {
+                                                                      "node":  "Normalize Update",
+                                                                      "type":  "main",
+                                                                      "index":  0
+                                                                  }
+                                                              ]
+                                                          ]
+                                             },
+                        "Normalize Update":  {
+                                                 "main":  [
+                                                              [
+                                                                  {
+                                                                      "node":  "Get Session",
+                                                                      "type":  "main",
+                                                                      "index":  0
+                                                                  }
+                                                              ]
+                                                          ]
+                                             },
+                        "Get Session":  {
+                                            "main":  [
+                                                         [
+                                                             {
+                                                                 "node":  "Resolve Step",
+                                                                 "type":  "main",
+                                                                 "index":  0
+                                                             }
+                                                         ],
+                                                         [
+                                                             {
+                                                                 "node":  "Notify DB Error",
+                                                                 "type":  "main",
+                                                                 "index":  0
+                                                             }
+                                                         ]
+                                                     ]
+                                        },
+                        "Resolve Step":  {
+                                             "main":  [
+                                                          [
+                                                              {
+                                                                  "node":  "Route by Step",
+                                                                  "type":  "main",
+                                                                  "index":  0
+                                                              }
+                                                          ]
+                                                      ]
+                                         },
+                        "Route by Step":  {
+                                              "main":  [
+                                                           [
+                                                               {
+                                                                   "node":  "Has Photo?",
+                                                                   "type":  "main",
+                                                                   "index":  0
+                                                               }
+                                                           ],
+                                                           [
+                                                               {
+                                                                   "node":  "Is Mode Selection?",
+                                                                   "type":  "main",
+                                                                   "index":  0
+                                                               }
+                                                           ],
+                                                           [
+                                                               {
+                                                                   "node":  "Is Text (Caption)?",
+                                                                   "type":  "main",
+                                                                   "index":  0
+                                                               }
+                                                           ],
+                                                           [
+                                                               {
+                                                                   "node":  "Is Text (Style)?",
+                                                                   "type":  "main",
+                                                                   "index":  0
+                                                               }
+                                                           ],
+                                                           [
+                                                               {
+                                                                   "node":  "Still Processing",
+                                                                   "type":  "main",
+                                                                   "index":  0
+                                                               }
+                                                           ]
+                                                       ]
+                                          },
+                        "Has Photo?":  {
+                                           "main":  [
+                                                        [
+                                                            {
+                                                                "node":  "Download Product Photo",
+                                                                "type":  "main",
+                                                                "index":  0
+                                                            }
+                                                        ],
+                                                        [
+                                                            {
+                                                                "node":  "Ask For Photo",
+                                                                "type":  "main",
+                                                                "index":  0
+                                                            }
+                                                        ]
+                                                    ]
+                                       },
+                        "Download Product Photo":  {
+                                                       "main":  [
+                                                                    [
+                                                                        {
+                                                                            "node":  "Build Image URL",
+                                                                            "type":  "main",
+                                                                            "index":  0
+                                                                        }
+                                                                    ]
+                                                                ]
+                                                   },
+                        "Build Image URL":  {
+                                                "main":  [
+                                                             [
+                                                                 {
+                                                                     "node":  "Save Photo \u0026 Ask Mode",
+                                                                     "type":  "main",
+                                                                     "index":  0
+                                                                 }
+                                                             ]
+                                                         ]
+                                            },
+                        "Save Photo \u0026 Ask Mode":  {
+                                                           "main":  [
+                                                                        [
+                                                                            {
+                                                                                "node":  "Ask Generation Mode",
+                                                                                "type":  "main",
+                                                                                "index":  0
+                                                                            }
+                                                                        ],
+                                                                        [
+                                                                            {
+                                                                                "node":  "Notify DB Error",
+                                                                                "type":  "main",
+                                                                                "index":  0
+                                                                            }
+                                                                        ]
+                                                                    ]
+                                                       },
+                        "Is Mode Selection?":  {
+                                                   "main":  [
+                                                                [
+                                                                    {
+                                                                        "node":  "Acknowledge Button",
+                                                                        "type":  "main",
+                                                                        "index":  0
+                                                                    }
+                                                                ],
+                                                                [
+                                                                    {
+                                                                        "node":  "Reprompt Mode",
+                                                                        "type":  "main",
+                                                                        "index":  0
+                                                                    }
+                                                                ]
+                                                            ]
+                                               },
+                        "Acknowledge Button":  {
+                                                   "main":  [
+                                                                [
+                                                                    {
+                                                                        "node":  "Extract Mode",
+                                                                        "type":  "main",
+                                                                        "index":  0
+                                                                    }
+                                                                ]
+                                                            ]
+                                               },
+                        "Extract Mode":  {
+                                             "main":  [
+                                                          [
+                                                              {
+                                                                  "node":  "Save Mode \u0026 Ask Caption",
+                                                                  "type":  "main",
+                                                                  "index":  0
+                                                              }
+                                                          ]
+                                                      ]
+                                         },
+                        "Save Mode \u0026 Ask Caption":  {
+                                                             "main":  [
+                                                                          [
+                                                                              {
+                                                                                  "node":  "Ask Caption",
+                                                                                  "type":  "main",
+                                                                                  "index":  0
+                                                                              }
+                                                                          ],
+                                                                          [
+                                                                              {
+                                                                                  "node":  "Notify DB Error",
+                                                                                  "type":  "main",
+                                                                                  "index":  0
+                                                                              }
+                                                                          ]
+                                                                      ]
+                                                         },
+                        "Is Text (Caption)?":  {
+                                                   "main":  [
+                                                                [
+                                                                    {
+                                                                        "node":  "Save Caption \u0026 Ask Style",
+                                                                        "type":  "main",
+                                                                        "index":  0
+                                                                    }
+                                                                ],
+                                                                [
+                                                                    {
+                                                                        "node":  "Reprompt Caption",
+                                                                        "type":  "main",
+                                                                        "index":  0
+                                                                    }
+                                                                ]
+                                                            ]
+                                               },
+                        "Save Caption \u0026 Ask Style":  {
+                                                              "main":  [
+                                                                           [
+                                                                               {
+                                                                                   "node":  "Ask Style",
+                                                                                   "type":  "main",
+                                                                                   "index":  0
+                                                                               }
+                                                                           ],
+                                                                           [
+                                                                               {
+                                                                                   "node":  "Notify DB Error",
+                                                                                   "type":  "main",
+                                                                                   "index":  0
+                                                                               }
+                                                                           ]
+                                                                       ]
+                                                          },
+                        "Is Text (Style)?":  {
+                                                 "main":  [
+                                                              [
+                                                                  {
+                                                                      "node":  "Save Style \u0026 Mark Processing",
+                                                                      "type":  "main",
+                                                                      "index":  0
+                                                                  }
+                                                              ],
+                                                              [
+                                                                  {
+                                                                      "node":  "Reprompt Style",
+                                                                      "type":  "main",
+                                                                      "index":  0
+                                                                  }
+                                                              ]
+                                                          ]
+                                             },
+                        "Save Style \u0026 Mark Processing":  {
+                                                                  "main":  [
+                                                                               [
+                                                                                   {
+                                                                                       "node":  "Send Confirmation",
+                                                                                       "type":  "main",
+                                                                                       "index":  0
+                                                                                   }
+                                                                               ],
+                                                                               [
+                                                                                   {
+                                                                                       "node":  "Notify DB Error",
+                                                                                       "type":  "main",
+                                                                                       "index":  0
+                                                                                   }
+                                                                               ]
+                                                                           ]
+                                                              },
+                        "Send Confirmation":  {
+                                                  "main":  [
+                                                               [
+                                                                   {
+                                                                       "node":  "Refetch Product Photo",
+                                                                       "type":  "main",
+                                                                       "index":  0
+                                                                   }
+                                                               ]
+                                                           ]
+                                              },
+                        "Refetch Product Photo":  {
+                                                      "main":  [
+                                                                   [
+                                                                       {
+                                                                           "node":  "Prompt Modification",
+                                                                           "type":  "main",
+                                                                           "index":  0
+                                                                       }
+                                                                   ]
+                                                               ]
+                                                  },
+                        "Prompt Modification":  {
+                                                    "main":  [
+                                                                 [
+                                                                     {
+                                                                         "node":  "Wants Image?",
+                                                                         "type":  "main",
+                                                                         "index":  0
+                                                                     },
+                                                                     {
+                                                                         "node":  "Wants Video?",
+                                                                         "type":  "main",
+                                                                         "index":  0
+                                                                     }
+                                                                 ]
+                                                             ]
+                                                },
+                        "OpenAI Model":  {
+                                             "ai_languageModel":  [
+                                                                      [
+                                                                          {
+                                                                              "node":  "Prompt Modification",
+                                                                              "type":  "ai_languageModel",
+                                                                              "index":  0
+                                                                          }
+                                                                      ]
+                                                                  ]
+                                         },
+                        "Search UGC Trends":  {
+                                                  "ai_tool":  [
+                                                                  [
+                                                                      {
+                                                                          "node":  "Prompt Modification",
+                                                                          "type":  "ai_tool",
+                                                                          "index":  0
+                                                                      }
+                                                                  ]
+                                                              ]
+                                              },
+                        "Prompt Output Parser":  {
+                                                     "ai_outputParser":  [
+                                                                             [
+                                                                                 {
+                                                                                     "node":  "Prompt Modification",
+                                                                                     "type":  "ai_outputParser",
+                                                                                     "index":  0
+                                                                                 }
+                                                                             ]
+                                                                         ]
+                                                 },
+                        "Prompt Fixer Model":  {
+                                                   "ai_languageModel":  [
+                                                                            [
+                                                                                {
+                                                                                    "node":  "Prompt Output Parser",
+                                                                                    "type":  "ai_languageModel",
+                                                                                    "index":  0
+                                                                                }
+                                                                            ]
+                                                                        ]
+                                               },
+                        "Send Generated Image":  {
+                                                     "main":  [
+                                                                  [
+                                                                      {
+                                                                          "node":  "Mark Session Done (Image)",
+                                                                          "type":  "main",
+                                                                          "index":  0
+                                                                      }
+                                                                  ]
+                                                              ]
+                                                 },
+                        "Notify Generation Error":  {
+                                                        "main":  [
+                                                                     [
+                                                                         {
+                                                                             "node":  "Reset Session on Error",
+                                                                             "type":  "main",
+                                                                             "index":  0
+                                                                         }
+                                                                     ]
+                                                                 ]
+                                                    },
+                        "Wants Video?":  {
+                                             "main":  [
+                                                          [
+                                                              {
+                                                                  "node":  "Video Model Config",
+                                                                  "type":  "main",
+                                                                  "index":  0
+                                                              }
+                                                          ]
+                                                      ]
+                                         },
+                        "Create Video":  {
+                                             "main":  [
+                                                          [
+                                                              {
+                                                                  "node":  "Video Task Created?",
+                                                                  "type":  "main",
+                                                                  "index":  0
+                                                              }
+                                                          ],
+                                                          [
+                                                              {
+                                                                  "node":  "Can Retry Video Gen?",
+                                                                  "type":  "main",
+                                                                  "index":  0
+                                                              }
+                                                          ]
+                                                      ]
+                                         },
+                        "Wait For Video":  {
+                                               "main":  [
+                                                            [
+                                                                {
+                                                                    "node":  "Grab Video",
+                                                                    "type":  "main",
+                                                                    "index":  0
+                                                                }
+                                                            ]
+                                                        ]
+                                           },
+                        "Grab Video":  {
+                                           "main":  [
+                                                        [
+                                                            {
+                                                                "node":  "Check Video Status",
+                                                                "type":  "main",
+                                                                "index":  0
+                                                            }
+                                                        ],
+                                                        [
+                                                            {
+                                                                "node":  "Notify Generation Error",
+                                                                "type":  "main",
+                                                                "index":  0
+                                                            }
+                                                        ]
+                                                    ]
+                                       },
+                        "Check Video Status":  {
+                                                   "main":  [
+                                                                [
+                                                                    {
+                                                                        "node":  "Extract Video URL",
+                                                                        "type":  "main",
+                                                                        "index":  0
+                                                                    }
+                                                                ],
+                                                                [
+                                                                    {
+                                                                        "node":  "Wait For Video",
+                                                                        "type":  "main",
+                                                                        "index":  0
+                                                                    }
+                                                                ],
+                                                                [
+                                                                    {
+                                                                        "node":  "Notify Generation Error",
+                                                                        "type":  "main",
+                                                                        "index":  0
+                                                                    }
+                                                                ]
+                                                            ]
+                                               },
+                        "Extract Video URL":  {
+                                                  "main":  [
+                                                               [
+                                                                   {
+                                                                       "node":  "Send Generated Video",
+                                                                       "type":  "main",
+                                                                       "index":  0
+                                                                   }
+                                                               ]
+                                                           ]
+                                              },
+                        "Send Generated Video":  {
+                                                     "main":  [
+                                                                  [
+                                                                      {
+                                                                          "node":  "Mark Session Done (Video)",
+                                                                          "type":  "main",
+                                                                          "index":  0
+                                                                      }
+                                                                  ]
+                                                              ]
+                                                 },
+                        "Mark Session Done (Image)":  {
+                                                          "main":  [
+                                                                       null,
+                                                                       [
+                                                                           {
+                                                                               "node":  "Notify DB Error",
+                                                                               "type":  "main",
+                                                                               "index":  0
+                                                                           }
+                                                                       ]
+                                                                   ]
+                                                      },
+                        "Mark Session Done (Video)":  {
+                                                          "main":  [
+                                                                       null,
+                                                                       [
+                                                                           {
+                                                                               "node":  "Notify DB Error",
+                                                                               "type":  "main",
+                                                                               "index":  0
+                                                                           }
+                                                                       ]
+                                                                   ]
+                                                      },
+                        "Notify DB Error":  {
+                                                "main":  [
+                                                             [
+                                                                 {
+                                                                     "node":  "Reset Session on Error",
+                                                                     "type":  "main",
+                                                                     "index":  0
+                                                                 }
+                                                             ]
+                                                         ]
+                                            },
+                        "Can Retry Image Gen?":  {
+                                                     "main":  [
+                                                                  [
+                                                                      {
+                                                                          "node":  "Increment Image Retry Count",
+                                                                          "type":  "main",
+                                                                          "index":  0
+                                                                      }
+                                                                  ],
+                                                                  [
+                                                                      {
+                                                                          "node":  "Notify Generation Error",
+                                                                          "type":  "main",
+                                                                          "index":  0
+                                                                      }
+                                                                  ]
+                                                              ]
+                                                 },
+                        "Increment Image Retry Count":  {
+                                                            "main":  [
+                                                                         [
+                                                                             {
+                                                                                 "node":  "Wait Before Image Retry",
+                                                                                 "type":  "main",
+                                                                                 "index":  0
+                                                                             }
+                                                                         ]
+                                                                     ]
+                                                        },
+                        "Video Model Config":  {
+                                                   "main":  [
+                                                                [
+                                                                    {
+                                                                        "node":  "Init Video Retry Count",
+                                                                        "type":  "main",
+                                                                        "index":  0
+                                                                    }
+                                                                ]
+                                                            ]
+                                               },
+                        "Init Video Retry Count":  {
+                                                       "main":  [
+                                                                    [
+                                                                        {
+                                                                            "node":  "Create Video",
+                                                                            "type":  "main",
+                                                                            "index":  0
+                                                                        }
+                                                                    ]
+                                                                ]
+                                                   },
+                        "Can Retry Video Gen?":  {
+                                                     "main":  [
+                                                                  [
+                                                                      {
+                                                                          "node":  "Increment Video Retry Count",
+                                                                          "type":  "main",
+                                                                          "index":  0
+                                                                      }
+                                                                  ],
+                                                                  [
+                                                                      {
+                                                                          "node":  "Notify Generation Error",
+                                                                          "type":  "main",
+                                                                          "index":  0
+                                                                      }
+                                                                  ]
+                                                              ]
+                                                 },
+                        "Increment Video Retry Count":  {
+                                                            "main":  [
+                                                                         [
+                                                                             {
+                                                                                 "node":  "Wait Before Video Retry",
+                                                                                 "type":  "main",
+                                                                                 "index":  0
+                                                                             }
+                                                                         ]
+                                                                     ]
+                                                        },
+                        "Wait Before Video Retry":  {
+                                                        "main":  [
+                                                                     [
+                                                                         {
+                                                                             "node":  "Create Video",
+                                                                             "type":  "main",
+                                                                             "index":  0
+                                                                         }
+                                                                     ]
+                                                                 ]
+                                                    },
+                        "Wants Image?":  {
+                                             "main":  [
+                                                          [
+                                                              {
+                                                                  "node":  "Image Model Config",
+                                                                  "type":  "main",
+                                                                  "index":  0
+                                                              }
+                                                          ]
+                                                      ]
+                                         },
+                        "Image Model Config":  {
+                                                   "main":  [
+                                                                [
+                                                                    {
+                                                                        "node":  "Init Image Retry Count",
+                                                                        "type":  "main",
+                                                                        "index":  0
+                                                                    }
+                                                                ]
+                                                            ]
+                                               },
+                        "Init Image Retry Count":  {
+                                                       "main":  [
+                                                                    [
+                                                                        {
+                                                                            "node":  "Create Image",
+                                                                            "type":  "main",
+                                                                            "index":  0
+                                                                        }
+                                                                    ]
+                                                                ]
+                                                   },
+                        "Create Image":  {
+                                             "main":  [
+                                                          [
+                                                              {
+                                                                  "node":  "Image Task Created?",
+                                                                  "type":  "main",
+                                                                  "index":  0
+                                                              }
+                                                          ],
+                                                          [
+                                                              {
+                                                                  "node":  "Can Retry Image Gen?",
+                                                                  "type":  "main",
+                                                                  "index":  0
+                                                              }
+                                                          ]
+                                                      ]
+                                         },
+                        "Wait For Image":  {
+                                               "main":  [
+                                                            [
+                                                                {
+                                                                    "node":  "Grab Image",
+                                                                    "type":  "main",
+                                                                    "index":  0
+                                                                }
+                                                            ]
+                                                        ]
+                                           },
+                        "Grab Image":  {
+                                           "main":  [
+                                                        [
+                                                            {
+                                                                "node":  "Check Image Status",
+                                                                "type":  "main",
+                                                                "index":  0
+                                                            }
+                                                        ],
+                                                        [
+                                                            {
+                                                                "node":  "Notify Generation Error",
+                                                                "type":  "main",
+                                                                "index":  0
+                                                            }
+                                                        ]
+                                                    ]
+                                       },
+                        "Check Image Status":  {
+                                                   "main":  [
+                                                                [
+                                                                    {
+                                                                        "node":  "Extract Image URL",
+                                                                        "type":  "main",
+                                                                        "index":  0
+                                                                    }
+                                                                ],
+                                                                [
+                                                                    {
+                                                                        "node":  "Wait For Image",
+                                                                        "type":  "main",
+                                                                        "index":  0
+                                                                    }
+                                                                ],
+                                                                [
+                                                                    {
+                                                                        "node":  "Notify Generation Error",
+                                                                        "type":  "main",
+                                                                        "index":  0
+                                                                    }
+                                                                ]
+                                                            ]
+                                               },
+                        "Extract Image URL":  {
+                                                  "main":  [
+                                                               [
+                                                                   {
+                                                                       "node":  "Send Generated Image",
+                                                                       "type":  "main",
+                                                                       "index":  0
+                                                                   }
+                                                               ]
+                                                           ]
+                                              },
+                        "Wait Before Image Retry":  {
+                                                        "main":  [
+                                                                     [
+                                                                         {
+                                                                             "node":  "Create Image",
+                                                                             "type":  "main",
+                                                                             "index":  0
+                                                                         }
+                                                                     ]
+                                                                 ]
+                                                    },
+                        "Video Task Created?":  {
+                                                    "main":  [
+                                                                 [
+                                                                     {
+                                                                         "node":  "Wait For Video",
+                                                                         "type":  "main",
+                                                                         "index":  0
+                                                                     }
+                                                                 ],
+                                                                 [
+                                                                     {
+                                                                         "node":  "Can Retry Video Gen?",
+                                                                         "type":  "main",
+                                                                         "index":  0
+                                                                     }
+                                                                 ]
+                                                             ]
+                                                },
+                        "Image Task Created?":  {
+                                                    "main":  [
+                                                                 [
+                                                                     {
+                                                                         "node":  "Wait For Image",
+                                                                         "type":  "main",
+                                                                         "index":  0
+                                                                     }
+                                                                 ],
+                                                                 [
+                                                                     {
+                                                                         "node":  "Can Retry Image Gen?",
+                                                                         "type":  "main",
+                                                                         "index":  0
+                                                                     }
+                                                                 ]
+                                                             ]
+                                                }
+                    },
+    "settings":  {
+                     "executionOrder":  "v1",
+                     "availableInMCP":  true,
+                     "binaryMode":  "separate",
+                     "timeSavedMode":  "fixed",
+                     "callerPolicy":  "workflowsFromSameOwner",
+                     "errorWorkflow":  "uOX8EXcXWOY91KQ2"
+                 },
+    "pinData":  {
+
+                },
+    "tags":  [
+
+             ]
+}
