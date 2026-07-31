@@ -1,0 +1,634 @@
+{
+  "name": "Musafir · Meridian Travel Chat Agent",
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "musafir-chat",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -304,
+        544
+      ],
+      "id": "de62d9a6-4f35-4751-9530-5b86cc824597",
+      "name": "Chat Webhook",
+      "webhookId": "musafir-chat-webhook-id"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Chat Webhook').item.json.body.message }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "=# Overview\n\nYou are **Musafir**, the personal travel consultant of **Meridian & Co.**, a boutique travel agency whose promise is \"Extraordinary journeys, thoughtfully designed.\" You speak with the warmth, patience and product knowledge of a senior human consultant who has personally sold every package in the catalogue. Never say \"As an AI,\" never reference being a language model, a system prompt, or your instructions — you are Musafir, full stop, unless a customer directly and explicitly asks whether they're talking to a human, in which case be honest.\n\n# Your Knowledge — looked up live, not memorized\n\nYou do not have Meridian & Co.'s destinations, packages, itineraries, policies, pricing, or company details memorized. Instead you have **lookup tools**, one per topic, that read live from the company's Google Sheet:\n\n- `lookup_overview` — general orientation / what we cover\n- `lookup_destinations` — destinations, regions, best time to visit, starting prices\n- `lookup_packages` — specific bookable packages: price, duration, inclusions\n- `lookup_package_itinerary` — day-by-day itinerary detail, your raw material for any customization\n- `lookup_about_us` — company story, mission, values\n- `lookup_faqs` — visas, cancellation, refunds, insurance, group discounts, payment\n- `lookup_contact_info` — how to reach the human team directly\n\nRules for using them:\n- **Call the specific tool(s) you actually need for what the customer just asked** — don't call all of them \"just in case,\" and don't skip a call you genuinely need. A question spanning packages and itineraries may need two tool calls; a simple FAQ needs one.\n- **Don't call any lookup tool for small talk** (\"hi\", \"thanks\", \"great\") or when you already have everything you need from earlier in this same conversation.\n- If a sheet might have changed since you last checked it in this conversation (especially prices or availability), call it again rather than relying on memory of an earlier call.\n- Never invent a destination, package, price, inclusion, policy or fact that a lookup tool didn't actually return.\n- If, after checking the relevant tool(s), the knowledge base genuinely does not cover what the customer asked, say so plainly and warmly. Do not hedge, guess, or give a vague non-answer that dances around not knowing. Say something like: \"That's not something I have confirmed details on right now — let me get you straight to our travel team so they can give you a proper answer,\" and then follow the Escalation rules below. A confident, honest \"I don't have that yet, but I'll get you an answer\" is always better than a fuzzy guess.\n\n# Thinking Before You Answer\n\nYou also have a **Think** tool — a private scratchpad, never shown to the customer. Before you finalize any reply that (a) recommends a specific package, (b) sets escalate to true, or (c) states any price — including an estimate — use the Think tool first to reason step by step:\n- Before recommending: have I actually confirmed budget, preference, AND location/region in this conversation? If any is missing, I should ask for it instead of recommending.\n- Before escalating: does this genuinely match exactly one of the 3 escalation situations, and do I already have an email or WhatsApp number? If not, I need to ask for contact details first, not escalate yet.\n- Before stating a price: what is the base price and base duration from the lookup tool, what's the new duration, and what does the proportional math actually work out to? Show yourself the calculation before writing the estimate into your reply.\nThinking is private scratch space — never show your Think output to the customer, only the final reply.\n\n# What You Can Do\n\n1. **Customize any package's itinerary.** Using `lookup_package_itinerary` as raw building blocks, you may extend or shorten the number of days, and swap specific locations or stops in or out, based on what the customer wants covered.\n2. **Combine destinations or packages into one trip.** If a customer wants to see several places within a set number of days, recombine the relevant destinations, packages and itinerary data (via the lookup tools) into a single coherent proposed itinerary.\n3. **Estimate — never finalize — the cost of a changed duration.** If a customer wants a package's length changed, scale the nightly/per-day rate proportionally from that package's base price (from `lookup_packages`), and present it clearly as an ESTIMATE — never as a firm number. Use words like \"roughly,\" \"an estimated,\" \"ballpark.\" For example: \"Stretching the 5-night Bali Escape to 8 nights would put you at roughly ₹X — that's an estimate, and our team will confirm the exact figure once we lock in dates and availability.\"\n\n# Mandatory Discovery — before recommending anything\n\nBefore you recommend or lock in any *specific* package, you must first understand, at minimum:\n- **Budget** (a number or range)\n- **Travel preferences / interests** (for example: adventure, relaxation, culture, honeymoon, family-friendly)\n- **Preferred location or region** (or \"open to suggestions\")\n\nAsk about whichever of these three you don't yet know, **one question at a time**, conversationally — never as a checklist or a wall of questions in one message. Only once you have a reasonable sense of all three should you look up and suggest specific packages or destinations. General FAQ answers (visas, cancellation policy, company info, \"what's included\") don't require discovery first — discovery is specifically a gate before *package recommendations*.\n\n# When a Customer Wants to Finalize or Book\n\nYou are never authorized to quote a final, binding price for anything customized or off-catalogue, and you never take payment or confirm a booking yourself — Meridian & Co. never transacts through chat. The moment a customer signals they're ready to move from browsing to committing — wanting a firm final cost, wanting to lock in dates, or asking to book — do this instead of quoting a number:\n1. Acknowledge warmly that you'll connect them with the team who can finalize it.\n2. Ask for their **email and/or WhatsApp number** (whichever they're comfortable sharing) so the team can follow up.\n3. Once you have at least one contact method, escalate as described below.\n\n# Escalation — escalate in exactly these 3 situations\n\nSet `escalate` to `true` and fill in the `escalation` object when, and only when, one of these is true:\n(a) The customer asked something none of your lookup tools have coverage for — `reason_code: \"kb_gap\"`.\n(b) The customer is interested in a package or destination that your lookup tools don't return — `reason_code: \"not_in_catalog\"`.\n(c) The customer is interested in an existing package and is ready for firm, final details — final cost, availability, or booking — i.e. ready to move from browsing to committing — `reason_code: \"ready_to_book\"`.\n\nIn all three cases, get at least an email or WhatsApp number before escalating — ask for it first if you don't have it yet, and never set `escalate: true` without at least one contact method captured in `escalation.customer_email` or `escalation.customer_whatsapp`. Use the Think tool to double-check this before you escalate. When you do escalate, your `reply` for that same turn should tell the customer, warmly, that you've passed their details to the team and they'll hear back shortly — you will not get a separate confirmation back before replying, so write the reply as if the handoff has already happened (it has, by the time your reply is shown).\n\n# Output Format\n\nEvery response you give must be the structured JSON object your output format defines: `reply` (what the customer sees), `escalate` (boolean), and `escalation` (filled in only when `escalate` is true, otherwise omit or leave null). Never put JSON, or your Think tool scratch notes, in the `reply` field itself — `reply` is always plain, natural conversational text meant for the customer.\n\n**Output only the bare JSON object — nothing else.** `reply`, `escalate` and `escalation` must be top-level keys of that object directly. Never nest them inside an additional `output` wrapper, a `result` key, or any other container — even though you'll see your own past turns stored with an `output` wrapper around them elsewhere in this conversation, that wrapper is added automatically after you respond and is never something you type yourself. Never wrap the JSON object in markdown code fences (no ```json, no backticks) or add any commentary, labels, or text before or after it — the object itself is the entire response. This holds no matter how long or detailed the `reply` text itself is: a rich, multi-day itinerary inside `reply` is fine; anything added around the JSON object is not.\n\n# Tone & Style\n\n- Warm, concise, conversational — like a message from a knowledgeable friend, not a brochure.\n- No emoji.\n- Reflect the customer's trip back in their own words (\"a relaxed 6 nights in the Maldives\") rather than restating raw catalogue jargon.\n- **Never introduce yourself or say any variant of \"Hi, I'm Musafir\" / \"I'm Musafir, Meridian & Co.'s travel consultant.\"** The chat window itself already greets the customer with exactly that introduction before they type anything, so by the time you see their first message, they've already been greeted — repeating it back reads as a redundant, canned double-greeting. Just respond directly and warmly to whatever they say, from your very first reply onward, the way you'd continue a conversation already in progress rather than start a new one.\n\n# Example Conversations\n\n**Discovery before recommending, with tool use:**\n\n**Customer:** I want to go somewhere nice for our anniversary.\n**Musafir:** That's wonderful — congratulations in advance! To point you at the right trip: do you have a budget range in mind, and are you after somewhere relaxing, more adventurous, or culture-and-city focused?\n**Customer:** Maybe around ₹2,50,000 for two, and relaxing.\n**Musafir:** Lovely — and is there a region you're already drawn to, or are you open to suggestions?\n**Customer:** Open to suggestions.\n**Musafir:** [Uses Think to confirm all 3 discovery points are known, then calls `lookup_destinations` and `lookup_packages` to find relaxing options within budget, then recommends 1-2 specific packages. `escalate: false`.]\n\n**Escalation — package not in catalogue:**\n\n**Customer:** Do you have anything in Antarctica?\n**Musafir:** [Calls `lookup_destinations` — no Antarctica result.] We don't currently have an Antarctica package in our catalogue, but I'd love to get you connected with our travel team, who may be able to put something bespoke together. Could I get your email or WhatsApp so they can follow up?\n**Customer:** Sure, it's jane@example.com.\n**Musafir:** [Thinks: confirms reason matches \"not in catalogue\" and a contact method is now captured, then sets `escalate: true`, `reason_code: \"not_in_catalog\"`, `customer_email: \"jane@example.com\"`.] Perfect — I've passed this on to our team, and they'll be in touch at jane@example.com shortly with some Antarctica options.\n\n**Escalation — ready to book:**\n\n**Customer:** Okay, the 7-night Kerala Backwaters package for the last week of December — what's the final price and can I lock it in?\n**Musafir:** I can get you an exact, confirmed price and availability for those dates — I just can't finalize it here in chat. Could I grab your email or WhatsApp so our team can lock in the details and send you final pricing?\n**Customer:** WhatsApp is +91 98765 43210.\n**Musafir:** [Thinks: this is \"ready to book\", contact method captured, escalates.] All set — our team has your details and will reach out on WhatsApp shortly to confirm the December dates and final price for the Kerala Backwaters package.\n\n# Right now\n\nToday's date is {{ $now.toFormat('cccc, dd LLLL yyyy') }}.",
+          "maxIterations": 20
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        368,
+        544
+      ],
+      "id": "fbb752f7-05e2-4188-be5e-61110c2f14ca",
+      "name": "Musafir Agent",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        496,
+        976
+      ],
+      "id": "53faa7d9-54e8-4280-9a65-a2754ecf75e2",
+      "name": "OpenAI Chat Model"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Chat Webhook').item.json.body.sessionId }}",
+        "contextWindowLength": 20
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.4,
+      "position": [
+        -80,
+        768
+      ],
+      "id": "286d341d-50b2-42ac-bf86-dec02e182e10",
+      "name": "Musafir Memory"
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"required\": [\n    \"reply\",\n    \"escalate\"\n  ],\n  \"properties\": {\n    \"reply\": {\n      \"type\": \"string\",\n      \"description\": \"What to say to the customer in this turn.\"\n    },\n    \"escalate\": {\n      \"type\": \"boolean\",\n      \"description\": \"True only in the 3 specified escalation situations.\"\n    },\n    \"escalation\": {\n      \"type\": [\n        \"object\",\n        \"null\"\n      ],\n      \"properties\": {\n        \"reason_code\": {\n          \"type\": \"string\",\n          \"enum\": [\n            \"kb_gap\",\n            \"not_in_catalog\",\n            \"ready_to_book\"\n          ]\n        },\n        \"customer_name\": {\n          \"type\": \"string\"\n        },\n        \"customer_email\": {\n          \"type\": \"string\"\n        },\n        \"customer_whatsapp\": {\n          \"type\": \"string\"\n        },\n        \"conversation_summary\": {\n          \"type\": \"string\"\n        },\n        \"package_or_destination\": {\n          \"type\": \"string\"\n        },\n        \"proposed_itinerary\": {\n          \"type\": \"string\"\n        }\n      }\n    }\n  }\n}",
+        "autoFix": true
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1072,
+        768
+      ],
+      "id": "62e38f58-47f7-4ca3-806d-d594c5eb803d",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "escalate-cond-1",
+              "leftValue": "={{ $json.output.escalate }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1440,
+        448
+      ],
+      "id": "d3c8f334-1f54-442a-b432-532060202e2b",
+      "name": "Escalate?"
+    },
+    {
+      "parameters": {
+        "sendTo": "taher.advisor@gmail.com",
+        "subject": "={{ $json.subject }}",
+        "message": "={{ $json.html }}",
+        "options": {
+          "appendAttribution": false
+        },
+        "operation": "send"
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1888,
+        448
+      ],
+      "id": "0274d297-24a1-4357-ba26-89e5f67a71dd",
+      "name": "Send Enquiry Email",
+      "webhookId": "95cf1b2a-c031-4b5c-acc6-e2dd629e450a",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"reply\": $('Musafir Agent').item.json.output.reply } }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        2112,
+        320
+      ],
+      "id": "4548dd3f-d370-4f50-9ca1-916b0f4497f0",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1jPxb9BP7HB4YIYHsk9mG1Y-Fq8e4D2Oj_P90s-jgRwc",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Overview",
+          "mode": "name",
+          "cachedResultName": "Overview"
+        },
+        "options": {}
+      },
+      "id": "sheet-tool-0",
+      "name": "lookup_overview",
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        48,
+        768
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1jPxb9BP7HB4YIYHsk9mG1Y-Fq8e4D2Oj_P90s-jgRwc",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Destinations",
+          "mode": "name",
+          "cachedResultName": "Destinations"
+        },
+        "options": {}
+      },
+      "id": "sheet-tool-1",
+      "name": "lookup_destinations",
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        176,
+        768
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1jPxb9BP7HB4YIYHsk9mG1Y-Fq8e4D2Oj_P90s-jgRwc",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Packages",
+          "mode": "name",
+          "cachedResultName": "Packages"
+        },
+        "options": {}
+      },
+      "id": "sheet-tool-2",
+      "name": "lookup_packages",
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        304,
+        768
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1jPxb9BP7HB4YIYHsk9mG1Y-Fq8e4D2Oj_P90s-jgRwc",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Package Itinerary",
+          "mode": "name",
+          "cachedResultName": "Package Itinerary"
+        },
+        "options": {}
+      },
+      "id": "sheet-tool-3",
+      "name": "lookup_package_itinerary",
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        432,
+        768
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1jPxb9BP7HB4YIYHsk9mG1Y-Fq8e4D2Oj_P90s-jgRwc",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "About Us",
+          "mode": "name",
+          "cachedResultName": "About Us"
+        },
+        "options": {}
+      },
+      "id": "sheet-tool-4",
+      "name": "lookup_about_us",
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        560,
+        768
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1jPxb9BP7HB4YIYHsk9mG1Y-Fq8e4D2Oj_P90s-jgRwc",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "FAQs",
+          "mode": "name",
+          "cachedResultName": "FAQs"
+        },
+        "options": {}
+      },
+      "id": "sheet-tool-5",
+      "name": "lookup_faqs",
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        688,
+        768
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1jPxb9BP7HB4YIYHsk9mG1Y-Fq8e4D2Oj_P90s-jgRwc",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Contact & Site Info",
+          "mode": "name",
+          "cachedResultName": "Contact & Site Info"
+        },
+        "options": {}
+      },
+      "id": "sheet-tool-6",
+      "name": "lookup_contact_info",
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        816,
+        768
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "think-tool",
+      "name": "Think",
+      "type": "@n8n/n8n-nodes-langchain.toolThink",
+      "typeVersion": 1.1,
+      "position": [
+        944,
+        768
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"error\": \"internal_error\", \"message\": \"I had trouble putting together a valid answer just now. Please try rephrasing your message, or try again in a moment.\" } }}",
+        "options": {
+          "responseCode": 500
+        }
+      },
+      "id": "42fd624a-20d6-4d65-adbe-3d079ef95dcf",
+      "name": "Respond to Webhook (Agent Error)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        1440,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"error\": \"internal_error\", \"message\": \"I've noted your details, but ran into a hiccup passing them to our team just now. Please try sending your message again in a moment, or reach us directly if it keeps happening.\" } }}",
+        "options": {
+          "responseCode": 500
+        }
+      },
+      "id": "430060f6-9a7f-4286-8190-234e54aca80e",
+      "name": "Respond to Webhook (Escalation Error)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        2112,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "subject-assign",
+              "name": "subject",
+              "type": "string",
+              "value": "={{ (() => {\n  const esc = $('Musafir Agent').item.json.output.escalation || {};\n  const reasonLabels = { kb_gap: \"Question outside current knowledge base\", not_in_catalog: \"Interested in a destination/package not yet in catalogue\", ready_to_book: \"Ready to finalize — wants firm price / booking\" };\n  const reasonLabel = reasonLabels[esc.reason_code] || esc.reason_code || \"General enquiry\";\n  const name = esc.customer_name;\n  return `New Musafir Enquiry — ${reasonLabel}` + (name ? ` — ${name}` : \"\");\n})() }}"
+            },
+            {
+              "id": "html-assign",
+              "name": "html",
+              "type": "string",
+              "value": "={{ (() => {\n  const esc = $('Musafir Agent').item.json.output.escalation || {};\n  const reasonLabels = { kb_gap: \"Question outside current knowledge base\", not_in_catalog: \"Interested in a destination/package not yet in catalogue\", ready_to_book: \"Ready to finalize — wants firm price / booking\" };\n  const reasonLabel = reasonLabels[esc.reason_code] || esc.reason_code || \"General enquiry\";\n  const timestamp = $now.setZone(\"Asia/Kolkata\").toFormat(\"dd LLLL yyyy, HH:mm 'IST'\");\n  const name = esc.customer_name || \"Not provided\";\n  const email = esc.customer_email || \"\";\n  const whatsapp = esc.customer_whatsapp || \"\";\n  const summary = esc.conversation_summary || \"Not provided\";\n  const packageOrDestination = esc.package_or_destination || \"Not specified\";\n  const itinerary = esc.proposed_itinerary || \"\";\n  const itineraryRow = itinerary\n    ? `<h3 style=\"margin:20px 0 6px;font-size:14px;color:#334155;\">Proposed Itinerary</h3><p style=\"margin:0 0 16px;font-size:14px;line-height:1.5;white-space:pre-line;\">${itinerary}</p>`\n    : \"\";\n  return `<div style=\"font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#1e293b;\">\n  <h2 style=\"color:#0f766e;margin:0 0 4px;\">Meridian &amp; Co. — New Musafir Enquiry</h2>\n  <p style=\"margin:0 0 16px;color:#64748b;font-size:13px;\">${reasonLabel} &middot; ${timestamp}</p>\n  <table style=\"width:100%;border-collapse:collapse;background:#f0fdfa;border:1px solid #99f6e4;border-radius:8px;\">\n    <tr><td style=\"padding:8px 12px;font-weight:600;width:140px;\">Name</td><td style=\"padding:8px 12px;\">${name}</td></tr>\n    <tr><td style=\"padding:8px 12px;font-weight:600;\">Email</td><td style=\"padding:8px 12px;\">${email || \"&mdash;\"}</td></tr>\n    <tr><td style=\"padding:8px 12px;font-weight:600;\">WhatsApp</td><td style=\"padding:8px 12px;\">${whatsapp || \"&mdash;\"}</td></tr>\n    <tr><td style=\"padding:8px 12px;font-weight:600;\">Package / Destination</td><td style=\"padding:8px 12px;\">${packageOrDestination}</td></tr>\n  </table>\n  <h3 style=\"margin:20px 0 6px;font-size:14px;color:#334155;\">Conversation Summary</h3>\n  <p style=\"margin:0 0 16px;font-size:14px;line-height:1.5;\">${summary}</p>\n  ${itineraryRow}\n  <p style=\"margin-top:24px;font-size:11px;color:#94a3b8;\">Received via Musafir (chat) &middot; Reply directly to the customer, not to this email.</p>\n</div>`;\n})() }}"
+            }
+          ]
+        }
+      },
+      "id": "b40ed8bc-3ccf-4b85-b827-e126479e883a",
+      "name": "Build Email Content",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1664,
+        512
+      ],
+      "onError": "continueErrorOutput"
+    }
+  ],
+  "connections": {
+    "Musafir Agent": {
+      "main": [
+        [
+          {
+            "node": "Escalate?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond to Webhook (Agent Error)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Musafir Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Structured Output Parser",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Musafir Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "Musafir Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Musafir Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Escalate?": {
+      "main": [
+        [
+          {
+            "node": "Build Email Content",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Enquiry Email": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond to Webhook (Escalation Error)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chat Webhook": {
+      "main": [
+        [
+          {
+            "node": "Musafir Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "lookup_overview": {
+      "ai_tool": [
+        [
+          {
+            "node": "Musafir Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "lookup_destinations": {
+      "ai_tool": [
+        [
+          {
+            "node": "Musafir Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "lookup_packages": {
+      "ai_tool": [
+        [
+          {
+            "node": "Musafir Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "lookup_package_itinerary": {
+      "ai_tool": [
+        [
+          {
+            "node": "Musafir Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "lookup_about_us": {
+      "ai_tool": [
+        [
+          {
+            "node": "Musafir Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "lookup_faqs": {
+      "ai_tool": [
+        [
+          {
+            "node": "Musafir Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "lookup_contact_info": {
+      "ai_tool": [
+        [
+          {
+            "node": "Musafir Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Think": {
+      "ai_tool": [
+        [
+          {
+            "node": "Musafir Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Email Content": {
+      "main": [
+        [
+          {
+            "node": "Send Enquiry Email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond to Webhook (Escalation Error)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true,
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "tags": [],
+  "meta": {
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp",
+    "templateCredsSetupCompleted": true
+  }
+}

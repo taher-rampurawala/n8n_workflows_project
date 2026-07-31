@@ -14,6 +14,7 @@ A curated portfolio of [n8n](https://n8n.io) automation projects, showcasing pra
     - [4. Invoice Processing Automation](#4-invoice-processing-automation)
     - [5. Job Search Automation](#5-job-search-automation)
     - [6. UGC Image \& Video Generator Automation](#6-ugc-image--video-generator-automation)
+    - [7. AI Automation ChatBot](#7-ai-automation-chatbot)
   - [🛠️ Technologies Used](#️-technologies-used)
     - [Integrations](#integrations)
     - [n8n Features](#n8n-features)
@@ -193,6 +194,35 @@ Each project lives in its own folder containing the exported workflow JSON, read
 
 ---
 
+### 7. AI Automation ChatBot
+
+**Folder:** [`AI Automation ChatBot/`](./AI%20Automation%20ChatBot/)
+
+**Description:** An AI travel-consultant chat agent — **Musafir** — built for a fictional boutique agency, **Meridian & Co.**, paired with a full companion Next.js marketing site that embeds it as a floating chat widget. Unlike the other projects in this repo, this one ships as a **two-part project**: the n8n workflow (`Musafir-Chat-Agent.json`) and the site that talks to it (`meridian-travel/`). The agent answers destination, package, and policy questions by calling **live per-topic Google Sheets lookup tools** rather than working from a pre-loaded knowledge base, reasons through discovery/pricing/escalation rules with a dedicated Think tool, and hands off to a human via a branded HTML email when a request is out of scope.
+
+**Key Features:**
+
+- 🧳 Agent-driven knowledge retrieval — 7 separate `lookup_*` Google Sheets tools (overview, destinations, packages, itinerary, about us, FAQs, contact info) called only when the agent actually needs them, instead of pre-fetching all 7 tabs on every message
+- 🧠 Structured JSON output (`reply` / `escalate` / `escalation`) via an auto-fixing Structured Output Parser, wired to its own dedicated model connection for the auto-fix retry call
+- 🤔 A private **Think** tool the agent uses to reason through discovery completeness, escalation conditions, and price-estimate math before answering — never shown to the customer
+- 📐 Mandatory discovery gate (budget, preference, region) enforced conversationally, one question at a time, before any package recommendation
+- 🚨 3-condition escalation logic (knowledge gap / not in catalogue / ready to book) that emails a branded HTML enquiry to a human, only once at least one contact method is captured
+- 🛡️ Graceful degradation on model-format failures — `onError: continueErrorOutput` on the agent node routes malformed structured-output errors to a sanitized 500 response instead of hanging the caller
+- 💬 A production-grade chat widget on the companion site — resizable between compact / half-screen split / full-screen, suggested prompt chips, typing indicator, abortable in-flight requests, and a "demo mode" fallback when no webhook is configured
+- 🔄 Stateless-by-design sessions — no client-side persistence, so reloading the page always starts a fresh conversation
+
+**Use Cases:**
+
+- Reference pattern for an **agent-driven** (call-on-demand) knowledge base over Google Sheets, as opposed to a pre-fetch-everything RAG approach
+- Template for pairing a marketing-site chat widget with an n8n backend, including CORS and session-ID handling
+- Human-handoff / escalation design for an AI agent that must never over-promise pricing or availability
+
+> **Knowledge base:** `Meridian_Travel_Knowledge_Base.xlsx` in this folder is the source spreadsheet the 7 lookup tools read from — import it into Google Sheets and reconnect the tool nodes' credentials before use.
+>
+> **Frontend:** `meridian-travel/` is a separate Next.js 16 / React 19 app (see its own `CLAUDE.md` for the full build standard). Run `npm install` then `npm run dev` inside that folder, and set `NEXT_PUBLIC_N8N_CHAT_WEBHOOK_URL` in its `.env.local` to your n8n webhook's production URL to connect the widget.
+
+---
+
 ## 🛠️ Technologies Used
 
 ### Integrations
@@ -209,6 +239,7 @@ Each project lives in its own folder containing the exported workflow JSON, read
 - **Kie.ai** — unified API for Nano Banana 2 (image) and Veo 3.1 (video) generation
 - **Tavily** — live web search tool for AI-agent trend research
 - **PostgreSQL** — session/state persistence for the UGC bot conversation
+- **Next.js / React** — companion marketing site with an embedded AI chat widget (AI Automation ChatBot)
 
 ### n8n Features
 
@@ -224,6 +255,9 @@ Each project lives in its own folder containing the exported workflow JSON, read
 - Error Trigger workflows for centralized failure alerting
 - Wait nodes for asynchronous job polling loops
 - Per-node error outputs (`onError: continueErrorOutput`) with bounded retry branches
+- Agent-driven (call-on-demand) tool retrieval — per-topic Google Sheets tools instead of a single pre-fetch step
+- Think tool for private, pre-answer agent reasoning
+- Structured Output Parser with auto-fix, wired to its own model connection
 
 ---
 
@@ -243,10 +277,15 @@ n8n_workflows_project/
 │   └── n8n-invoice-agent-automation.json
 ├── Job Search Automation/
 │   └── indeed-job-search-automation.json
-└── UGC Image & Video Generator Automation/
-    ├── UGC Content Studio - Telegram Bot.json
-    ├── UGC Content Studio - Error Alerts.json
-    └── UGC Content Studio - Session Cleanup.json
+├── UGC Image & Video Generator Automation/
+│   ├── UGC Content Studio - Telegram Bot.json
+│   ├── UGC Content Studio - Error Alerts.json
+│   └── UGC Content Studio - Session Cleanup.json
+└── AI Automation ChatBot/
+    ├── Musafir-Chat-Agent.json
+    ├── Meridian_Travel_Knowledge_Base.xlsx
+    ├── CLAUDE.md
+    └── meridian-travel/          # companion Next.js chat-widget frontend
 ```
 
 Each project folder is self-contained and includes the exported workflow JSON. New projects will be added as additional top-level folders following the same convention.
@@ -306,6 +345,7 @@ Each project folder is self-contained and includes the exported workflow JSON. N
 
 - n8n instance (cloud or self-hosted)
 - Webhook endpoint reachable by WhatsApp (for triggers)
+- Node.js 20+ and npm (only for the companion Next.js frontend in `AI Automation ChatBot/meridian-travel`)
 - Stable internet connection
 
 ### Account Requirements
