@@ -15,6 +15,7 @@ A curated portfolio of [n8n](https://n8n.io) automation projects, showcasing pra
     - [5. Job Search Automation](#5-job-search-automation)
     - [6. UGC Image \& Video Generator Automation](#6-ugc-image--video-generator-automation)
     - [7. AI Automation ChatBot](#7-ai-automation-chatbot)
+    - [8. WhatsApp CRM](#8-whatsapp-crm)
   - [🛠️ Technologies Used](#️-technologies-used)
     - [Integrations](#integrations)
     - [n8n Features](#n8n-features)
@@ -223,6 +224,34 @@ Each project lives in its own folder containing the exported workflow JSON, read
 
 ---
 
+### 8. WhatsApp CRM
+
+**Folder:** [`WhatsApp CRM/wacrm/`](./WhatsApp%20CRM/wacrm/)
+
+**Description:** Unlike the other entries in this repo, this isn't an n8n workflow export — it's a full **self-hosted CRM application** (Next.js 16 + Supabase) built on the official WhatsApp Business Cloud API, used here as the customer-facing automation layer that pairs with the n8n workflows above (e.g. wiring its Automations/Flows builder or webhook steps into an n8n backend for booking logic, similar in spirit to the WhatsApp Doctor Appointment Booking workflow). It ships with two independent, built-in automation engines plus an MCP server so the CRM itself can be driven from Claude, Cursor, and other AI assistants.
+
+**Key Features:**
+
+- 💬 Shared inbox on the official WhatsApp Business Cloud API — multi-agent, per-conversation assignment, status, and notes
+- 👥 Contacts with tags, custom fields, CSV import, and deduplication
+- 📊 Kanban sales pipelines with deals linked to conversations
+- 📣 Broadcasts with Meta-approved templates, delivery/read tracking, per-recipient variable substitution
+- 🤖 Two no-code automation engines built in: a linear **Automations** builder (trigger → send message/buttons/list → wait → condition → webhook → tag/assign steps) and a graph-based **Flows** builder for stateful, branching WhatsApp chatbots
+- 🧠 AI reply assistant (bring-your-own OpenAI or Anthropic key) with optional knowledge-base retrieval (Postgres full-text, or pgvector for semantic search)
+- 🔌 Public REST API (`/api/v1`) with scoped, revocable API keys, plus an MCP server for driving the CRM from AI coding assistants
+- 🔐 Supabase-backed (Postgres + Auth + Storage + RLS) with AES-256-GCM token encryption and HMAC-verified webhooks
+- 👤 Multi-user accounts with role-based access (owner / admin / agent / viewer)
+
+**Use Cases:**
+
+- Standalone, self-hosted WhatsApp CRM for small businesses (salons, clinics, service providers) needing a shared inbox plus appointment/booking automation
+- Companion CRM layer for n8n-driven conversational workflows elsewhere in this repo — e.g. list-message based package browsing and appointment booking
+- Reference for building an MCP server against a real product's own REST API
+
+> **Setup:** `WhatsApp CRM/wacrm/` is a fork of the open-source [ArnasDon/wacrm](https://github.com/ArnasDon/wacrm) template and manages its own dependencies, Supabase migrations, and environment file — see its own [README.md](./WhatsApp%20CRM/wacrm/README.md) for full setup. Run `npm install` then `npm run dev` inside that folder; copy `.env.local.example` to `.env.local` and fill in your Supabase + Meta WhatsApp credentials (never committed — see below).
+
+---
+
 ## 🛠️ Technologies Used
 
 ### Integrations
@@ -239,7 +268,9 @@ Each project lives in its own folder containing the exported workflow JSON, read
 - **Kie.ai** — unified API for Nano Banana 2 (image) and Veo 3.1 (video) generation
 - **Tavily** — live web search tool for AI-agent trend research
 - **PostgreSQL** — session/state persistence for the UGC bot conversation
-- **Next.js / React** — companion marketing site with an embedded AI chat widget (AI Automation ChatBot)
+- **Next.js / React** — companion marketing site with an embedded AI chat widget (AI Automation ChatBot), and the full WhatsApp CRM application
+- **Supabase** — Postgres + Auth + Storage + RLS backing the WhatsApp CRM
+- **Model Context Protocol (MCP)** — server exposing the WhatsApp CRM's own API to Claude/Cursor and other AI assistants
 
 ### n8n Features
 
@@ -281,11 +312,13 @@ n8n_workflows_project/
 │   ├── UGC Content Studio - Telegram Bot.json
 │   ├── UGC Content Studio - Error Alerts.json
 │   └── UGC Content Studio - Session Cleanup.json
-└── AI Automation ChatBot/
-    ├── Musafir-Chat-Agent.json
-    ├── Meridian_Travel_Knowledge_Base.xlsx
-    ├── CLAUDE.md
-    └── meridian-travel/          # companion Next.js chat-widget frontend
+├── AI Automation ChatBot/
+│   ├── Musafir-Chat-Agent.json
+│   ├── Meridian_Travel_Knowledge_Base.xlsx
+│   ├── CLAUDE.md
+│   └── meridian-travel/          # companion Next.js chat-widget frontend
+└── WhatsApp CRM/
+    └── wacrm/                    # self-hosted Next.js + Supabase CRM (own repo/README)
 ```
 
 Each project folder is self-contained and includes the exported workflow JSON. New projects will be added as additional top-level folders following the same convention.
@@ -345,7 +378,8 @@ Each project folder is self-contained and includes the exported workflow JSON. N
 
 - n8n instance (cloud or self-hosted)
 - Webhook endpoint reachable by WhatsApp (for triggers)
-- Node.js 20+ and npm (only for the companion Next.js frontend in `AI Automation ChatBot/meridian-travel`)
+- Node.js 20+ and npm (for the companion Next.js frontend in `AI Automation ChatBot/meridian-travel`, and for the full `WhatsApp CRM/wacrm` application)
+- Supabase project (Postgres + Auth) for `WhatsApp CRM/wacrm`
 - Stable internet connection
 
 ### Account Requirements
