@@ -16,6 +16,7 @@ A curated portfolio of [n8n](https://n8n.io) automation projects, showcasing pra
     - [6. UGC Image \& Video Generator Automation](#6-ugc-image--video-generator-automation)
     - [7. AI Automation ChatBot](#7-ai-automation-chatbot)
     - [8. WhatsApp CRM](#8-whatsapp-crm)
+    - [9. LinkedIn Content Generation](#9-linkedin-content-generation)
   - [🛠️ Technologies Used](#️-technologies-used)
     - [Integrations](#integrations)
     - [n8n Features](#n8n-features)
@@ -252,6 +253,34 @@ Each project lives in its own folder containing the exported workflow JSON, read
 
 ---
 
+### 9. LinkedIn Content Generation
+
+**Folder:** [`LinkedIn Content Generation/`](./LinkedIn%20Content%20Generation/)
+
+**Description:** A human-in-the-loop LinkedIn content agent. A form takes a topic and target audience, plus an optional GitHub link to an n8n workflow, a short project description, and a workflow screenshot. An AI agent researches the topic with Tavily and writes an educational post, or a project showcase grounded in the workflow's real structure fetched from GitHub. A second agent art-directs a matching image, generated with `gpt-image-2`. The exact post is previewed in Telegram, and nothing reaches LinkedIn until the owner taps **Approve** on an inline button. Approved posts are published to the owner's **personal LinkedIn profile** (not a company page), with one image or two (generated image + workflow screenshot).
+
+**Key Features:**
+
+- 📝 Form trigger with required topic/audience and optional GitHub URL, project description, and screenshot upload
+- 🔗 GitHub-grounded project mode — fetches the workflow JSON (single file or a whole project folder) and trims it to structure only (triggers, models, services, node flow, connections), so the post describes what the automation actually does and never invents features
+- 🔎 Research & Write agent that always calls a Tavily search tool, with a structured output parser (auto-fix on) returning `post_text` and `project_summary`
+- 🎨 Randomised art direction per run plus an Image Prompt agent, then `gpt-image-2` at 1536×1024 for a feed-ready landscape image
+- 📲 Exact Telegram preview — a single photo, or a 2-image album when a screenshot is attached — using the same text and image bytes that get posted
+- ✅ In-chat approval with inline **Approve / Decline** buttons: a tap posts the decision as a reply in the chat and resumes the waiting run through a signed resume URL stored in an n8n Data Table (Telegram's 64-byte button limit rules out embedding the URL)
+- 🔒 Tap validation — only the owner's chat/user ID and well-formed button data are accepted; stale taps show "expired", typed messages are ignored, and a 24-hour timeout counts as declined
+- 💼 LinkedIn publishing as a person: the built-in LinkedIn node for single-image posts, and the LinkedIn REST API (Images `initializeUpload` → upload → Posts `multiImage`) for two-image posts
+- 🚨 Per-node error outputs on every critical step (GitHub fetch, agent, image generation, LinkedIn calls) routed to one Telegram alert — no silent failures
+
+**Use Cases:**
+
+- Consistent, research-backed LinkedIn posting with a final human review before anything goes public
+- Turning finished automation projects into showcase posts straight from their GitHub folder
+- Reference pattern for Telegram inline-button approval that resumes an n8n Wait node, and for binary data that must survive a long wait
+
+> **Setup:** Requires an OpenAI credential (organization-verified for image generation), a Tavily API key as Header Auth, a dedicated Telegram bot, and a **LinkedIn OAuth2 (Standard)** credential backed by a LinkedIn Developer app with *Sign in with LinkedIn using OpenID Connect* and *Share on LinkedIn* enabled. After import, select the LinkedIn credential in the three HTTP Request nodes of the two-image path, create a Data Table with `execution_id` and `resume_url` columns, and replace the Telegram chat ID, LinkedIn person ID, and Data Table ID with your own. The Telegram button trigger only receives taps while the workflow is **published**. `linkedin-agent-n8n-plan.md` documents the full design.
+
+---
+
 ## 🛠️ Technologies Used
 
 ### Integrations
@@ -271,6 +300,8 @@ Each project lives in its own folder containing the exported workflow JSON, read
 - **Next.js / React** — companion marketing site with an embedded AI chat widget (AI Automation ChatBot), and the full WhatsApp CRM application
 - **Supabase** — Postgres + Auth + Storage + RLS backing the WhatsApp CRM
 - **Model Context Protocol (MCP)** — server exposing the WhatsApp CRM's own API to Claude/Cursor and other AI assistants
+- **LinkedIn API** — posting to a personal profile via the LinkedIn node and the REST Images/Posts APIs (multi-image posts)
+- **GitHub** — public contents/raw API for fetching n8n workflow JSON to ground project-showcase posts
 
 ### n8n Features
 
@@ -289,6 +320,8 @@ Each project lives in its own folder containing the exported workflow JSON, read
 - Agent-driven (call-on-demand) tool retrieval — per-topic Google Sheets tools instead of a single pre-fetch step
 - Think tool for private, pre-answer agent reasoning
 - Structured Output Parser with auto-fix, wired to its own model connection
+- Form trigger with file upload
+- Human-in-the-loop approval — Wait node resumed by a webhook from a Telegram inline-button tap
 
 ---
 
@@ -317,8 +350,11 @@ n8n_workflows_project/
 │   ├── Meridian_Travel_Knowledge_Base.xlsx
 │   ├── CLAUDE.md
 │   └── meridian-travel/          # companion Next.js chat-widget frontend
-└── WhatsApp CRM/
-    └── wacrm/                    # self-hosted Next.js + Supabase CRM (own repo/README)
+├── WhatsApp CRM/
+│   └── wacrm/                    # self-hosted Next.js + Supabase CRM (own repo/README)
+└── LinkedIn Content Generation/
+    ├── LinkedIn Content Agent.json
+    └── linkedin-agent-n8n-plan.md  # design plan for the workflow
 ```
 
 Each project folder is self-contained and includes the exported workflow JSON. New projects will be added as additional top-level folders following the same convention.
@@ -348,6 +384,7 @@ Each project folder is self-contained and includes the exported workflow JSON. N
    - Kie.ai API key (image/video generation)
    - Tavily API key (agent web search)
    - PostgreSQL connection (UGC bot session store)
+   - LinkedIn OAuth2 credential (Standard) for posting to a personal profile
 
 ### Installation Steps
 
@@ -394,6 +431,7 @@ Each project folder is self-contained and includes the exported workflow JSON. N
 - Kie.ai account with credits (for Nano Banana 2 image and Veo 3.1 video generation)
 - Tavily account (for AI-agent web search)
 - PostgreSQL database (for UGC bot conversation state)
+- LinkedIn Developer app with *Sign in with LinkedIn using OpenID Connect* and *Share on LinkedIn* (for the LinkedIn content agent)
 
 ---
 
