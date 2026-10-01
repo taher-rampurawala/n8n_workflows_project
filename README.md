@@ -16,7 +16,7 @@ A curated portfolio of [n8n](https://n8n.io) automation projects, showcasing pra
     - [6. UGC Image \& Video Generator Automation](#6-ugc-image--video-generator-automation)
     - [7. AI Automation ChatBot](#7-ai-automation-chatbot)
     - [8. WhatsApp CRM](#8-whatsapp-crm)
-    - [9. LinkedIn Content Generation](#9-linkedin-content-generation)
+    - [9. LinkedIn Content Generator](#9-linkedin-content-generator)
   - [🛠️ Technologies Used](#️-technologies-used)
     - [Integrations](#integrations)
     - [n8n Features](#n8n-features)
@@ -253,21 +253,23 @@ Each project lives in its own folder containing the exported workflow JSON, read
 
 ---
 
-### 9. LinkedIn Content Generation
+### 9. LinkedIn Content Generator
 
-**Folder:** [`LinkedIn Content Generation/`](./LinkedIn%20Content%20Generation/)
+**Folder:** [`LinkedIn Content Generator/`](./LinkedIn%20Content%20Generator/)
 
-**Description:** A human-in-the-loop LinkedIn content agent. A form takes a topic and target audience, plus an optional GitHub link to an n8n workflow, a short project description, and a workflow screenshot. An AI agent researches the topic with Tavily and writes an educational post, or a project showcase grounded in the workflow's real structure fetched from GitHub. A second agent art-directs a matching image, generated with `gpt-image-2`. The exact post is previewed in Telegram, and nothing reaches LinkedIn until the owner taps **Approve** on an inline button. Approved posts are published to the owner's **personal LinkedIn profile** (not a company page), with one image or two (generated image + workflow screenshot).
+**Description:** A human-in-the-loop LinkedIn content generator. The owner chats with a Telegram bot, which collects a topic, target audience and description, plus an optional GitHub link to an n8n workflow and a workflow screenshot. An intake agent reads the free-form messages, asks for missing details one at a time, and confirms a brief before anything is generated. A research agent then uses Tavily to write an educational post, or a project showcase grounded in the workflow's real structure fetched from GitHub. A second agent art-directs a matching image, generated with `gpt-image-2`. The exact post is previewed in Telegram, and nothing reaches LinkedIn until the owner taps **Approve** on an inline button. Approved posts are published to the owner's **personal LinkedIn profile** (not a company page), with one image or two (generated image + workflow screenshot).
 
 **Key Features:**
 
-- 📝 Form trigger with required topic/audience and optional GitHub URL, project description, and screenshot upload
+- 💬 Telegram chat intake on the same bot that handles approval: an intake agent (structured output) extracts topic, audience, description, GitHub URL, post type and special instructions from free-form messages; code asks for missing fields one at a time, every question carries a **Reset** button, and a recap with **Generate / Reset** buttons confirms the brief
+- 🖼️ A screenshot sent in the chat (photo or image file) becomes the post's second image; session state lives in an n8n Data Table, and the bot is blocked with a "still waiting" reply while a post is pending
+- 🎯 Special instructions (tone, length, hashtags, style) are collected across messages and followed by both the writing and image agents, within a 1,000-character cap and with no invented facts
 - 🔗 GitHub-grounded project mode — fetches the workflow JSON (single file or a whole project folder) and trims it to structure only (triggers, models, services, node flow, connections), so the post describes what the automation actually does and never invents features
 - 🔎 Research & Write agent that always calls a Tavily search tool, with a structured output parser (auto-fix on) returning `post_text` and `project_summary`
 - 🎨 Randomised art direction per run plus an Image Prompt agent, then `gpt-image-2` at 1536×1024 for a feed-ready landscape image
 - 📲 Exact Telegram preview — a single photo, or a 2-image album when a screenshot is attached — using the same text and image bytes that get posted
 - ✅ In-chat approval with inline **Approve / Decline** buttons: a tap posts the decision as a reply in the chat and resumes the waiting run through a signed resume URL stored in an n8n Data Table (Telegram's 64-byte button limit rules out embedding the URL)
-- 🔒 Tap validation — only the owner's chat/user ID and well-formed button data are accepted; stale taps show "expired", typed messages are ignored, and a 24-hour timeout counts as declined
+- 🔒 One Telegram trigger (messages + button taps) routed by a Switch — only the owner's chat/user ID is served, stale buttons show "expired", and a 24-hour timeout counts as declined
 - 💼 LinkedIn publishing as a person: the built-in LinkedIn node for single-image posts, and the LinkedIn REST API (Images `initializeUpload` → upload → Posts `multiImage`) for two-image posts
 - 🚨 Per-node error outputs on every critical step (GitHub fetch, agent, image generation, LinkedIn calls) routed to one Telegram alert — no silent failures
 
@@ -277,7 +279,7 @@ Each project lives in its own folder containing the exported workflow JSON, read
 - Turning finished automation projects into showcase posts straight from their GitHub folder
 - Reference pattern for Telegram inline-button approval that resumes an n8n Wait node, and for binary data that must survive a long wait
 
-> **Setup:** Requires an OpenAI credential (organization-verified for image generation), a Tavily API key as Header Auth, a dedicated Telegram bot, and a **LinkedIn OAuth2 (Standard)** credential backed by a LinkedIn Developer app with *Sign in with LinkedIn using OpenID Connect* and *Share on LinkedIn* enabled. After import, select the LinkedIn credential in the three HTTP Request nodes of the two-image path, create a Data Table with `execution_id` and `resume_url` columns, and replace the Telegram chat ID, LinkedIn person ID, and Data Table ID with your own. The Telegram button trigger only receives taps while the workflow is **published**. `linkedin-agent-n8n-plan.md` documents the full design.
+> **Setup:** Requires an OpenAI credential (organization-verified for image generation), a Tavily API key as Header Auth, a dedicated Telegram bot, and a **LinkedIn OAuth2 (Standard)** credential backed by a LinkedIn Developer app with *Sign in with LinkedIn using OpenID Connect* and *Share on LinkedIn* enabled. After import, select the LinkedIn credential in the three HTTP Request nodes of the two-image path, create two Data Tables — pending approvals (`execution_id`, `resume_url`) and intake sessions (`chat_id`, `topic`, `audience`, `description`, `github_url`, `screenshot_file_id`, `special_instructions`, `post_mode`, `last_asked`, `intake_mode`, `status`, `status_at`, all text) — and replace the Telegram chat ID, LinkedIn person ID, and Data Table IDs with your own. The Telegram trigger only receives messages and taps while the workflow is **published**; send the bot "hi" to start. `linkedin-agent-n8n-plan.md` documents the full design.
 
 ---
 
@@ -352,8 +354,8 @@ n8n_workflows_project/
 │   └── meridian-travel/          # companion Next.js chat-widget frontend
 ├── WhatsApp CRM/
 │   └── wacrm/                    # self-hosted Next.js + Supabase CRM (own repo/README)
-└── LinkedIn Content Generation/
-    ├── LinkedIn Content Agent.json
+└── LinkedIn Content Generator/
+    ├── LinkedIn Content Generator.json
     └── linkedin-agent-n8n-plan.md  # design plan for the workflow
 ```
 
@@ -431,7 +433,7 @@ Each project folder is self-contained and includes the exported workflow JSON. N
 - Kie.ai account with credits (for Nano Banana 2 image and Veo 3.1 video generation)
 - Tavily account (for AI-agent web search)
 - PostgreSQL database (for UGC bot conversation state)
-- LinkedIn Developer app with *Sign in with LinkedIn using OpenID Connect* and *Share on LinkedIn* (for the LinkedIn content agent)
+- LinkedIn Developer app with *Sign in with LinkedIn using OpenID Connect* and *Share on LinkedIn* (for the LinkedIn Content Generator)
 
 ---
 
