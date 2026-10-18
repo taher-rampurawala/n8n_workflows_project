@@ -17,6 +17,7 @@ A curated portfolio of [n8n](https://n8n.io) automation projects, showcasing pra
     - [7. AI Automation ChatBot](#7-ai-automation-chatbot)
     - [8. WhatsApp CRM](#8-whatsapp-crm)
     - [9. LinkedIn Content Generator](#9-linkedin-content-generator)
+    - [10. Booking Appointment using Voice AI Agent](#10-booking-appointment-using-voice-ai-agent)
   - [🛠️ Technologies Used](#️-technologies-used)
     - [Integrations](#integrations)
     - [n8n Features](#n8n-features)
@@ -283,6 +284,29 @@ Each project lives in its own folder containing the exported workflow JSON, read
 
 ---
 
+### 10. Booking Appointment using Voice AI Agent
+
+**Folder:** [`Booking Appointment using Voice AI Agent/`](./Booking%20Appointment%20using%20Voice%20AI%20Agent/)
+
+**Description:** Patients phone the dental clinic and talk to **Riya**, a multi-prompt Retell AI voice agent that speaks English, Hindi and Hinglish. Riya books evening appointment tokens, answers clinic questions, and transfers to reception. For slots and bookings she calls two custom functions, `check_availability` and `book_appointment`, which hit a single n8n webhook. n8n is the only source of truth: it applies the clinic rules and writes to the **same Google Sheet tab as the WhatsApp booking bot**, so both channels share the same five tokens per evening.
+
+**Key Features:**
+
+- 📞 Retell multi-prompt agent (intro → booking / FAQ / transfer → closing) with speech-friendly read-out rules for times, dates, phone numbers and rupee prices, an AI + recording disclosure, emergency guidance and silence handling
+- 🔐 Two webhook security layers: an `X-Clinic-Secret` Header Auth credential and Retell's `X-Retell-Signature` HMAC-SHA256, checked over the raw body with the built-in Crypto node and a credential-held key (no `$env` or `crypto` module needed)
+- 🧮 Clinic rules in one tested JavaScript module (`clinic-rules.js`, covered by `node:test`): 5 tokens from 7:00 PM, 15 minutes apart, no same-day booking after 5 PM IST, Sundays and a Holidays tab closed, a 7-day window, and a `next_available` suggestion. A build script embeds it into the Code nodes
+- 🔁 The agent never picks the token: n8n recounts the date at booking time, returns any existing booking for the same phone and day, and re-reads after appending to flag a duplicate token
+- 🚨 Every Sheets and Code step has an error output that answers `{ok:false}` so the agent never claims a booking, then fails the run so the Error Alerts workflow emails the owner
+
+**Use Cases:**
+
+- Voice booking for a small clinic, sharing capacity with an existing WhatsApp bot
+- Reference pattern for Retell custom functions backed by n8n, including signature verification on self-hosted n8n
+
+> **Setup:** See [`PLAN.md`](./Booking%20Appointment%20using%20Voice%20AI%20Agent/PLAN.md). Add the `Channel` and `CallId` columns and a `Holidays` tab to the sheet. In n8n, set a random value in the "Retell Webhook - X-Clinic-Secret" credential, create a **Crypto** credential holding the Retell API key as the HMAC secret, and select it in **Compute HMAC**. Then configure the agent in Retell from `retell/` (`functions.md` has the URLs and JSON schemas). Run `node "Booking Appointment using Voice AI Agent/n8n/build-workflows.js"` after editing the rules, and `node --test "Booking Appointment using Voice AI Agent/n8n/clinic-rules.test.js"` to run the tests.
+
+---
+
 ## 🛠️ Technologies Used
 
 ### Integrations
@@ -304,6 +328,7 @@ Each project lives in its own folder containing the exported workflow JSON, read
 - **Model Context Protocol (MCP)** — server exposing the WhatsApp CRM's own API to Claude/Cursor and other AI assistants
 - **LinkedIn API** — posting to a personal profile via the LinkedIn node and the REST Images/Posts APIs (multi-image posts)
 - **GitHub** — public contents/raw API for fetching n8n workflow JSON to ground project-showcase posts
+- **Retell AI** — multi-prompt voice agent with custom webhook functions, call transfer and signed requests
 
 ### n8n Features
 
@@ -354,9 +379,18 @@ n8n_workflows_project/
 │   └── meridian-travel/          # companion Next.js chat-widget frontend
 ├── WhatsApp CRM/
 │   └── wacrm/                    # self-hosted Next.js + Supabase CRM (own repo/README)
-└── LinkedIn Content Generator/
-    ├── LinkedIn Content Generator.json
-    └── linkedin-agent-n8n-plan.md  # design plan for the workflow
+├── LinkedIn Content Generator/
+│   ├── LinkedIn Content Generator.json
+│   └── linkedin-agent-n8n-plan.md  # design plan for the workflow
+└── Booking Appointment using Voice AI Agent/
+    ├── PLAN.md                     # design plan
+    ├── n8n/
+    │   ├── clinic-rules.js         # booking rules (embedded into Code nodes)
+    │   ├── clinic-rules.test.js    # node:test suite
+    │   ├── build-workflows.js      # generates the two workflow JSON files
+    │   ├── dental-voice-booking-retell-webhook.json
+    │   └── dental-voice-booking-error-alerts.json
+    └── retell/                     # Riya: universal prompt, states, functions, settings
 ```
 
 Each project folder is self-contained and includes the exported workflow JSON. New projects will be added as additional top-level folders following the same convention.

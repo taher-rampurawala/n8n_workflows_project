@@ -1,0 +1,1117 @@
+{
+  "name": "Dental Voice Booking - Retell Webhook",
+  "nodes": [
+    {
+      "id": "dvb-1",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "retell/dental-booking",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {
+          "rawBody": true
+        }
+      },
+      "webhookId": "a3c9e0f4-7b2d-4c1e-9f6a-5d8b2e1c4a70",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "sV6s6l9O7OvJgxLb",
+          "name": "Retell Webhook - X-Clinic-Secret"
+        }
+      }
+    },
+    {
+      "id": "dvb-2",
+      "name": "Prepare Signature",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\n// Retell signs the raw body: X-Retell-Signature = \"v=<ms timestamp>,d=<hex HMAC-SHA256(rawBody + timestamp)>\".\nconst item = $input.first();\nconst rawBody = (await this.helpers.getBinaryDataBuffer(0, 'data')).toString('utf8');\nconst header = String(item.json.headers?.['x-retell-signature'] ?? '');\nconst m = header.match(/^v=(\\d+),d=([0-9a-fA-F]+)$/);\nconst fresh = !!m && Math.abs(Date.now() - Number(m[1])) <= 5 * 60 * 1000;\nreturn [{ json: { rawBody, toSign: rawBody + (m ? m[1] : ''), digest: m ? m[2].toLowerCase() : '', fresh } }];\n"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "dvb-3",
+      "name": "Compute HMAC",
+      "type": "n8n-nodes-base.crypto",
+      "typeVersion": 2,
+      "position": [
+        480,
+        0
+      ],
+      "parameters": {
+        "action": "hmac",
+        "binaryData": false,
+        "type": "SHA256",
+        "value": "={{ $json.toSign }}",
+        "dataPropertyName": "expected",
+        "encoding": "hex"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "dvb-4",
+      "name": "Signature Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        720,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "sig-fresh",
+              "leftValue": "={{ $json.fresh }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "sig-match",
+              "leftValue": "={{ $json.expected }}",
+              "rightValue": "={{ $json.digest }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "dvb-5",
+      "name": "Respond Unauthorized",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        960,
+        400
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { ok: false, message: \"Unauthorized\" } }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "dvb-6",
+      "name": "Clinic Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        960,
+        0
+      ],
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"slots\": 5,\n  \"startTime\": \"19:00\",\n  \"slotMinutes\": 15,\n  \"cutoffHour\": 17,\n  \"closedWeekdays\": [\n    7\n  ],\n  \"horizonDays\": 7,\n  \"tzOffsetMinutes\": 330\n}",
+        "options": {}
+      }
+    },
+    {
+      "id": "dvb-7",
+      "name": "Normalize Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const DEFAULT_CONFIG = {\n  slots: 5,\n  startTime: '19:00',\n  slotMinutes: 15,\n  cutoffHour: 17,\n  closedWeekdays: [7], // ISO weekday: 1 = Monday … 7 = Sunday\n  horizonDays: 7,\n  tzOffsetMinutes: 330, // Asia/Kolkata, no DST\n};\n\nconst WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];\nconst MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];\nconst NUMBER_WORDS = ['twelve', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven'];\nconst MINUTE_WORDS = { 0: '', 15: 'fifteen', 30: 'thirty', 45: 'forty-five' };\n\n// A yyyy-MM-dd date is handled as a UTC-midnight Date so weekday/arithmetic ignore the host timezone.\nconst parseDate = (s) => new Date(`${s}T00:00:00Z`);\nconst formatDate = (d) => d.toISOString().slice(0, 10);\n// Real calendar date in yyyy-MM-dd form (rejects 2026-02-30, which Date would roll over).\nconst isValidDate = (s) => /^\\d{4}-\\d{2}-\\d{2}$/.test(s) && !isNaN(parseDate(s)) && formatDate(parseDate(s)) === s;\n\nfunction ordinal(n) {\n  const rem = n % 100;\n  if (rem >= 11 && rem <= 13) return `${n}th`;\n  return `${n}${{ 1: 'st', 2: 'nd', 3: 'rd' }[n % 10] || 'th'}`;\n}\n\nfunction speakDate(dateStr) {\n  const d = parseDate(dateStr);\n  return `${WEEKDAYS[d.getUTCDay()]}, the ${ordinal(d.getUTCDate())} of ${MONTHS[d.getUTCMonth()]}`;\n}\n\nfunction slotMinutesOfDay(token, config) {\n  const [h, m] = config.startTime.split(':').map(Number);\n  return h * 60 + m + (token - 1) * config.slotMinutes;\n}\n\nfunction speakTime(minutesOfDay) {\n  const h = Math.floor(minutesOfDay / 60);\n  const m = minutesOfDay % 60;\n  const words = MINUTE_WORDS[m] ?? String(m);\n  return [NUMBER_WORDS[h % 12], words, h >= 12 ? 'PM' : 'AM'].filter(Boolean).join(' ');\n}\n\nfunction countOn(bookings, dateStr) {\n  return bookings.filter((b) => String(b.Date ?? '').trim() === dateStr).length;\n}\n\nconst addDays = (dateStr, n) => formatDate(new Date(parseDate(dateStr).getTime() + n * 86400000));\n\n// Why a date can't be booked, or null if it can.\nfunction blockReason(ctx, date) {\n  if (!isValidDate(date)) return 'invalid_date';\n  if (date < ctx.today || date > addDays(ctx.today, ctx.config.horizonDays - 1)) return 'out_of_range';\n  const isoWeekday = parseDate(date).getUTCDay() || 7;\n  if (ctx.config.closedWeekdays.includes(isoWeekday) || ctx.holidays.has(date)) return 'closed';\n  if (countOn(ctx.bookings, date) >= ctx.config.slots) return 'full';\n  if (date === ctx.today && ctx.hour >= ctx.config.cutoffHour) return 'past_cutoff';\n  return null;\n}\n\nfunction slotOn(ctx, date) {\n  const token = countOn(ctx.bookings, date) + 1;\n  return { date, date_spoken: speakDate(date), token, time_spoken: speakTime(slotMinutesOfDay(token, ctx.config)) };\n}\n\nfunction nextAvailable(ctx, fromDate) {\n  const lastDate = addDays(ctx.today, ctx.config.horizonDays - 1);\n  for (let date = fromDate; date <= lastDate; date = addDays(date, 1)) {\n    if (!blockReason(ctx, date)) {\n      const { date_spoken, time_spoken } = slotOn(ctx, date);\n      return { date, date_spoken, time_spoken };\n    }\n  }\n  return null;\n}\n\n// Past, out-of-window and unparseable dates restart the search from today.\nconst searchStart = (ctx, reason, date) => (reason === 'invalid_date' || reason === 'out_of_range' ? ctx.today : date);\n\n// \"Now\" as the clinic's local wall-clock: { date: 'yyyy-MM-dd', hour }.\nfunction clinicNow(now, config) {\n  const local = new Date(now.getTime() + config.tzOffsetMinutes * 60000);\n  return { date: formatDate(local), hour: local.getUTCHours() };\n}\n\nfunction makeContext({ bookings, holidays, now, config }) {\n  const local = clinicNow(now, config);\n  return {\n    bookings,\n    holidays: new Set(holidays.map((h) => String(h.Date ?? '').trim())),\n    today: local.date,\n    hour: local.hour,\n    config,\n  };\n}\n\nfunction checkAvailability({ bookings, holidays, args, now, config = DEFAULT_CONFIG }) {\n  const ctx = makeContext({ bookings, holidays, now, config });\n  const requested = String(args.requested_date ?? '').trim();\n  const date = requested || nextAvailable(ctx, ctx.today)?.date;\n  const reason = date ? blockReason(ctx, date) : 'full';\n  if (reason) {\n    const valid = reason !== 'invalid_date';\n    return {\n      ok: true,\n      available: false,\n      reason,\n      requested_date_spoken: requested && valid ? speakDate(requested) : null,\n      next_available: nextAvailable(ctx, searchStart(ctx, reason, date)),\n    };\n  }\n  const slot = slotOn(ctx, date);\n  return { ok: true, available: true, ...slot, slots_left: config.slots - slot.token + 1 };\n}\n\nconst REASONS = ['Consultation', 'Fillings', 'Tooth extraction', 'Gum treatment', 'Other'];\n\n// Indian numbers are matched on their last 10 digits (drops +91 / leading 0 / spaces).\nconst normalizePhone = (s) => String(s ?? '').replace(/\\D/g, '').slice(-10);\n\nfunction validateBookingArgs(args, callerNumber) {\n  const reason = REASONS.find((r) => r.toLowerCase() === String(args.reason ?? '').trim().toLowerCase());\n  const detail = String(args.reason_detail ?? '').trim();\n  const date = String(args.date ?? '').trim();\n  const patientName = String(args.patient_name ?? '').trim();\n  const age = Number(args.age);\n  const phone = normalizePhone(args.phone || callerNumber);\n  const fail = (message) => ({ ok: false, message });\n\n  if (!isValidDate(date)) return fail('Invalid date');\n  if (patientName.length < 2) return fail('Invalid name');\n  if (!Number.isInteger(age) || age < 1 || age > 120) return fail('Invalid age');\n  if (!reason) return fail('Invalid reason');\n  if (reason === 'Other' && !detail) return fail('Please describe the reason');\n  if (phone.length !== 10) return fail('Invalid phone number');\n\n  return {\n    ok: true,\n    value: { date, patientName, age, reason: reason === 'Other' ? `Other: ${detail}` : reason, phone },\n  };\n}\n\nconst hhmm = (minutesOfDay) =>\n  `${String(Math.floor(minutesOfDay / 60)).padStart(2, '0')}:${String(minutesOfDay % 60).padStart(2, '0')}`;\n\n// Decides a validated booking against a fresh read of the sheet. The agent never picks the token.\nfunction decideBooking({ bookings, holidays, booking, callId, now, config = DEFAULT_CONFIG }) {\n  const ctx = makeContext({ bookings, holidays, now, config });\n\n  const existing = bookings.find(\n    (b) => String(b.Date ?? '').trim() === booking.date && normalizePhone(b.WhatsAppNumber) === booking.phone,\n  );\n  if (existing) {\n    const token = Number(existing.TokenNumber);\n    return {\n      canBook: false,\n      response: {\n        ok: true,\n        booked: false,\n        reason: 'already_booked',\n        token,\n        date_spoken: speakDate(booking.date),\n        time_spoken: speakTime(slotMinutesOfDay(token, config)),\n      },\n    };\n  }\n\n  const reason = blockReason(ctx, booking.date);\n  if (reason) {\n    return {\n      canBook: false,\n      response: { ok: true, booked: false, reason, next_available: nextAvailable(ctx, searchStart(ctx, reason, booking.date)) },\n    };\n  }\n\n  const slot = slotOn(ctx, booking.date);\n  return {\n    canBook: true,\n    row: {\n      Date: booking.date,\n      Time: hhmm(slotMinutesOfDay(slot.token, config)),\n      TokenNumber: slot.token,\n      PatientName: booking.patientName,\n      Age: booking.age,\n      Reason: booking.reason,\n      WhatsAppNumber: `91${booking.phone}`,\n      BookedAt: now.toISOString(),\n      Channel: 'Voice',\n      CallId: callId,\n    },\n    response: {\n      ok: true,\n      booked: true,\n      token: slot.token,\n      date_spoken: slot.date_spoken,\n      time_spoken: slot.time_spoken,\n      reason: booking.reason,\n    },\n  };\n}\n\nfunction parseArgs(args) {\n  if (args && typeof args === 'object') return args;\n  try {\n    const parsed = JSON.parse(args);\n    return parsed && typeof parsed === 'object' ? parsed : {};\n  } catch {\n    return {};\n  }\n}\n\n// Retell custom-function body: { name, args, call: { call_id, from_number, ... } }.\nfunction normalizeRequest(body) {\n  const b = body && typeof body === 'object' ? body : {};\n  const call = b.call && typeof b.call === 'object' ? b.call : {};\n  return {\n    fnName: String(b.name ?? ''),\n    args: parseArgs(b.args),\n    callId: String(call.call_id ?? ''),\n    callerNumber: String(call.from_number ?? ''),\n  };\n}\n\n\n// ---- n8n adapter ----\nlet body;\ntry { body = JSON.parse($('Prepare Signature').first().json.rawBody); } catch { body = {}; }\nreturn [{ json: normalizeRequest(body) }];\n"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "dvb-8",
+      "name": "Route by Function",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        1440,
+        0
+      ],
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.fnName }}",
+                    "rightValue": "check_availability",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "check_availability"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.fnName }}",
+                    "rightValue": "book_appointment",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "book_appointment"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "unknown"
+        }
+      }
+    },
+    {
+      "id": "dvb-9",
+      "name": "Read Bookings - Availability",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1680,
+        -400
+      ],
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "1bhlO4EFmgqcoXCNK4GrD6BSF-7izvMM1nsk1cgjAg9E",
+          "cachedResultName": "Appointment Booking"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "id",
+          "value": 1583914306,
+          "cachedResultName": "Bookings"
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "UoP5i2rbCOyXAvdg",
+          "name": "Google Sheets account"
+        }
+      },
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "dvb-10",
+      "name": "Read Holidays - Availability",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1920,
+        -400
+      ],
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "1bhlO4EFmgqcoXCNK4GrD6BSF-7izvMM1nsk1cgjAg9E",
+          "cachedResultName": "Appointment Booking"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Holidays"
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "UoP5i2rbCOyXAvdg",
+          "name": "Google Sheets account"
+        }
+      },
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "dvb-11",
+      "name": "Compute Availability",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2160,
+        -400
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const DEFAULT_CONFIG = {\n  slots: 5,\n  startTime: '19:00',\n  slotMinutes: 15,\n  cutoffHour: 17,\n  closedWeekdays: [7], // ISO weekday: 1 = Monday … 7 = Sunday\n  horizonDays: 7,\n  tzOffsetMinutes: 330, // Asia/Kolkata, no DST\n};\n\nconst WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];\nconst MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];\nconst NUMBER_WORDS = ['twelve', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven'];\nconst MINUTE_WORDS = { 0: '', 15: 'fifteen', 30: 'thirty', 45: 'forty-five' };\n\n// A yyyy-MM-dd date is handled as a UTC-midnight Date so weekday/arithmetic ignore the host timezone.\nconst parseDate = (s) => new Date(`${s}T00:00:00Z`);\nconst formatDate = (d) => d.toISOString().slice(0, 10);\n// Real calendar date in yyyy-MM-dd form (rejects 2026-02-30, which Date would roll over).\nconst isValidDate = (s) => /^\\d{4}-\\d{2}-\\d{2}$/.test(s) && !isNaN(parseDate(s)) && formatDate(parseDate(s)) === s;\n\nfunction ordinal(n) {\n  const rem = n % 100;\n  if (rem >= 11 && rem <= 13) return `${n}th`;\n  return `${n}${{ 1: 'st', 2: 'nd', 3: 'rd' }[n % 10] || 'th'}`;\n}\n\nfunction speakDate(dateStr) {\n  const d = parseDate(dateStr);\n  return `${WEEKDAYS[d.getUTCDay()]}, the ${ordinal(d.getUTCDate())} of ${MONTHS[d.getUTCMonth()]}`;\n}\n\nfunction slotMinutesOfDay(token, config) {\n  const [h, m] = config.startTime.split(':').map(Number);\n  return h * 60 + m + (token - 1) * config.slotMinutes;\n}\n\nfunction speakTime(minutesOfDay) {\n  const h = Math.floor(minutesOfDay / 60);\n  const m = minutesOfDay % 60;\n  const words = MINUTE_WORDS[m] ?? String(m);\n  return [NUMBER_WORDS[h % 12], words, h >= 12 ? 'PM' : 'AM'].filter(Boolean).join(' ');\n}\n\nfunction countOn(bookings, dateStr) {\n  return bookings.filter((b) => String(b.Date ?? '').trim() === dateStr).length;\n}\n\nconst addDays = (dateStr, n) => formatDate(new Date(parseDate(dateStr).getTime() + n * 86400000));\n\n// Why a date can't be booked, or null if it can.\nfunction blockReason(ctx, date) {\n  if (!isValidDate(date)) return 'invalid_date';\n  if (date < ctx.today || date > addDays(ctx.today, ctx.config.horizonDays - 1)) return 'out_of_range';\n  const isoWeekday = parseDate(date).getUTCDay() || 7;\n  if (ctx.config.closedWeekdays.includes(isoWeekday) || ctx.holidays.has(date)) return 'closed';\n  if (countOn(ctx.bookings, date) >= ctx.config.slots) return 'full';\n  if (date === ctx.today && ctx.hour >= ctx.config.cutoffHour) return 'past_cutoff';\n  return null;\n}\n\nfunction slotOn(ctx, date) {\n  const token = countOn(ctx.bookings, date) + 1;\n  return { date, date_spoken: speakDate(date), token, time_spoken: speakTime(slotMinutesOfDay(token, ctx.config)) };\n}\n\nfunction nextAvailable(ctx, fromDate) {\n  const lastDate = addDays(ctx.today, ctx.config.horizonDays - 1);\n  for (let date = fromDate; date <= lastDate; date = addDays(date, 1)) {\n    if (!blockReason(ctx, date)) {\n      const { date_spoken, time_spoken } = slotOn(ctx, date);\n      return { date, date_spoken, time_spoken };\n    }\n  }\n  return null;\n}\n\n// Past, out-of-window and unparseable dates restart the search from today.\nconst searchStart = (ctx, reason, date) => (reason === 'invalid_date' || reason === 'out_of_range' ? ctx.today : date);\n\n// \"Now\" as the clinic's local wall-clock: { date: 'yyyy-MM-dd', hour }.\nfunction clinicNow(now, config) {\n  const local = new Date(now.getTime() + config.tzOffsetMinutes * 60000);\n  return { date: formatDate(local), hour: local.getUTCHours() };\n}\n\nfunction makeContext({ bookings, holidays, now, config }) {\n  const local = clinicNow(now, config);\n  return {\n    bookings,\n    holidays: new Set(holidays.map((h) => String(h.Date ?? '').trim())),\n    today: local.date,\n    hour: local.hour,\n    config,\n  };\n}\n\nfunction checkAvailability({ bookings, holidays, args, now, config = DEFAULT_CONFIG }) {\n  const ctx = makeContext({ bookings, holidays, now, config });\n  const requested = String(args.requested_date ?? '').trim();\n  const date = requested || nextAvailable(ctx, ctx.today)?.date;\n  const reason = date ? blockReason(ctx, date) : 'full';\n  if (reason) {\n    const valid = reason !== 'invalid_date';\n    return {\n      ok: true,\n      available: false,\n      reason,\n      requested_date_spoken: requested && valid ? speakDate(requested) : null,\n      next_available: nextAvailable(ctx, searchStart(ctx, reason, date)),\n    };\n  }\n  const slot = slotOn(ctx, date);\n  return { ok: true, available: true, ...slot, slots_left: config.slots - slot.token + 1 };\n}\n\nconst REASONS = ['Consultation', 'Fillings', 'Tooth extraction', 'Gum treatment', 'Other'];\n\n// Indian numbers are matched on their last 10 digits (drops +91 / leading 0 / spaces).\nconst normalizePhone = (s) => String(s ?? '').replace(/\\D/g, '').slice(-10);\n\nfunction validateBookingArgs(args, callerNumber) {\n  const reason = REASONS.find((r) => r.toLowerCase() === String(args.reason ?? '').trim().toLowerCase());\n  const detail = String(args.reason_detail ?? '').trim();\n  const date = String(args.date ?? '').trim();\n  const patientName = String(args.patient_name ?? '').trim();\n  const age = Number(args.age);\n  const phone = normalizePhone(args.phone || callerNumber);\n  const fail = (message) => ({ ok: false, message });\n\n  if (!isValidDate(date)) return fail('Invalid date');\n  if (patientName.length < 2) return fail('Invalid name');\n  if (!Number.isInteger(age) || age < 1 || age > 120) return fail('Invalid age');\n  if (!reason) return fail('Invalid reason');\n  if (reason === 'Other' && !detail) return fail('Please describe the reason');\n  if (phone.length !== 10) return fail('Invalid phone number');\n\n  return {\n    ok: true,\n    value: { date, patientName, age, reason: reason === 'Other' ? `Other: ${detail}` : reason, phone },\n  };\n}\n\nconst hhmm = (minutesOfDay) =>\n  `${String(Math.floor(minutesOfDay / 60)).padStart(2, '0')}:${String(minutesOfDay % 60).padStart(2, '0')}`;\n\n// Decides a validated booking against a fresh read of the sheet. The agent never picks the token.\nfunction decideBooking({ bookings, holidays, booking, callId, now, config = DEFAULT_CONFIG }) {\n  const ctx = makeContext({ bookings, holidays, now, config });\n\n  const existing = bookings.find(\n    (b) => String(b.Date ?? '').trim() === booking.date && normalizePhone(b.WhatsAppNumber) === booking.phone,\n  );\n  if (existing) {\n    const token = Number(existing.TokenNumber);\n    return {\n      canBook: false,\n      response: {\n        ok: true,\n        booked: false,\n        reason: 'already_booked',\n        token,\n        date_spoken: speakDate(booking.date),\n        time_spoken: speakTime(slotMinutesOfDay(token, config)),\n      },\n    };\n  }\n\n  const reason = blockReason(ctx, booking.date);\n  if (reason) {\n    return {\n      canBook: false,\n      response: { ok: true, booked: false, reason, next_available: nextAvailable(ctx, searchStart(ctx, reason, booking.date)) },\n    };\n  }\n\n  const slot = slotOn(ctx, booking.date);\n  return {\n    canBook: true,\n    row: {\n      Date: booking.date,\n      Time: hhmm(slotMinutesOfDay(slot.token, config)),\n      TokenNumber: slot.token,\n      PatientName: booking.patientName,\n      Age: booking.age,\n      Reason: booking.reason,\n      WhatsAppNumber: `91${booking.phone}`,\n      BookedAt: now.toISOString(),\n      Channel: 'Voice',\n      CallId: callId,\n    },\n    response: {\n      ok: true,\n      booked: true,\n      token: slot.token,\n      date_spoken: slot.date_spoken,\n      time_spoken: slot.time_spoken,\n      reason: booking.reason,\n    },\n  };\n}\n\nfunction parseArgs(args) {\n  if (args && typeof args === 'object') return args;\n  try {\n    const parsed = JSON.parse(args);\n    return parsed && typeof parsed === 'object' ? parsed : {};\n  } catch {\n    return {};\n  }\n}\n\n// Retell custom-function body: { name, args, call: { call_id, from_number, ... } }.\nfunction normalizeRequest(body) {\n  const b = body && typeof body === 'object' ? body : {};\n  const call = b.call && typeof b.call === 'object' ? b.call : {};\n  return {\n    fnName: String(b.name ?? ''),\n    args: parseArgs(b.args),\n    callId: String(call.call_id ?? ''),\n    callerNumber: String(call.from_number ?? ''),\n  };\n}\n\n\n// ---- n8n adapter ----\nconst rows = (name) => $(name).all().map((i) => i.json).filter((r) => r.Date);\nconst response = checkAvailability({\n  bookings: rows('Read Bookings - Availability'),\n  holidays: rows('Read Holidays - Availability'),\n  args: $('Normalize Request').first().json.args,\n  now: new Date(),\n  config: $('Clinic Config').first().json,\n});\nreturn [{ json: { response } }];\n"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "dvb-12",
+      "name": "Respond Availability",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2400,
+        -400
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json.response }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "dvb-13",
+      "name": "Validate Booking Args",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1680,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const DEFAULT_CONFIG = {\n  slots: 5,\n  startTime: '19:00',\n  slotMinutes: 15,\n  cutoffHour: 17,\n  closedWeekdays: [7], // ISO weekday: 1 = Monday … 7 = Sunday\n  horizonDays: 7,\n  tzOffsetMinutes: 330, // Asia/Kolkata, no DST\n};\n\nconst WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];\nconst MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];\nconst NUMBER_WORDS = ['twelve', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven'];\nconst MINUTE_WORDS = { 0: '', 15: 'fifteen', 30: 'thirty', 45: 'forty-five' };\n\n// A yyyy-MM-dd date is handled as a UTC-midnight Date so weekday/arithmetic ignore the host timezone.\nconst parseDate = (s) => new Date(`${s}T00:00:00Z`);\nconst formatDate = (d) => d.toISOString().slice(0, 10);\n// Real calendar date in yyyy-MM-dd form (rejects 2026-02-30, which Date would roll over).\nconst isValidDate = (s) => /^\\d{4}-\\d{2}-\\d{2}$/.test(s) && !isNaN(parseDate(s)) && formatDate(parseDate(s)) === s;\n\nfunction ordinal(n) {\n  const rem = n % 100;\n  if (rem >= 11 && rem <= 13) return `${n}th`;\n  return `${n}${{ 1: 'st', 2: 'nd', 3: 'rd' }[n % 10] || 'th'}`;\n}\n\nfunction speakDate(dateStr) {\n  const d = parseDate(dateStr);\n  return `${WEEKDAYS[d.getUTCDay()]}, the ${ordinal(d.getUTCDate())} of ${MONTHS[d.getUTCMonth()]}`;\n}\n\nfunction slotMinutesOfDay(token, config) {\n  const [h, m] = config.startTime.split(':').map(Number);\n  return h * 60 + m + (token - 1) * config.slotMinutes;\n}\n\nfunction speakTime(minutesOfDay) {\n  const h = Math.floor(minutesOfDay / 60);\n  const m = minutesOfDay % 60;\n  const words = MINUTE_WORDS[m] ?? String(m);\n  return [NUMBER_WORDS[h % 12], words, h >= 12 ? 'PM' : 'AM'].filter(Boolean).join(' ');\n}\n\nfunction countOn(bookings, dateStr) {\n  return bookings.filter((b) => String(b.Date ?? '').trim() === dateStr).length;\n}\n\nconst addDays = (dateStr, n) => formatDate(new Date(parseDate(dateStr).getTime() + n * 86400000));\n\n// Why a date can't be booked, or null if it can.\nfunction blockReason(ctx, date) {\n  if (!isValidDate(date)) return 'invalid_date';\n  if (date < ctx.today || date > addDays(ctx.today, ctx.config.horizonDays - 1)) return 'out_of_range';\n  const isoWeekday = parseDate(date).getUTCDay() || 7;\n  if (ctx.config.closedWeekdays.includes(isoWeekday) || ctx.holidays.has(date)) return 'closed';\n  if (countOn(ctx.bookings, date) >= ctx.config.slots) return 'full';\n  if (date === ctx.today && ctx.hour >= ctx.config.cutoffHour) return 'past_cutoff';\n  return null;\n}\n\nfunction slotOn(ctx, date) {\n  const token = countOn(ctx.bookings, date) + 1;\n  return { date, date_spoken: speakDate(date), token, time_spoken: speakTime(slotMinutesOfDay(token, ctx.config)) };\n}\n\nfunction nextAvailable(ctx, fromDate) {\n  const lastDate = addDays(ctx.today, ctx.config.horizonDays - 1);\n  for (let date = fromDate; date <= lastDate; date = addDays(date, 1)) {\n    if (!blockReason(ctx, date)) {\n      const { date_spoken, time_spoken } = slotOn(ctx, date);\n      return { date, date_spoken, time_spoken };\n    }\n  }\n  return null;\n}\n\n// Past, out-of-window and unparseable dates restart the search from today.\nconst searchStart = (ctx, reason, date) => (reason === 'invalid_date' || reason === 'out_of_range' ? ctx.today : date);\n\n// \"Now\" as the clinic's local wall-clock: { date: 'yyyy-MM-dd', hour }.\nfunction clinicNow(now, config) {\n  const local = new Date(now.getTime() + config.tzOffsetMinutes * 60000);\n  return { date: formatDate(local), hour: local.getUTCHours() };\n}\n\nfunction makeContext({ bookings, holidays, now, config }) {\n  const local = clinicNow(now, config);\n  return {\n    bookings,\n    holidays: new Set(holidays.map((h) => String(h.Date ?? '').trim())),\n    today: local.date,\n    hour: local.hour,\n    config,\n  };\n}\n\nfunction checkAvailability({ bookings, holidays, args, now, config = DEFAULT_CONFIG }) {\n  const ctx = makeContext({ bookings, holidays, now, config });\n  const requested = String(args.requested_date ?? '').trim();\n  const date = requested || nextAvailable(ctx, ctx.today)?.date;\n  const reason = date ? blockReason(ctx, date) : 'full';\n  if (reason) {\n    const valid = reason !== 'invalid_date';\n    return {\n      ok: true,\n      available: false,\n      reason,\n      requested_date_spoken: requested && valid ? speakDate(requested) : null,\n      next_available: nextAvailable(ctx, searchStart(ctx, reason, date)),\n    };\n  }\n  const slot = slotOn(ctx, date);\n  return { ok: true, available: true, ...slot, slots_left: config.slots - slot.token + 1 };\n}\n\nconst REASONS = ['Consultation', 'Fillings', 'Tooth extraction', 'Gum treatment', 'Other'];\n\n// Indian numbers are matched on their last 10 digits (drops +91 / leading 0 / spaces).\nconst normalizePhone = (s) => String(s ?? '').replace(/\\D/g, '').slice(-10);\n\nfunction validateBookingArgs(args, callerNumber) {\n  const reason = REASONS.find((r) => r.toLowerCase() === String(args.reason ?? '').trim().toLowerCase());\n  const detail = String(args.reason_detail ?? '').trim();\n  const date = String(args.date ?? '').trim();\n  const patientName = String(args.patient_name ?? '').trim();\n  const age = Number(args.age);\n  const phone = normalizePhone(args.phone || callerNumber);\n  const fail = (message) => ({ ok: false, message });\n\n  if (!isValidDate(date)) return fail('Invalid date');\n  if (patientName.length < 2) return fail('Invalid name');\n  if (!Number.isInteger(age) || age < 1 || age > 120) return fail('Invalid age');\n  if (!reason) return fail('Invalid reason');\n  if (reason === 'Other' && !detail) return fail('Please describe the reason');\n  if (phone.length !== 10) return fail('Invalid phone number');\n\n  return {\n    ok: true,\n    value: { date, patientName, age, reason: reason === 'Other' ? `Other: ${detail}` : reason, phone },\n  };\n}\n\nconst hhmm = (minutesOfDay) =>\n  `${String(Math.floor(minutesOfDay / 60)).padStart(2, '0')}:${String(minutesOfDay % 60).padStart(2, '0')}`;\n\n// Decides a validated booking against a fresh read of the sheet. The agent never picks the token.\nfunction decideBooking({ bookings, holidays, booking, callId, now, config = DEFAULT_CONFIG }) {\n  const ctx = makeContext({ bookings, holidays, now, config });\n\n  const existing = bookings.find(\n    (b) => String(b.Date ?? '').trim() === booking.date && normalizePhone(b.WhatsAppNumber) === booking.phone,\n  );\n  if (existing) {\n    const token = Number(existing.TokenNumber);\n    return {\n      canBook: false,\n      response: {\n        ok: true,\n        booked: false,\n        reason: 'already_booked',\n        token,\n        date_spoken: speakDate(booking.date),\n        time_spoken: speakTime(slotMinutesOfDay(token, config)),\n      },\n    };\n  }\n\n  const reason = blockReason(ctx, booking.date);\n  if (reason) {\n    return {\n      canBook: false,\n      response: { ok: true, booked: false, reason, next_available: nextAvailable(ctx, searchStart(ctx, reason, booking.date)) },\n    };\n  }\n\n  const slot = slotOn(ctx, booking.date);\n  return {\n    canBook: true,\n    row: {\n      Date: booking.date,\n      Time: hhmm(slotMinutesOfDay(slot.token, config)),\n      TokenNumber: slot.token,\n      PatientName: booking.patientName,\n      Age: booking.age,\n      Reason: booking.reason,\n      WhatsAppNumber: `91${booking.phone}`,\n      BookedAt: now.toISOString(),\n      Channel: 'Voice',\n      CallId: callId,\n    },\n    response: {\n      ok: true,\n      booked: true,\n      token: slot.token,\n      date_spoken: slot.date_spoken,\n      time_spoken: slot.time_spoken,\n      reason: booking.reason,\n    },\n  };\n}\n\nfunction parseArgs(args) {\n  if (args && typeof args === 'object') return args;\n  try {\n    const parsed = JSON.parse(args);\n    return parsed && typeof parsed === 'object' ? parsed : {};\n  } catch {\n    return {};\n  }\n}\n\n// Retell custom-function body: { name, args, call: { call_id, from_number, ... } }.\nfunction normalizeRequest(body) {\n  const b = body && typeof body === 'object' ? body : {};\n  const call = b.call && typeof b.call === 'object' ? b.call : {};\n  return {\n    fnName: String(b.name ?? ''),\n    args: parseArgs(b.args),\n    callId: String(call.call_id ?? ''),\n    callerNumber: String(call.from_number ?? ''),\n  };\n}\n\n\n// ---- n8n adapter ----\nconst req = $('Normalize Request').first().json;\nconst result = validateBookingArgs(req.args, req.callerNumber);\nreturn [{ json: result.ok ? { valid: true, booking: result.value } : { valid: false, response: result } }];\n"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "dvb-14",
+      "name": "Args Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1920,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "args-valid",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "dvb-15",
+      "name": "Respond Invalid Args",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2160,
+        200
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json.response }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "dvb-16",
+      "name": "Read Bookings - Booking",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2160,
+        0
+      ],
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "1bhlO4EFmgqcoXCNK4GrD6BSF-7izvMM1nsk1cgjAg9E",
+          "cachedResultName": "Appointment Booking"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "id",
+          "value": 1583914306,
+          "cachedResultName": "Bookings"
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "UoP5i2rbCOyXAvdg",
+          "name": "Google Sheets account"
+        }
+      },
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "dvb-17",
+      "name": "Read Holidays - Booking",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2400,
+        0
+      ],
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "1bhlO4EFmgqcoXCNK4GrD6BSF-7izvMM1nsk1cgjAg9E",
+          "cachedResultName": "Appointment Booking"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Holidays"
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "UoP5i2rbCOyXAvdg",
+          "name": "Google Sheets account"
+        }
+      },
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "dvb-18",
+      "name": "Decide Booking",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2640,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const DEFAULT_CONFIG = {\n  slots: 5,\n  startTime: '19:00',\n  slotMinutes: 15,\n  cutoffHour: 17,\n  closedWeekdays: [7], // ISO weekday: 1 = Monday … 7 = Sunday\n  horizonDays: 7,\n  tzOffsetMinutes: 330, // Asia/Kolkata, no DST\n};\n\nconst WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];\nconst MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];\nconst NUMBER_WORDS = ['twelve', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven'];\nconst MINUTE_WORDS = { 0: '', 15: 'fifteen', 30: 'thirty', 45: 'forty-five' };\n\n// A yyyy-MM-dd date is handled as a UTC-midnight Date so weekday/arithmetic ignore the host timezone.\nconst parseDate = (s) => new Date(`${s}T00:00:00Z`);\nconst formatDate = (d) => d.toISOString().slice(0, 10);\n// Real calendar date in yyyy-MM-dd form (rejects 2026-02-30, which Date would roll over).\nconst isValidDate = (s) => /^\\d{4}-\\d{2}-\\d{2}$/.test(s) && !isNaN(parseDate(s)) && formatDate(parseDate(s)) === s;\n\nfunction ordinal(n) {\n  const rem = n % 100;\n  if (rem >= 11 && rem <= 13) return `${n}th`;\n  return `${n}${{ 1: 'st', 2: 'nd', 3: 'rd' }[n % 10] || 'th'}`;\n}\n\nfunction speakDate(dateStr) {\n  const d = parseDate(dateStr);\n  return `${WEEKDAYS[d.getUTCDay()]}, the ${ordinal(d.getUTCDate())} of ${MONTHS[d.getUTCMonth()]}`;\n}\n\nfunction slotMinutesOfDay(token, config) {\n  const [h, m] = config.startTime.split(':').map(Number);\n  return h * 60 + m + (token - 1) * config.slotMinutes;\n}\n\nfunction speakTime(minutesOfDay) {\n  const h = Math.floor(minutesOfDay / 60);\n  const m = minutesOfDay % 60;\n  const words = MINUTE_WORDS[m] ?? String(m);\n  return [NUMBER_WORDS[h % 12], words, h >= 12 ? 'PM' : 'AM'].filter(Boolean).join(' ');\n}\n\nfunction countOn(bookings, dateStr) {\n  return bookings.filter((b) => String(b.Date ?? '').trim() === dateStr).length;\n}\n\nconst addDays = (dateStr, n) => formatDate(new Date(parseDate(dateStr).getTime() + n * 86400000));\n\n// Why a date can't be booked, or null if it can.\nfunction blockReason(ctx, date) {\n  if (!isValidDate(date)) return 'invalid_date';\n  if (date < ctx.today || date > addDays(ctx.today, ctx.config.horizonDays - 1)) return 'out_of_range';\n  const isoWeekday = parseDate(date).getUTCDay() || 7;\n  if (ctx.config.closedWeekdays.includes(isoWeekday) || ctx.holidays.has(date)) return 'closed';\n  if (countOn(ctx.bookings, date) >= ctx.config.slots) return 'full';\n  if (date === ctx.today && ctx.hour >= ctx.config.cutoffHour) return 'past_cutoff';\n  return null;\n}\n\nfunction slotOn(ctx, date) {\n  const token = countOn(ctx.bookings, date) + 1;\n  return { date, date_spoken: speakDate(date), token, time_spoken: speakTime(slotMinutesOfDay(token, ctx.config)) };\n}\n\nfunction nextAvailable(ctx, fromDate) {\n  const lastDate = addDays(ctx.today, ctx.config.horizonDays - 1);\n  for (let date = fromDate; date <= lastDate; date = addDays(date, 1)) {\n    if (!blockReason(ctx, date)) {\n      const { date_spoken, time_spoken } = slotOn(ctx, date);\n      return { date, date_spoken, time_spoken };\n    }\n  }\n  return null;\n}\n\n// Past, out-of-window and unparseable dates restart the search from today.\nconst searchStart = (ctx, reason, date) => (reason === 'invalid_date' || reason === 'out_of_range' ? ctx.today : date);\n\n// \"Now\" as the clinic's local wall-clock: { date: 'yyyy-MM-dd', hour }.\nfunction clinicNow(now, config) {\n  const local = new Date(now.getTime() + config.tzOffsetMinutes * 60000);\n  return { date: formatDate(local), hour: local.getUTCHours() };\n}\n\nfunction makeContext({ bookings, holidays, now, config }) {\n  const local = clinicNow(now, config);\n  return {\n    bookings,\n    holidays: new Set(holidays.map((h) => String(h.Date ?? '').trim())),\n    today: local.date,\n    hour: local.hour,\n    config,\n  };\n}\n\nfunction checkAvailability({ bookings, holidays, args, now, config = DEFAULT_CONFIG }) {\n  const ctx = makeContext({ bookings, holidays, now, config });\n  const requested = String(args.requested_date ?? '').trim();\n  const date = requested || nextAvailable(ctx, ctx.today)?.date;\n  const reason = date ? blockReason(ctx, date) : 'full';\n  if (reason) {\n    const valid = reason !== 'invalid_date';\n    return {\n      ok: true,\n      available: false,\n      reason,\n      requested_date_spoken: requested && valid ? speakDate(requested) : null,\n      next_available: nextAvailable(ctx, searchStart(ctx, reason, date)),\n    };\n  }\n  const slot = slotOn(ctx, date);\n  return { ok: true, available: true, ...slot, slots_left: config.slots - slot.token + 1 };\n}\n\nconst REASONS = ['Consultation', 'Fillings', 'Tooth extraction', 'Gum treatment', 'Other'];\n\n// Indian numbers are matched on their last 10 digits (drops +91 / leading 0 / spaces).\nconst normalizePhone = (s) => String(s ?? '').replace(/\\D/g, '').slice(-10);\n\nfunction validateBookingArgs(args, callerNumber) {\n  const reason = REASONS.find((r) => r.toLowerCase() === String(args.reason ?? '').trim().toLowerCase());\n  const detail = String(args.reason_detail ?? '').trim();\n  const date = String(args.date ?? '').trim();\n  const patientName = String(args.patient_name ?? '').trim();\n  const age = Number(args.age);\n  const phone = normalizePhone(args.phone || callerNumber);\n  const fail = (message) => ({ ok: false, message });\n\n  if (!isValidDate(date)) return fail('Invalid date');\n  if (patientName.length < 2) return fail('Invalid name');\n  if (!Number.isInteger(age) || age < 1 || age > 120) return fail('Invalid age');\n  if (!reason) return fail('Invalid reason');\n  if (reason === 'Other' && !detail) return fail('Please describe the reason');\n  if (phone.length !== 10) return fail('Invalid phone number');\n\n  return {\n    ok: true,\n    value: { date, patientName, age, reason: reason === 'Other' ? `Other: ${detail}` : reason, phone },\n  };\n}\n\nconst hhmm = (minutesOfDay) =>\n  `${String(Math.floor(minutesOfDay / 60)).padStart(2, '0')}:${String(minutesOfDay % 60).padStart(2, '0')}`;\n\n// Decides a validated booking against a fresh read of the sheet. The agent never picks the token.\nfunction decideBooking({ bookings, holidays, booking, callId, now, config = DEFAULT_CONFIG }) {\n  const ctx = makeContext({ bookings, holidays, now, config });\n\n  const existing = bookings.find(\n    (b) => String(b.Date ?? '').trim() === booking.date && normalizePhone(b.WhatsAppNumber) === booking.phone,\n  );\n  if (existing) {\n    const token = Number(existing.TokenNumber);\n    return {\n      canBook: false,\n      response: {\n        ok: true,\n        booked: false,\n        reason: 'already_booked',\n        token,\n        date_spoken: speakDate(booking.date),\n        time_spoken: speakTime(slotMinutesOfDay(token, config)),\n      },\n    };\n  }\n\n  const reason = blockReason(ctx, booking.date);\n  if (reason) {\n    return {\n      canBook: false,\n      response: { ok: true, booked: false, reason, next_available: nextAvailable(ctx, searchStart(ctx, reason, booking.date)) },\n    };\n  }\n\n  const slot = slotOn(ctx, booking.date);\n  return {\n    canBook: true,\n    row: {\n      Date: booking.date,\n      Time: hhmm(slotMinutesOfDay(slot.token, config)),\n      TokenNumber: slot.token,\n      PatientName: booking.patientName,\n      Age: booking.age,\n      Reason: booking.reason,\n      WhatsAppNumber: `91${booking.phone}`,\n      BookedAt: now.toISOString(),\n      Channel: 'Voice',\n      CallId: callId,\n    },\n    response: {\n      ok: true,\n      booked: true,\n      token: slot.token,\n      date_spoken: slot.date_spoken,\n      time_spoken: slot.time_spoken,\n      reason: booking.reason,\n    },\n  };\n}\n\nfunction parseArgs(args) {\n  if (args && typeof args === 'object') return args;\n  try {\n    const parsed = JSON.parse(args);\n    return parsed && typeof parsed === 'object' ? parsed : {};\n  } catch {\n    return {};\n  }\n}\n\n// Retell custom-function body: { name, args, call: { call_id, from_number, ... } }.\nfunction normalizeRequest(body) {\n  const b = body && typeof body === 'object' ? body : {};\n  const call = b.call && typeof b.call === 'object' ? b.call : {};\n  return {\n    fnName: String(b.name ?? ''),\n    args: parseArgs(b.args),\n    callId: String(call.call_id ?? ''),\n    callerNumber: String(call.from_number ?? ''),\n  };\n}\n\n\n// ---- n8n adapter ----\nconst rows = (name) => $(name).all().map((i) => i.json).filter((r) => r.Date);\nconst decision = decideBooking({\n  bookings: rows('Read Bookings - Booking'),\n  holidays: rows('Read Holidays - Booking'),\n  booking: $('Validate Booking Args').first().json.booking,\n  callId: $('Normalize Request').first().json.callId,\n  now: new Date(),\n  config: $('Clinic Config').first().json,\n});\nreturn [{ json: decision }];\n"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "dvb-19",
+      "name": "Can Book?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2880,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "can-book",
+              "leftValue": "={{ $json.canBook }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "dvb-20",
+      "name": "Respond Not Booked",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        3120,
+        200
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json.response }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "dvb-21",
+      "name": "Append Booking",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        3120,
+        0
+      ],
+      "parameters": {
+        "resource": "sheet",
+        "operation": "append",
+        "authentication": "oAuth2",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "1bhlO4EFmgqcoXCNK4GrD6BSF-7izvMM1nsk1cgjAg9E",
+          "cachedResultName": "Appointment Booking"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "id",
+          "value": 1583914306,
+          "cachedResultName": "Bookings"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date": "={{ $json.row.Date }}",
+            "Time": "={{ $json.row.Time }}",
+            "TokenNumber": "={{ $json.row.TokenNumber }}",
+            "PatientName": "={{ $json.row.PatientName }}",
+            "Age": "={{ $json.row.Age }}",
+            "Reason": "={{ $json.row.Reason }}",
+            "WhatsAppNumber": "={{ $json.row.WhatsAppNumber }}",
+            "BookedAt": "={{ $json.row.BookedAt }}",
+            "Channel": "={{ $json.row.Channel }}",
+            "CallId": "={{ $json.row.CallId }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Time",
+              "displayName": "Time",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "TokenNumber",
+              "displayName": "TokenNumber",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "PatientName",
+              "displayName": "PatientName",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Age",
+              "displayName": "Age",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Reason",
+              "displayName": "Reason",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "WhatsAppNumber",
+              "displayName": "WhatsAppNumber",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "BookedAt",
+              "displayName": "BookedAt",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Channel",
+              "displayName": "Channel",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "CallId",
+              "displayName": "CallId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            }
+          ]
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "UoP5i2rbCOyXAvdg",
+          "name": "Google Sheets account"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "dvb-22",
+      "name": "Respond Booked",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        3360,
+        0
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $('Decide Booking').first().json.response }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "dvb-23",
+      "name": "Read Bookings - Verify",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        3600,
+        0
+      ],
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "1bhlO4EFmgqcoXCNK4GrD6BSF-7izvMM1nsk1cgjAg9E",
+          "cachedResultName": "Appointment Booking"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "id",
+          "value": 1583914306,
+          "cachedResultName": "Bookings"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "Date",
+              "lookupValue": "={{ $('Decide Booking').first().json.row.Date }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "UoP5i2rbCOyXAvdg",
+          "name": "Google Sheets account"
+        }
+      },
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "dvb-24",
+      "name": "Check Duplicate Token",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3840,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\n// Residual race: two calls booking the same date within the same second can get the same token.\n// Throwing here fails the execution, so the Error Alerts workflow emails the owner to fix it by hand.\nconst { row } = $('Decide Booking').first().json;\nconst same = $input.all().filter((i) => String(i.json.Date) === row.Date && Number(i.json.TokenNumber) === row.TokenNumber);\nif (same.length > 1) {\n  throw new Error(`Duplicate token ${row.TokenNumber} on ${row.Date} (${same.length} rows). Re-number one booking and call the patient.`);\n}\nreturn [{ json: { duplicate: false, date: row.Date, token: row.TokenNumber } }];\n"
+      }
+    },
+    {
+      "id": "dvb-25",
+      "name": "Respond Unknown Function",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1680,
+        400
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { ok: false, message: \"Unknown function\" } }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "dvb-26",
+      "name": "Respond System Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2160,
+        800
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { ok: false, message: \"System problem, please offer a transfer\" } }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "dvb-27",
+      "name": "Raise Error Alert",
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        2400,
+        800
+      ],
+      "parameters": {
+        "errorType": "errorMessage",
+        "errorMessage": "={{ 'Voice booking failed: ' + (typeof $json.error === 'string' ? $json.error : ($json.error?.message || JSON.stringify($json).slice(0, 500))) }}"
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Prepare Signature",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Signature": {
+      "main": [
+        [
+          {
+            "node": "Compute HMAC",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond System Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compute HMAC": {
+      "main": [
+        [
+          {
+            "node": "Signature Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond System Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Signature Valid?": {
+      "main": [
+        [
+          {
+            "node": "Clinic Config",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Unauthorized",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clinic Config": {
+      "main": [
+        [
+          {
+            "node": "Normalize Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Request": {
+      "main": [
+        [
+          {
+            "node": "Route by Function",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond System Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by Function": {
+      "main": [
+        [
+          {
+            "node": "Read Bookings - Availability",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Validate Booking Args",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Unknown Function",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Bookings - Availability": {
+      "main": [
+        [
+          {
+            "node": "Read Holidays - Availability",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond System Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Holidays - Availability": {
+      "main": [
+        [
+          {
+            "node": "Compute Availability",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond System Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compute Availability": {
+      "main": [
+        [
+          {
+            "node": "Respond Availability",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond System Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Booking Args": {
+      "main": [
+        [
+          {
+            "node": "Args Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond System Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Args Valid?": {
+      "main": [
+        [
+          {
+            "node": "Read Bookings - Booking",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Invalid Args",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Bookings - Booking": {
+      "main": [
+        [
+          {
+            "node": "Read Holidays - Booking",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond System Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Holidays - Booking": {
+      "main": [
+        [
+          {
+            "node": "Decide Booking",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond System Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decide Booking": {
+      "main": [
+        [
+          {
+            "node": "Can Book?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond System Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Can Book?": {
+      "main": [
+        [
+          {
+            "node": "Append Booking",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Not Booked",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append Booking": {
+      "main": [
+        [
+          {
+            "node": "Respond Booked",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond System Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond Booked": {
+      "main": [
+        [
+          {
+            "node": "Read Bookings - Verify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Bookings - Verify": {
+      "main": [
+        [
+          {
+            "node": "Check Duplicate Token",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Raise Error Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond System Error": {
+      "main": [
+        [
+          {
+            "node": "Raise Error Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Kolkata",
+    "errorWorkflow": "VvptA2WfaqA3OvDW",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all"
+  }
+}

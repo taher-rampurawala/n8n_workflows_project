@@ -1,0 +1,58 @@
+{
+  "name": "Dental Voice Booking - Error Alerts",
+  "nodes": [
+    {
+      "id": "dva-1",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "dva-2",
+      "name": "Email Owner",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        240,
+        0
+      ],
+      "parameters": {
+        "sendTo": "taher.advisor@gmail.com",
+        "subject": "=[Dental Voice Booking] Failure in {{ $json.workflow.name }}",
+        "emailType": "text",
+        "message": "=Workflow: {{ $json.workflow.name }}\nNode: {{ $json.execution.lastNodeExecuted }}\nError: {{ $json.execution.error.message }}\nTime: {{ $now.setZone('Asia/Kolkata').toFormat('yyyy-MM-dd HH:mm:ss') }} IST\nExecution: {{ $json.execution.url }}\n\nIf this was a booking call, the caller was told there was a system problem and offered a transfer.",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "yahjkfnlA7BBZg5G",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Email Owner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Kolkata"
+  }
+}
