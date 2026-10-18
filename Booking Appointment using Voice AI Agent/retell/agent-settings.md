@@ -3,16 +3,17 @@
 | Setting | Value |
 |---|---|
 | Agent type | Retell LLM, **multi-prompt** |
-| Agent name | Riya - Smile Care Dental Clinic |
+| Agent name | Riya - Smile Care Dental Clinic (agent `agent_e99b2cdd4f4da3d2c9f4e7cd8c`, LLM `llm_4e575cbe0649e32ca888e725d0f1`) |
+| Setup | `node "Booking Appointment using Voice AI Agent/retell/setup-retell.js"` creates or updates both from these files (ids in `retell-ids.json`) |
 | Universal prompt | `universal.md` |
 | States | `intro` (start) → `booking`, `faq`, `transfer`, `closing` — files in `states/` |
 | Begin message | "Thank you for calling Smile Care Dental Clinic. This is Riya, the clinic's virtual assistant. This call may be recorded. How can I help you today?" |
 | Who speaks first | Agent |
-| Model | Fastest Claude (Haiku-class) listed in Retell; fallback: fastest GPT mini model |
-| Temperature | Low (0.2–0.3) |
-| Voice | Female, Indian English, Hindi-capable — shortlist 2–3 in the dashboard and pick by ear |
-| Language | Multilingual (English + Hindi); if not available, English (India) |
-| Interruption sensitivity | Medium |
+| Model | `claude-5.5-haiku` |
+| Temperature | 0.2 |
+| Voice | `11labs-Monika` (Monika, en-IN, ElevenLabs); alternatives: `inworld-Saanvi`, `openai-Monika` |
+| Language | `en-IN` + `hi-IN` |
+| Interruption sensitivity | 0.6 |
 | Responsiveness | Default |
 | End call after silence | ~20 s |
 | Max call duration | 10 min |

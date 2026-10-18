@@ -390,7 +390,7 @@ n8n_workflows_project/
     │   ├── build-workflows.js      # generates the two workflow JSON files
     │   ├── dental-voice-booking-retell-webhook.json
     │   └── dental-voice-booking-error-alerts.json
-    └── retell/                     # Riya: universal prompt, states, functions, settings
+    └── retell/                     # Riya: prompts, states, functions, settings, setup-retell.js
 ```
 
 Each project folder is self-contained and includes the exported workflow JSON. New projects will be added as additional top-level folders following the same convention.
