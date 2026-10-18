@@ -241,7 +241,7 @@ Transitions: booking intent → `booking`; questions about timings/location/fees
 | Parking | Paid parking outside the clinic for two-wheelers and cars | "There's paid parking right outside for both bikes and cars." |
 | Fees | ₹500 consultation; other treatment charges decided by the doctor after consultation | "The consultation is five hundred rupees. Charges for any treatment are decided by the doctor after the consultation." Never quote other prices. |
 | Payment | Cash, UPI, cards | "We accept cash, UPI and cards." |
-| Services | Consultation, fillings, tooth extraction, gum treatment `[+ ANY OTHER SERVICES?]` | — |
+| Services | Consultation, fillings, tooth extraction, gum treatment (confirmed 2026-10-18: no others for now) | — |
 
 Unknown → offer transfer. Transition to `booking` if they want an appointment.
 
@@ -314,7 +314,7 @@ Workflow **`Dental Voice Booking - Call Log`**: Webhook (Retell agent webhook, `
 - The key was shared in a chat transcript; regenerate it in the Retell dashboard before go-live and update both places.
 
 **Still needed:**
-- Any services beyond consultation, fillings, extraction, gum treatment (e.g. cleaning, root canal, braces).
+- ~~Extra services~~ — keep the four for now (2026-10-18). Clinic name for this project: Smile Care Dental Clinic (the WhatsApp bot keeps "Dentoshine Clinic").
 - Confirm: clinic open only evenings Mon–Sat, closed Sunday; keep "please arrive ten minutes early".
 - Holidays for the next few months (optional).
 - Whether Riya should also speak **Bengali** (see note below).
