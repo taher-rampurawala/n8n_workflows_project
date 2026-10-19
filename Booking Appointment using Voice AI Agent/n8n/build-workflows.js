@@ -9,6 +9,7 @@ const CRED = {
   sheets: { googleSheetsOAuth2Api: { id: 'UoP5i2rbCOyXAvdg', name: 'Google Sheets account' } },
   gmail: { gmailOAuth2: { id: 'yahjkfnlA7BBZg5G', name: 'Gmail account' } },
   webhookAuth: { httpHeaderAuth: { id: 'sV6s6l9O7OvJgxLb', name: 'Retell Webhook - X-Clinic-Secret' } },
+  retellHmac: { crypto: { id: 'xm742sLTHXUVqWZ7', name: 'Retell API - CLAUDE_TANGO_KEY' } },
 };
 const { DEFAULT_CONFIG } = require('./clinic-rules');
 const ALERT_EMAIL = 'taher.advisor@gmail.com';
@@ -37,15 +38,26 @@ const fallible = { onError: 'continueErrorOutput' };
 const respond = (name, body, pos) =>
   node(name, 'n8n-nodes-base.respondToWebhook', 1.5, { respondWith: 'json', responseBody: body, options: {} }, {}, pos);
 
+// Reads pass a failure on as a regular `{ error }` item instead of using an error output: with
+// alwaysOutputData (needed so an empty sheet still yields an item), a failing node would emit an empty
+// success item too, and the success branch would answer "all slots free". `rowsOf` turns that item into a throw.
 const readSheet = (name, sheet, pos, filtersUI) =>
   node(
     name,
     'n8n-nodes-base.googleSheets',
     4.7,
     { documentId: document, sheetName: sheet, ...(filtersUI ? { filtersUI } : {}), options: {} },
-    { credentials: CRED.sheets, executeOnce: true, alwaysOutputData: true, ...fallible },
+    { credentials: CRED.sheets, executeOnce: true, alwaysOutputData: true, onError: 'continueRegularOutput' },
     pos,
   );
+const ROWS_OF = `
+const rowsOf = (name) => {
+  const items = $(name).all().map((i) => i.json);
+  const failed = items.find((r) => r.error);
+  if (failed) throw new Error(\`\${name} failed: \${typeof failed.error === 'string' ? failed.error : failed.error.message ?? JSON.stringify(failed.error)}\`);
+  return items.filter((r) => r.Date);
+};
+`;
 
 const ifNode = (name, conditions, pos) =>
   node(
@@ -97,7 +109,7 @@ node(
   'n8n-nodes-base.crypto',
   2,
   { action: 'hmac', binaryData: false, type: 'SHA256', value: '={{ $json.toSign }}', dataPropertyName: 'expected', encoding: 'hex' },
-  { ...fallible }, // credential "Retell API - CLAUDE_TANGO_KEY" (type Crypto, HMAC secret = Retell API key) is selected in the UI
+  { credentials: CRED.retellHmac, ...fallible }, // Crypto credential: HMAC secret = Retell API key
   at(2, 0),
 );
 
@@ -163,10 +175,10 @@ readSheet('Read Holidays - Availability', holidaysSheet, at(8, -2));
 code(
   'Compute Availability',
   withRules(`
-const rows = (name) => $(name).all().map((i) => i.json).filter((r) => r.Date);
+${ROWS_OF}
 const response = checkAvailability({
-  bookings: rows('Read Bookings - Availability'),
-  holidays: rows('Read Holidays - Availability'),
+  bookings: rowsOf('Read Bookings - Availability'),
+  holidays: rowsOf('Read Holidays - Availability'),
   args: $('Normalize Request').first().json.args,
   now: new Date(),
   config: $('Clinic Config').first().json,
@@ -194,10 +206,10 @@ readSheet('Read Holidays - Booking', holidaysSheet, at(10, 0));
 code(
   'Decide Booking',
   withRules(`
-const rows = (name) => $(name).all().map((i) => i.json).filter((r) => r.Date);
+${ROWS_OF}
 const decision = decideBooking({
-  bookings: rows('Read Bookings - Booking'),
-  holidays: rows('Read Holidays - Booking'),
+  bookings: rowsOf('Read Bookings - Booking'),
+  holidays: rowsOf('Read Holidays - Booking'),
   booking: $('Validate Booking Args').first().json.booking,
   callId: $('Normalize Request').first().json.callId,
   now: new Date(),
@@ -241,8 +253,9 @@ code(
   `
 // Residual race: two calls booking the same date within the same second can get the same token.
 // Throwing here fails the execution, so the Error Alerts workflow emails the owner to fix it by hand.
+${ROWS_OF}
 const { row } = $('Decide Booking').first().json;
-const same = $input.all().filter((i) => String(i.json.Date) === row.Date && Number(i.json.TokenNumber) === row.TokenNumber);
+const same = rowsOf('Read Bookings - Verify').filter((r) => String(r.Date) === row.Date && Number(r.TokenNumber) === row.TokenNumber);
 if (same.length > 1) {
   throw new Error(\`Duplicate token \${row.TokenNumber} on \${row.Date} (\${same.length} rows). Re-number one booking and call the patient.\`);
 }
@@ -279,19 +292,19 @@ const connections = {
   'Clinic Config': main('Normalize Request'),
   'Normalize Request': withError('Route by Function'),
   'Route by Function': main('Read Bookings - Availability', 'Validate Booking Args', 'Respond Unknown Function'),
-  'Read Bookings - Availability': withError('Read Holidays - Availability'),
-  'Read Holidays - Availability': withError('Compute Availability'),
+  'Read Bookings - Availability': main('Read Holidays - Availability'),
+  'Read Holidays - Availability': main('Compute Availability'),
   'Compute Availability': withError('Respond Availability'),
   'Validate Booking Args': withError('Args Valid?'),
   'Args Valid?': main('Read Bookings - Booking', 'Respond Invalid Args'),
-  'Read Bookings - Booking': withError('Read Holidays - Booking'),
-  'Read Holidays - Booking': withError('Decide Booking'),
+  'Read Bookings - Booking': main('Read Holidays - Booking'),
+  'Read Holidays - Booking': main('Decide Booking'),
   'Decide Booking': withError('Can Book?'),
   'Can Book?': main('Append Booking', 'Respond Not Booked'),
   'Append Booking': withError('Respond Booked'),
   'Respond Booked': main('Read Bookings - Verify'),
-  // A failed verification read must not send a second response; it only fails the execution (→ alert).
-  'Read Bookings - Verify': main('Check Duplicate Token', 'Raise Error Alert'),
+  // Check Duplicate Token has no error output: a failed re-read or a duplicate fails the run (→ alert email).
+  'Read Bookings - Verify': main('Check Duplicate Token'),
   'Respond System Error': main('Raise Error Alert'),
 };
 
