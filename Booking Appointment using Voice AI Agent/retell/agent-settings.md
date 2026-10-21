@@ -14,8 +14,10 @@
 | Voice | `11labs-Monika` (Monika, en-IN, ElevenLabs); alternatives: `inworld-Saanvi`, `openai-Monika` |
 | Language | `en-IN` + `hi-IN` |
 | Interruption sensitivity | 0.6 |
-| Responsiveness | Default |
-| End call after silence | ~20 s |
+| Speech-to-text | `stt_mode: accurate`; boosted keywords: Smile Care, Riya, Muzaffar Ahmed Street, Esplanade, Park Street, UPI, token |
+| Responsiveness | 0.7 with dynamic responsiveness (waits through mid-sentence pauses) |
+| "Are you still there?" reminder | after 15 s of silence, once |
+| End call after silence | 30 s (15 s after the reminder) |
 | Max call duration | 10 min |
 | Functions | `check_availability`, `book_appointment` (booking state); `transfer_call`, `end_call` (every state) — see `functions.md` |
 | Transfer destination | +919163495068 (reception) |

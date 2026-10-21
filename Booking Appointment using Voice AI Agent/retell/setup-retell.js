@@ -100,7 +100,14 @@ const agent = (llmId) => ({
   voice_id: '11labs-Monika',
   language: ['en-IN', 'hi-IN'],
   interruption_sensitivity: 0.6,
-  end_call_after_silence_ms: 20000,
+  // Patience and recognition: callers pause mid-name, and Indian names need the accurate transcriber.
+  stt_mode: 'accurate',
+  responsiveness: 0.7,
+  enable_dynamic_responsiveness: true,
+  reminder_trigger_ms: 15000,
+  reminder_max_count: 1,
+  boosted_keywords: ['Smile Care', 'Riya', 'Muzaffar Ahmed Street', 'Esplanade', 'Park Street', 'UPI', 'token'],
+  end_call_after_silence_ms: 30000,
   max_call_duration_ms: 600000,
   post_call_analysis_data: [
     { type: 'boolean', name: 'booked', description: 'Whether book_appointment returned booked true during the call.' },
