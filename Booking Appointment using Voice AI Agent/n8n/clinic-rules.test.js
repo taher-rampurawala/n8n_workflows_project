@@ -374,3 +374,13 @@ test('a name sent as spaced single letters is rejected so the agent resends it a
   // Up to two initials are a normal name.
   assert.equal(validateBookingArgs({ ...args, patient_name: 'A K Sharma' }, '').value.patientName, 'A K Sharma');
 });
+
+test('a booking overwritten by a simultaneous save asks the agent to book again', () => {
+  // Two simultaneous Sheets appends can land on the same row; the overwritten booking is then missing.
+  const res = resolve([saved(2, 1, 'A'), saved(3, 2, 'B')], 'LOST');
+  assert.deepEqual(res, {
+    changed: false,
+    lost: true,
+    response: { ok: false, message: 'Booking did not save because another caller booked at the same moment: call book_appointment again.' },
+  });
+});

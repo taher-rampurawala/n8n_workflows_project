@@ -261,7 +261,14 @@ function decideBooking({ bookings, holidays, booking, callId, bookingId, now, co
 // execution replays the same way, so each fixes only its own row and they agree on the outcome.
 function resolveToken({ bookings, holidays, bookingId, now, config = DEFAULT_CONFIG }) {
   const mine = bookings.find((b) => b.BookingId === bookingId);
-  if (!mine) throw new Error(`Booking ${bookingId} not found after saving it`);
+  // Simultaneous Sheets appends can land on the same row, so our row may have been overwritten.
+  if (!mine) {
+    return {
+      changed: false,
+      lost: true,
+      response: { ok: false, message: 'Booking did not save because another caller booked at the same moment: call book_appointment again.' },
+    };
+  }
   const day = activeOn(bookings, String(mine.Date).trim()).sort((a, b) => Number(a.row_number) - Number(b.row_number));
 
   const taken = new Set();
