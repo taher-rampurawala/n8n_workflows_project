@@ -32,7 +32,7 @@ Caller ──► Retell (Riya: speech, Claude, voice)
 |---|---|
 | Clinic & rules | Same clinic and rules as WhatsApp, kept as config: **5 tokens/evening, 7:00 PM start, 15 min apart (7:00–8:00 PM), no same-day booking after 5:00 PM**, timezone **Asia/Kolkata** |
 | Scope v1 | Book, answer clinic questions (FAQ), transfer to staff. **Cancel/reschedule = v2** |
-| Bookable dates | Any open day in the **next 7 days**; offer today/tomorrow first |
+| Bookable dates | **Changed 2026-10-21:** same day only, 9 AM–5 PM IST. Any other day → "please call on that day after 9 AM" (n8n returns `call_back_spoken`). Supersedes the 7-day window, `next_available` and the related lines in §4.3, §4.4, §4.6 and §5.3 — current contracts are in `retell/functions.md` |
 | Closed days | **Sunday** closed by default + optional **Holidays** tab |
 | Direction | **Inbound only** (reminder calls = later) |
 | Phone number | Test with Retell web calls + a Retell number; production Indian number via **SIP trunk** (Plivo / Exotel / Twilio) as a separate step |

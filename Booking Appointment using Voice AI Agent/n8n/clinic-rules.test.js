@@ -3,92 +3,98 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { checkAvailability, validateBookingArgs, decideBooking, normalizeRequest } = require('./clinic-rules');
 
-// Monday 19 Oct 2026, 10:00 IST
-const MON_10AM = new Date('2026-10-19T04:30:00Z');
+// Clinic times are IST (UTC+5:30). 19 Oct 2026 is a Monday.
+const ist = (date, hhmm) => new Date(`${date}T${hhmm}:00+05:30`);
+const MON_10AM = ist('2026-10-19', '10:00');
 
 const row = (Date, TokenNumber, WhatsAppNumber = '919800000000') => ({ Date, TokenNumber, WhatsAppNumber });
+const check = (requested_date, { bookings = [], holidays = [], now = MON_10AM } = {}) =>
+  checkAvailability({ bookings, holidays, args: { requested_date }, now });
 
-test('open weekday offers the next token, counting only that date', () => {
-  const bookings = [row('2026-10-20', 1), row('2026-10-20', 2), row('2026-10-22', 1)];
-  const res = checkAvailability({ bookings, holidays: [], args: { requested_date: '2026-10-20' }, now: MON_10AM });
-  assert.deepEqual(res, {
+// ---------------------------------------------------------------- checkAvailability: same day only, 9 AM – 5 PM
+
+test('today after 9 AM offers the next token, counting only today', () => {
+  const bookings = [row('2026-10-19', 1), row('2026-10-19', 2), row('2026-10-20', 1)];
+  assert.deepEqual(check('2026-10-19', { bookings }), {
     ok: true,
     available: true,
-    date: '2026-10-20',
-    date_spoken: 'Tuesday, the 20th of October',
+    date: '2026-10-19',
+    date_spoken: 'Monday, the 19th of October',
     token: 3,
     time_spoken: 'seven thirty PM',
     slots_left: 3,
   });
 });
 
-test('full date is refused with the next open date', () => {
-  const bookings = [1, 2, 3, 4, 5].map((t) => row('2026-10-20', t)).concat(row('2026-10-21', 1));
-  const res = checkAvailability({ bookings, holidays: [], args: { requested_date: '2026-10-20' }, now: MON_10AM });
-  assert.deepEqual(res, {
-    ok: true,
-    available: false,
-    reason: 'full',
-    requested_date_spoken: 'Tuesday, the 20th of October',
-    next_available: { date: '2026-10-21', date_spoken: 'Wednesday, the 21st of October', time_spoken: 'seven fifteen PM' },
-  });
-});
-
-test('holiday is closed and the next open day is offered', () => {
-  const holidays = [{ Date: '2026-10-21', Note: 'Clinic holiday' }];
-  const res = checkAvailability({ bookings: [], holidays, args: { requested_date: '2026-10-21' }, now: MON_10AM });
-  assert.equal(res.available, false);
-  assert.equal(res.reason, 'closed');
-  assert.deepEqual(res.next_available, { date: '2026-10-22', date_spoken: 'Thursday, the 22nd of October', time_spoken: 'seven PM' });
-});
-
-test('Sunday is closed; next open day beyond the 7-day window is not offered', () => {
-  // Window from Monday 19th is 19th–25th; the 25th is a Sunday, the 26th is out of range.
-  const res = checkAvailability({ bookings: [], holidays: [], args: { requested_date: '2026-10-25' }, now: MON_10AM });
-  assert.equal(res.reason, 'closed');
-  assert.equal(res.requested_date_spoken, 'Sunday, the 25th of October');
-  assert.equal(res.next_available, null);
-});
-
-test('today after 5 PM IST is past cutoff and tomorrow is offered', () => {
-  const MON_5PM = new Date('2026-10-19T11:30:00Z'); // 17:00 IST
-  const res = checkAvailability({ bookings: [], holidays: [], args: { requested_date: '2026-10-19' }, now: MON_5PM });
-  assert.equal(res.reason, 'past_cutoff');
-  assert.equal(res.next_available.date, '2026-10-20');
-});
-
-test('today before 5 PM IST is bookable', () => {
-  const MON_459PM = new Date('2026-10-19T11:29:00Z'); // 16:59 IST
-  const res = checkAvailability({ bookings: [], holidays: [], args: { requested_date: '2026-10-19' }, now: MON_459PM });
+test('empty requested_date means today', () => {
+  const res = check('');
   assert.equal(res.available, true);
   assert.equal(res.date, '2026-10-19');
 });
 
-test('empty requested_date returns the earliest bookable slot', () => {
-  const MON_6PM = new Date('2026-10-19T12:30:00Z'); // past cutoff today
-  const bookings = [row('2026-10-20', 1)];
-  const res = checkAvailability({ bookings, holidays: [], args: { requested_date: '' }, now: MON_6PM });
-  assert.equal(res.available, true);
-  assert.equal(res.date, '2026-10-20');
-  assert.equal(res.token, 2);
+test('tomorrow is not bookable: call tomorrow after 9 AM', () => {
+  assert.deepEqual(check('2026-10-20'), {
+    ok: true,
+    available: false,
+    reason: 'not_today',
+    requested_date_spoken: 'Tuesday, the 20th of October',
+    call_back_spoken: 'tomorrow after nine AM',
+  });
 });
 
-test('dates in the past or beyond the 7-day window are out_of_range', () => {
-  for (const requested_date of ['2026-10-18', '2026-10-26']) {
-    const res = checkAvailability({ bookings: [], holidays: [], args: { requested_date }, now: MON_10AM });
-    assert.equal(res.reason, 'out_of_range', requested_date);
-    assert.equal(res.next_available.date, '2026-10-19', requested_date);
-  }
+test('a later day: call on that day after 9 AM', () => {
+  const res = check('2026-10-22');
+  assert.equal(res.reason, 'not_today');
+  assert.equal(res.call_back_spoken, 'on Thursday, the 22nd of October, after nine AM');
 });
 
-test('unparseable date is invalid_date and the earliest slot is offered', () => {
+test('before 9 AM: call today after 9 AM', () => {
+  const res = check('2026-10-19', { now: ist('2026-10-19', '08:59') });
+  assert.equal(res.reason, 'before_opening');
+  assert.equal(res.call_back_spoken, 'today after nine AM');
+});
+
+test('at 5 PM or later: past cutoff, call tomorrow after 9 AM', () => {
+  const res = check('2026-10-19', { now: ist('2026-10-19', '17:00') });
+  assert.equal(res.reason, 'past_cutoff');
+  assert.equal(res.call_back_spoken, 'tomorrow after nine AM');
+  assert.equal(check('2026-10-19', { now: ist('2026-10-19', '16:59') }).available, true);
+});
+
+test('today full: call the next open day after 9 AM, skipping Sunday', () => {
+  const bookings = [1, 2, 3, 4, 5].map((t) => row('2026-10-24', t));
+  const res = check('2026-10-24', { bookings, now: ist('2026-10-24', '10:00') }); // Saturday
+  assert.equal(res.reason, 'full');
+  assert.equal(res.call_back_spoken, 'on Monday, the 26th of October, after nine AM');
+});
+
+test('Sunday and holidays are closed: call the next open day after 9 AM', () => {
+  const sunday = check('2026-10-25', { now: ist('2026-10-25', '10:00') });
+  assert.equal(sunday.reason, 'closed');
+  assert.equal(sunday.call_back_spoken, 'tomorrow after nine AM');
+
+  const holidays = [{ Date: '2026-10-19', Note: 'Clinic holiday' }, { Date: '2026-10-20', Note: 'Clinic holiday' }];
+  const holiday = check('2026-10-19', { holidays });
+  assert.equal(holiday.reason, 'closed');
+  assert.equal(holiday.call_back_spoken, 'on Wednesday, the 21st of October, after nine AM');
+});
+
+test('past and unparseable dates are refused without a call-back day', () => {
+  assert.deepEqual(check('2026-10-18'), {
+    ok: true,
+    available: false,
+    reason: 'past_date',
+    requested_date_spoken: 'Sunday, the 18th of October',
+    call_back_spoken: null,
+  });
   for (const requested_date of ['next tuesday', '2026-02-30', '2026-13-01']) {
-    const res = checkAvailability({ bookings: [], holidays: [], args: { requested_date }, now: MON_10AM });
+    const res = check(requested_date);
     assert.equal(res.reason, 'invalid_date', requested_date);
     assert.equal(res.requested_date_spoken, null, requested_date);
-    assert.equal(res.next_available.date, '2026-10-19', requested_date);
   }
 });
+
+// ---------------------------------------------------------------- validateBookingArgs
 
 test('valid booking args are normalized, phone defaults to caller ID', () => {
   const res = validateBookingArgs(
@@ -127,15 +133,17 @@ test('invalid booking args are rejected with a speakable message', () => {
   assert.deepEqual(validateBookingArgs(good, ''), { ok: false, message: 'Invalid phone number' });
 });
 
-const RAVI = { date: '2026-10-20', patientName: 'Ravi Kumar', age: 34, reason: 'Fillings', phone: '9830012345' };
+// ---------------------------------------------------------------- decideBooking
 
-test('booking recounts the date and assigns the next token and time', () => {
-  const bookings = [row('2026-10-20', 1), row('2026-10-20', 2), row('2026-10-19', 1, '919830012345')];
+const RAVI = { date: '2026-10-19', patientName: 'Ravi Kumar', age: 34, reason: 'Fillings', phone: '9830012345' };
+
+test('booking recounts today and echoes the saved name and number for read-back', () => {
+  const bookings = [row('2026-10-19', 1), row('2026-10-19', 2), row('2026-10-18', 1, '919830012345')];
   const res = decideBooking({ bookings, holidays: [], booking: RAVI, callId: 'call_abc', now: MON_10AM });
   assert.deepEqual(res, {
     canBook: true,
     row: {
-      Date: '2026-10-20',
+      Date: '2026-10-19',
       Time: '19:30',
       TokenNumber: 3,
       PatientName: 'Ravi Kumar',
@@ -150,15 +158,17 @@ test('booking recounts the date and assigns the next token and time', () => {
       ok: true,
       booked: true,
       token: 3,
-      date_spoken: 'Tuesday, the 20th of October',
+      date_spoken: 'Monday, the 19th of October',
       time_spoken: 'seven thirty PM',
       reason: 'Fillings',
+      patient_name: 'Ravi Kumar',
+      phone_spoken: 'nine eight three - zero zero one - two three four five',
     },
   });
 });
 
 test('same phone on the same date returns the existing booking instead', () => {
-  const bookings = [row('2026-10-20', 1), row('2026-10-20', 2, '+91 98300-12345')];
+  const bookings = [row('2026-10-19', 1), row('2026-10-19', 2, '+91 98300-12345')];
   const res = decideBooking({ bookings, holidays: [], booking: RAVI, callId: 'call_abc', now: MON_10AM });
   assert.deepEqual(res, {
     canBook: false,
@@ -167,30 +177,29 @@ test('same phone on the same date returns the existing booking instead', () => {
       booked: false,
       reason: 'already_booked',
       token: 2,
-      date_spoken: 'Tuesday, the 20th of October',
+      date_spoken: 'Monday, the 19th of October',
       time_spoken: 'seven fifteen PM',
     },
   });
 });
 
-test('full, closed or past-cutoff dates are refused with the next open date', () => {
-  const full = [1, 2, 3, 4, 5].map((t) => row('2026-10-20', t));
-  const MON_6PM = new Date('2026-10-19T12:30:00Z');
+test('anything but an open slot today is refused with a call-back day', () => {
+  const full = [1, 2, 3, 4, 5].map((t) => row('2026-10-19', t));
   const cases = [
-    [{ bookings: full, holidays: [], booking: RAVI, now: MON_10AM }, 'full', '2026-10-21'],
-    [{ bookings: [], holidays: [], booking: { ...RAVI, date: '2026-10-25' }, now: MON_10AM }, 'closed', null],
-    [{ bookings: [], holidays: [], booking: { ...RAVI, date: '2026-10-19' }, now: MON_6PM }, 'past_cutoff', '2026-10-20'],
-    [{ bookings: [], holidays: [], booking: { ...RAVI, date: '2026-11-02' }, now: MON_10AM }, 'out_of_range', '2026-10-19'],
+    [{ bookings: full, booking: RAVI, now: MON_10AM }, 'full', 'tomorrow after nine AM'],
+    [{ bookings: [], booking: { ...RAVI, date: '2026-10-20' }, now: MON_10AM }, 'not_today', 'tomorrow after nine AM'],
+    [{ bookings: [], booking: RAVI, now: ist('2026-10-19', '18:00') }, 'past_cutoff', 'tomorrow after nine AM'],
+    [{ bookings: [], booking: RAVI, now: ist('2026-10-19', '08:00') }, 'before_opening', 'today after nine AM'],
   ];
-  for (const [input, reason, nextDate] of cases) {
-    const res = decideBooking({ ...input, callId: 'call_abc' });
+  for (const [input, reason, callBack] of cases) {
+    const res = decideBooking({ holidays: [], callId: 'call_abc', ...input });
     assert.equal(res.canBook, false, reason);
     assert.equal(res.row, undefined, reason);
-    assert.equal(res.response.booked, false, reason);
-    assert.equal(res.response.reason, reason);
-    assert.equal(res.response.next_available?.date ?? null, nextDate, reason);
+    assert.deepEqual(res.response, { ok: true, booked: false, reason, call_back_spoken: callBack });
   }
 });
+
+// ---------------------------------------------------------------- normalizeRequest
 
 test('Retell function-call body is normalized for routing', () => {
   const body = {

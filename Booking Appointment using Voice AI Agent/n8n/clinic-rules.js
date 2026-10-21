@@ -2,9 +2,9 @@ const DEFAULT_CONFIG = {
   slots: 5,
   startTime: '19:00',
   slotMinutes: 15,
-  cutoffHour: 17,
+  openHour: 9, // bookings are same-day only, taken from 9 AM …
+  cutoffHour: 17, // … until 5 PM
   closedWeekdays: [7], // ISO weekday: 1 = Monday … 7 = Sunday
-  horizonDays: 7,
   tzOffsetMinutes: 330, // Asia/Kolkata, no DST
 };
 
@@ -48,14 +48,17 @@ function countOn(bookings, dateStr) {
 
 const addDays = (dateStr, n) => formatDate(new Date(parseDate(dateStr).getTime() + n * 86400000));
 
-// Why a date can't be booked, or null if it can.
+const isClosed = (ctx, date) => ctx.config.closedWeekdays.includes(parseDate(date).getUTCDay() || 7) || ctx.holidays.has(date);
+
+// Why a date can't be booked, or null if it can. Only today, between openHour and cutoffHour, is bookable.
 function blockReason(ctx, date) {
   if (!isValidDate(date)) return 'invalid_date';
-  if (date < ctx.today || date > addDays(ctx.today, ctx.config.horizonDays - 1)) return 'out_of_range';
-  const isoWeekday = parseDate(date).getUTCDay() || 7;
-  if (ctx.config.closedWeekdays.includes(isoWeekday) || ctx.holidays.has(date)) return 'closed';
+  if (date < ctx.today) return 'past_date';
+  if (isClosed(ctx, date)) return 'closed';
+  if (date > ctx.today) return 'not_today';
+  if (ctx.hour < ctx.config.openHour) return 'before_opening';
   if (countOn(ctx.bookings, date) >= ctx.config.slots) return 'full';
-  if (date === ctx.today && ctx.hour >= ctx.config.cutoffHour) return 'past_cutoff';
+  if (ctx.hour >= ctx.config.cutoffHour) return 'past_cutoff';
   return null;
 }
 
@@ -64,19 +67,17 @@ function slotOn(ctx, date) {
   return { date, date_spoken: speakDate(date), token, time_spoken: speakTime(slotMinutesOfDay(token, ctx.config)) };
 }
 
-function nextAvailable(ctx, fromDate) {
-  const lastDate = addDays(ctx.today, ctx.config.horizonDays - 1);
-  for (let date = fromDate; date <= lastDate; date = addDays(date, 1)) {
-    if (!blockReason(ctx, date)) {
-      const { date_spoken, time_spoken } = slotOn(ctx, date);
-      return { date, date_spoken, time_spoken };
-    }
-  }
+// When to tell the caller to ring back, already in spoken form (the agent never works out dates itself).
+function callBackSpoken(ctx, reason, date) {
+  const opening = speakTime(ctx.config.openHour * 60);
+  const onDay = (d) => (d === addDays(ctx.today, 1) ? `tomorrow after ${opening}` : `on ${speakDate(d)}, after ${opening}`);
+  if (reason === 'invalid_date' || reason === 'past_date') return null;
+  if (reason === 'before_opening') return `today after ${opening}`;
+  if (reason === 'not_today') return onDay(date);
+  // closed / full / past_cutoff: the next day the clinic is open.
+  for (let d = addDays(ctx.today, 1), i = 0; i < 31; d = addDays(d, 1), i++) if (!isClosed(ctx, d)) return onDay(d);
   return null;
 }
-
-// Past, out-of-window and unparseable dates restart the search from today.
-const searchStart = (ctx, reason, date) => (reason === 'invalid_date' || reason === 'out_of_range' ? ctx.today : date);
 
 // "Now" as the clinic's local wall-clock: { date: 'yyyy-MM-dd', hour }.
 function clinicNow(now, config) {
@@ -97,17 +98,15 @@ function makeContext({ bookings, holidays, now, config }) {
 
 function checkAvailability({ bookings, holidays, args, now, config = DEFAULT_CONFIG }) {
   const ctx = makeContext({ bookings, holidays, now, config });
-  const requested = String(args.requested_date ?? '').trim();
-  const date = requested || nextAvailable(ctx, ctx.today)?.date;
-  const reason = date ? blockReason(ctx, date) : 'full';
+  const date = String(args.requested_date ?? '').trim() || ctx.today;
+  const reason = blockReason(ctx, date);
   if (reason) {
-    const valid = reason !== 'invalid_date';
     return {
       ok: true,
       available: false,
       reason,
-      requested_date_spoken: requested && valid ? speakDate(requested) : null,
-      next_available: nextAvailable(ctx, searchStart(ctx, reason, date)),
+      requested_date_spoken: reason === 'invalid_date' ? null : speakDate(date),
+      call_back_spoken: callBackSpoken(ctx, reason, date),
     };
   }
   const slot = slotOn(ctx, date);
@@ -141,6 +140,11 @@ function validateBookingArgs(args, callerNumber) {
   };
 }
 
+const DIGIT_WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'];
+// 10-digit number read in 3 - 3 - 4 groups: "nine eight three - zero zero one - two three four five".
+const speakPhone = (digits) =>
+  [digits.slice(0, 3), digits.slice(3, 6), digits.slice(6)].map((g) => [...g].map((d) => DIGIT_WORDS[d]).join(' ')).join(' - ');
+
 const hhmm = (minutesOfDay) =>
   `${String(Math.floor(minutesOfDay / 60)).padStart(2, '0')}:${String(minutesOfDay % 60).padStart(2, '0')}`;
 
@@ -170,7 +174,7 @@ function decideBooking({ bookings, holidays, booking, callId, now, config = DEFA
   if (reason) {
     return {
       canBook: false,
-      response: { ok: true, booked: false, reason, next_available: nextAvailable(ctx, searchStart(ctx, reason, booking.date)) },
+      response: { ok: true, booked: false, reason, call_back_spoken: callBackSpoken(ctx, reason, booking.date) },
     };
   }
 
@@ -196,6 +200,9 @@ function decideBooking({ bookings, holidays, booking, callId, now, config = DEFA
       date_spoken: slot.date_spoken,
       time_spoken: slot.time_spoken,
       reason: booking.reason,
+      // Echoed so the agent reads back what was actually saved: LLMs mis-copy names and digits into tool args.
+      patient_name: booking.patientName,
+      phone_spoken: speakPhone(booking.phone),
     },
   };
 }

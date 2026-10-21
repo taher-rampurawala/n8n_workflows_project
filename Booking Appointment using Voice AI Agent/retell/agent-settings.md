@@ -34,4 +34,4 @@ No custom variables need to be passed in.
 - No placeholders open. Services are limited to the four listed in `states/03_faq.md`.
 - Function names must match exactly: custom `check_availability`, `book_appointment`; built-in `transfer_call`, `end_call`.
 - Set the `X-Clinic-Secret` header on both custom functions to the value in the n8n credential.
-- Test scenarios (Phase 2): happy path; day full → next day; Sunday request; after 5 PM same-day; same caller books twice; Hindi caller; caller interrupts mid-sentence; fee question; "talk to a human"; silent caller; n8n down (`ok: false`).
+- Test scenarios (Phase 2): book today (after 9 AM); ask for tomorrow → "call tomorrow after nine AM"; call before 9 AM; after 5 PM; Sunday; today full; same caller books twice; hard-to-spell name; phone number with "double"; Hindi caller; interrupt mid-sentence; fee/address question mid-booking; "talk to a human"; silent caller; n8n down (`ok: false`).
