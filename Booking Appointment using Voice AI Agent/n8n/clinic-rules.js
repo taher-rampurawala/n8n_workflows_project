@@ -6,6 +6,7 @@ const DEFAULT_CONFIG = {
   cutoffHour: 17, // … until 5 PM
   closedWeekdays: [7], // ISO weekday: 1 = Monday … 7 = Sunday
   tzOffsetMinutes: 330, // Asia/Kolkata, no DST
+  holdMinutes: 2, // a token offered to a caller is held this long while they give their details
 };
 
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -65,15 +66,16 @@ function blockReason(ctx, date) {
   if (date > ctx.today) return 'not_today';
   if (ctx.hour < ctx.config.openHour) return 'before_opening';
   if (countOn(ctx.bookings, date) >= ctx.config.slots) return 'full';
+  if (lowestFreeToken(takenTokens(ctx, date), ctx.config.slots) === null) return 'all_held';
   if (ctx.hour >= ctx.config.cutoffHour) return 'past_cutoff';
   return null;
 }
 
-function slotOn(ctx, date) {
-  const taken = new Set(activeOn(ctx.bookings, date).map((b) => Number(b.TokenNumber)));
-  const token = lowestFreeToken(taken, ctx.config.slots);
+function slotOn(ctx, date, token = lowestFreeToken(takenTokens(ctx, date), ctx.config.slots)) {
   return { date, date_spoken: speakDate(date), token, time_spoken: speakTime(slotMinutesOfDay(token, ctx.config)) };
 }
+
+const slotsLeft = (ctx, date) => ctx.config.slots - takenTokens(ctx, date).size;
 
 // When to tell the caller to ring back, already in spoken form (the agent never works out dates itself).
 function callBackSpoken(ctx, reason, date) {
@@ -81,6 +83,7 @@ function callBackSpoken(ctx, reason, date) {
   const onDay = (d) => (d === addDays(ctx.today, 1) ? `tomorrow after ${opening}` : `on ${speakDate(d)}, after ${opening}`);
   if (reason === 'invalid_date' || reason === 'past_date') return null;
   if (reason === 'before_opening') return `today after ${opening}`;
+  if (reason === 'all_held') return 'in a couple of minutes';
   if (reason === 'not_today') return onDay(date);
   // closed / full / past_cutoff: the next day the clinic is open.
   for (let d = addDays(ctx.today, 1), i = 0; i < 31; d = addDays(d, 1), i++) if (!isClosed(ctx, d)) return onDay(d);
@@ -93,10 +96,16 @@ function clinicNow(now, config) {
   return { date: formatDate(local), hour: local.getUTCHours() };
 }
 
-function makeContext({ bookings, holidays, now, config }) {
+// Unexpired holds from the "Voice Slot Holds" data table, optionally leaving out one call's own holds.
+const activeHolds = (holds, now, exceptCallId) =>
+  holds.filter((h) => new Date(h.expiresAt) > now && (exceptCallId === undefined || h.callId !== exceptCallId));
+
+function makeContext({ bookings, holidays, holds = [], callId, now, config }) {
   const local = clinicNow(now, config);
   return {
     bookings,
+    // Tokens other callers are holding right now, by date; this call's own holds don't block it.
+    heldByOthers: activeHolds(holds, now, callId ?? '').map((h) => ({ date: String(h.date), token: Number(h.token) })),
     holidays: new Set(holidays.map((h) => String(h.Date ?? '').trim())),
     today: local.date,
     hour: local.hour,
@@ -104,8 +113,15 @@ function makeContext({ bookings, holidays, now, config }) {
   };
 }
 
-function checkAvailability({ bookings, holidays, args, now, config = DEFAULT_CONFIG }) {
-  const ctx = makeContext({ bookings, holidays, now, config });
+// Tokens on a date that are booked (active) or held by another caller.
+function takenTokens(ctx, date) {
+  const taken = new Set(activeOn(ctx.bookings, date).map((b) => Number(b.TokenNumber)));
+  for (const h of ctx.heldByOthers) if (h.date === date) taken.add(h.token);
+  return taken;
+}
+
+function checkAvailability({ bookings, holidays, holds = [], callId = '', args, now, config = DEFAULT_CONFIG }) {
+  const ctx = makeContext({ bookings, holidays, holds, callId, now, config });
   const date = String(args.requested_date ?? '').trim() || ctx.today;
   const reason = blockReason(ctx, date);
   if (reason) {
@@ -118,7 +134,7 @@ function checkAvailability({ bookings, holidays, args, now, config = DEFAULT_CON
     };
   }
   const slot = slotOn(ctx, date);
-  return { ok: true, available: true, ...slot, slots_left: config.slots - countOn(bookings, date) };
+  return { ok: true, available: true, ...slot, slots_left: slotsLeft(ctx, date) };
 }
 
 const REASONS = ['Consultation', 'Fillings', 'Tooth extraction', 'Gum treatment', 'Other'];
@@ -207,8 +223,8 @@ function bookedResponse(row, config) {
 
 // Decides a validated booking against a fresh read of the sheet. The agent never picks the token.
 // A duplicate is the same patient name on the same phone on the same day; family members on one phone are fine.
-function decideBooking({ bookings, holidays, booking, callId, bookingId, now, config = DEFAULT_CONFIG }) {
-  const ctx = makeContext({ bookings, holidays, now, config });
+function decideBooking({ bookings, holidays, holds = [], booking, callId, bookingId, now, config = DEFAULT_CONFIG }) {
+  const ctx = makeContext({ bookings, holidays, holds, callId, now, config });
 
   const existing = activeOn(bookings, booking.date).find(
     (b) => normalizePhone(b.WhatsAppNumber) === booking.phone && sameName(b.PatientName, booking.patientName),
@@ -237,7 +253,12 @@ function decideBooking({ bookings, holidays, booking, callId, bookingId, now, co
     };
   }
 
-  const slot = slotOn(ctx, booking.date);
+  // This call's newest unexpired hold for the day, unless that token has been booked meanwhile.
+  const booked = new Set(activeOn(bookings, booking.date).map((b) => Number(b.TokenNumber)));
+  const ownHold = activeHolds(holds, now)
+    .filter((h) => h.callId === callId && String(h.date) === booking.date && !booked.has(Number(h.token)))
+    .sort((a, b) => Number(b.id) - Number(a.id))[0];
+  const slot = slotOn(ctx, booking.date, ownHold ? Number(ownHold.token) : undefined);
   const row = {
     Date: booking.date,
     Time: hhmm(slotMinutesOfDay(slot.token, config)),
@@ -290,6 +311,46 @@ function resolveToken({ bookings, holidays, bookingId, now, config = DEFAULT_CON
   }
   const row = { ...sheetRow(mine), TokenNumber: myToken, Time: hhmm(slotMinutesOfDay(myToken, config)) };
   return { changed: myToken !== Number(mine.TokenNumber), row, response: bookedResponse(row, config) };
+}
+
+function newHold({ date, token, holdId, callId, now, config = DEFAULT_CONFIG }) {
+  return { date, token, holdId, callId, expiresAt: new Date(now.getTime() + config.holdMinutes * 60000).toISOString() };
+}
+
+// Two callers checking at the same moment can both hold the same token. After inserting our hold we re-read
+// the day's holds and replay them in data-table id order (ids never collide, unlike Sheets rows): bookings
+// come first, then each hold keeps its token unless an earlier one has it, else takes the lowest free token.
+function resolveHold({ bookings, holidays, holds, holdId, now, config = DEFAULT_CONFIG }) {
+  const mine = holds.find((h) => h.holdId === holdId);
+  if (!mine) throw new Error(`Hold ${holdId} not found after saving it`);
+  const date = String(mine.date);
+  const booked = new Set(activeOn(bookings, date).map((b) => Number(b.TokenNumber)));
+  const taken = new Set(booked);
+  let myToken = null;
+  for (const h of activeHolds(holds, now)
+    .filter((x) => String(x.date) === date)
+    .sort((a, b) => Number(a.id) - Number(b.id))) {
+    const wanted = Number(h.token);
+    // Another caller's hold on a token that is now booked is finished (usually it became that booking).
+    if (h.holdId !== holdId && booked.has(wanted)) continue;
+    const token = wanted >= 1 && wanted <= config.slots && !taken.has(wanted) ? wanted : lowestFreeToken(taken, config.slots);
+    if (token !== null) taken.add(token);
+    if (h.holdId === holdId) myToken = token;
+  }
+
+  const ctx = makeContext({ bookings, holidays, holds, callId: mine.callId, now, config });
+  if (myToken === null) {
+    return {
+      token: null,
+      changed: true,
+      response: { ok: true, available: false, reason: 'all_held', requested_date_spoken: speakDate(date), call_back_spoken: callBackSpoken(ctx, 'all_held', date) },
+    };
+  }
+  return {
+    token: myToken,
+    changed: myToken !== Number(mine.token),
+    response: { ok: true, available: true, ...slotOn(ctx, date, myToken), slots_left: slotsLeft(ctx, date) },
+  };
 }
 
 function phoneError(phone) {
@@ -372,6 +433,8 @@ module.exports = {
   resolveToken,
   findBookings,
   planCancel,
+  newHold,
+  resolveHold,
   normalizeRequest,
   callerIdInfo,
 };

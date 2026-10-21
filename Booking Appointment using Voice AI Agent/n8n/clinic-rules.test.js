@@ -8,6 +8,8 @@ const {
   resolveToken,
   findBookings,
   planCancel,
+  newHold,
+  resolveHold,
   normalizeRequest,
   callerIdInfo,
 } = require('./clinic-rules');
@@ -383,4 +385,93 @@ test('a booking overwritten by a simultaneous save asks the agent to book again'
     lost: true,
     response: { ok: false, message: 'Booking did not save because another caller booked at the same moment: call book_appointment again.' },
   });
+});
+
+// ---------------------------------------------------------------- slot holds (2 minutes while the caller gives details)
+
+const hold = (id, token, callId, minutesLeft = 1) => ({
+  id,
+  date: '2026-10-19',
+  token,
+  holdId: `H${id}`,
+  callId,
+  expiresAt: new Date(MON_10AM.getTime() + minutesLeft * 60000).toISOString(),
+});
+
+test('another caller\'s active hold is skipped; own and expired holds are not', () => {
+  const holds = [hold(1, 1, 'other'), hold(2, 2, 'me'), hold(3, 3, 'old', -1)];
+  const res = checkAvailability({ bookings: [], holidays: [], holds, callId: 'me', args: { requested_date: '' }, now: MON_10AM });
+  assert.equal(res.token, 2);
+  assert.equal(res.slots_left, 4);
+});
+
+test('when every free token is held by other callers, ask to call back in a couple of minutes', () => {
+  const bookings = [1, 2, 3].map((t) => row('2026-10-19', t));
+  const holds = [hold(1, 4, 'x'), hold(2, 5, 'y')];
+  const res = checkAvailability({ bookings, holidays: [], holds, callId: 'me', args: { requested_date: '' }, now: MON_10AM });
+  assert.deepEqual(res, {
+    ok: true,
+    available: false,
+    reason: 'all_held',
+    requested_date_spoken: 'Monday, the 19th of October',
+    call_back_spoken: 'in a couple of minutes',
+  });
+});
+
+test('a new hold lasts two minutes', () => {
+  assert.deepEqual(newHold({ date: '2026-10-19', token: 3, holdId: 'H9', callId: 'me', now: MON_10AM }), {
+    date: '2026-10-19',
+    token: 3,
+    holdId: 'H9',
+    callId: 'me',
+    expiresAt: '2026-10-19T04:32:00.000Z',
+  });
+});
+
+test('two callers holding the same token at once: the earlier hold keeps it, the later moves', () => {
+  const holds = [hold(7, 3, 'first'), hold(8, 3, 'second')];
+  const keep = resolveHold({ bookings: [], holidays: [], holds, holdId: 'H7', now: MON_10AM });
+  assert.equal(keep.changed, false);
+  assert.equal(keep.response.token, 3);
+  const moved = resolveHold({ bookings: [], holidays: [], holds, holdId: 'H8', now: MON_10AM });
+  assert.equal(moved.changed, true);
+  assert.equal(moved.token, 1); // lowest free token not held by an earlier hold
+  assert.deepEqual(moved.response, {
+    ok: true,
+    available: true,
+    date: '2026-10-19',
+    date_spoken: 'Monday, the 19th of October',
+    token: 1,
+    time_spoken: 'seven PM',
+    slots_left: 4,
+  });
+});
+
+test('a hold squeezed out by earlier holds and bookings is released and reported as all held', () => {
+  const bookings = [1, 2, 3, 4].map((t) => row('2026-10-19', t));
+  const holds = [hold(1, 5, 'first'), hold(2, 5, 'second')];
+  const res = resolveHold({ bookings, holidays: [], holds, holdId: 'H2', now: MON_10AM });
+  assert.equal(res.token, null);
+  assert.equal(res.changed, true);
+  assert.equal(res.response.reason, 'all_held');
+});
+
+test('booking uses this call\'s own hold, or the lowest token not held by someone else', () => {
+  const book = (holds) =>
+    decideBooking({ bookings: [], holidays: [], holds, booking: RAVI, callId: 'me', bookingId: 'VB-1', now: MON_10AM });
+  assert.equal(book([hold(1, 3, 'me')]).row.TokenNumber, 3);
+  assert.equal(book([hold(1, 1, 'other'), hold(2, 3, 'me', -1)]).row.TokenNumber, 2); // own hold expired
+  const allHeld = book([1, 2, 3, 4, 5].map((t) => hold(t, t, `other${t}`)));
+  assert.equal(allHeld.canBook, false);
+  assert.equal(allHeld.response.reason, 'all_held');
+});
+
+test('holds whose token is already booked are finished and do not take another token', () => {
+  // A and B booked tokens 1 and 2 from their holds; those holds have not expired yet.
+  const bookings = [row('2026-10-19', 1), row('2026-10-19', 2)];
+  const holds = [hold(1, 1, 'A'), hold(2, 2, 'B'), hold(3, 3, 'C'), hold(4, 4, 'E')];
+  const res = resolveHold({ bookings, holidays: [], holds, holdId: 'H4', now: MON_10AM });
+  assert.equal(res.changed, false);
+  assert.equal(res.response.token, 4);
+  assert.equal(res.response.slots_left, 2); // 5 minus bookings 1, 2 and C's hold on 3
 });

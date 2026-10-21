@@ -44,11 +44,11 @@ Responses:
   "token": 3, "time_spoken": "seven thirty PM", "slots_left": 3,
   "caller_id_available": true, "caller_id_last4_spoken": "five five four zero" }
 
-{ "ok": true, "available": false, "reason": "not_today | before_opening | past_cutoff | full | closed | past_date | invalid_date",
+{ "ok": true, "available": false, "reason": "not_today | before_opening | past_cutoff | full | all_held | closed | past_date | invalid_date",
   "requested_date_spoken": "Tuesday, the 20th of October",
   "call_back_spoken": "tomorrow after nine AM" }
 ```
-Only today, from 9 AM to 5 PM IST, is bookable. `call_back_spoken` is "today after nine AM" (before opening), the asked-for day (`not_today`), or the next open day (`past_cutoff`, `full`, `closed`), e.g. "on Monday, the 26th of October, after nine AM"; it is `null` for `past_date` / `invalid_date`. `requested_date_spoken` is `null` for `invalid_date`. Every `check_availability` reply also carries `caller_id_available` and `caller_id_last4_spoken` (`null` on web calls or withheld numbers).
+Only today, from 9 AM to 5 PM IST, is bookable. An offered token is **held for this call for 2 minutes** in the n8n data table "Voice Slot Holds"; other callers are offered other tokens, and `all_held` (call back "in a couple of minutes") means every free token is held by someone else. `book_appointment` uses the call's own hold. `call_back_spoken` is "today after nine AM" (before opening), the asked-for day (`not_today`), or the next open day (`past_cutoff`, `full`, `closed`), e.g. "on Monday, the 26th of October, after nine AM"; it is `null` for `past_date` / `invalid_date`. `requested_date_spoken` is `null` for `invalid_date`. Every `check_availability` reply also carries `caller_id_available` and `caller_id_last4_spoken` (`null` on web calls or withheld numbers).
 
 ## `book_appointment`
 
@@ -82,7 +82,7 @@ Responses:
 { "ok": true, "booked": false, "reason": "already_booked", "token": 2,
   "date_spoken": "Monday, the 19th of October", "time_spoken": "seven fifteen PM" }
 
-{ "ok": true, "booked": false, "reason": "not_today | before_opening | past_cutoff | full | closed | past_date | invalid_date",
+{ "ok": true, "booked": false, "reason": "not_today | before_opening | past_cutoff | full | all_held | closed | past_date | invalid_date",
   "call_back_spoken": "tomorrow after nine AM" }
 
 { "ok": false, "message": "Invalid date | Invalid name | Name sent as letters: … | Invalid age | Invalid reason | Please describe the reason | Invalid phone number: need 10 digits, got N" }

@@ -14,6 +14,7 @@ const CRED = {
 const { DEFAULT_CONFIG } = require('./clinic-rules');
 const ALERT_EMAIL = 'taher.advisor@gmail.com';
 const ERROR_WORKFLOW_ID = 'VvptA2WfaqA3OvDW'; // Dental Voice Booking - Error Alerts
+const HOLDS_TABLE_ID = 'ObMZfME6VuEdGL6a'; // Data table "Voice Slot Holds"
 
 // The rules module minus its CommonJS export, pasted ahead of each Code node's adapter.
 const rules = fs
@@ -79,6 +80,37 @@ const isTrue = (id, leftValue) => ({ id, leftValue, rightValue: '', operator: { 
 
 const code = (name, jsCode, pos, extra = fallible) =>
   node(name, 'n8n-nodes-base.code', 2, { mode: 'runOnceForAllItems', jsCode }, extra, pos);
+
+// "Voice Slot Holds": data-table inserts never overwrite each other and get increasing ids, unlike Sheets rows.
+const holdsTable = { __rl: true, mode: 'id', value: HOLDS_TABLE_ID, cachedResultName: 'Voice Slot Holds' };
+const HOLD_COLUMNS = { date: 'string', token: 'number', holdId: 'string', callId: 'string', expiresAt: 'string' };
+const holdSchema = (cols) =>
+  cols.map((c) => ({ id: c, displayName: c, required: false, defaultMatch: false, display: true, type: HOLD_COLUMNS[c], canBeUsedToMatch: true }));
+const TODAY_IST = "={{ $now.setZone('Asia/Kolkata').toFormat('yyyy-MM-dd') }}";
+const readHolds = (name, pos) =>
+  node(
+    name,
+    'n8n-nodes-base.dataTable',
+    1.1,
+    {
+      resource: 'row',
+      operation: 'get',
+      dataTableId: holdsTable,
+      matchType: 'allConditions',
+      filters: { conditions: [{ keyName: 'date', condition: 'eq', keyValue: TODAY_IST }] },
+      returnAll: true,
+    },
+    { executeOnce: true, alwaysOutputData: true, onError: 'continueRegularOutput' },
+    pos,
+  );
+const HOLDS_OF = `
+const holdsOf = (name) => {
+  const items = $(name).all().map((i) => i.json);
+  const failed = items.find((r) => r.error);
+  if (failed) throw new Error(\`\${name} failed: \${typeof failed.error === 'string' ? failed.error : failed.error.message ?? JSON.stringify(failed.error)}\`);
+  return items.filter((r) => r.holdId);
+};
+`;
 
 // ---------------------------------------------------------------- main workflow
 node(
@@ -175,22 +207,96 @@ node(
 // check_availability
 readSheet('Read Bookings - Availability', bookingsSheet, at(7, -4));
 readSheet('Read Holidays - Availability', holidaysSheet, at(8, -4));
+readHolds('Read Holds - Availability', at(9, -4));
 code(
   'Compute Availability',
   withRules(`
 ${ROWS_OF}
+${HOLDS_OF}
+const req = $('Normalize Request').first().json;
+const config = $('Clinic Config').first().json;
+const now = new Date();
 const response = checkAvailability({
   bookings: rowsOf('Read Bookings - Availability'),
   holidays: rowsOf('Read Holidays - Availability'),
-  args: $('Normalize Request').first().json.args,
+  holds: holdsOf('Read Holds - Availability'),
+  callId: req.callId,
+  args: req.args,
+  now,
+  config,
+});
+// Hold the offered token for this call while the caller gives their details.
+const hold = response.available
+  ? newHold({ date: response.date, token: response.token, holdId: \`H-\${Date.now()}-\${Math.random().toString(36).slice(2, 8)}\`, callId: req.callId, now, config })
+  : null;
+return [{ json: { hold, response: { ...response, ...callerIdInfo(req.callerNumber) } } }];
+`),
+  at(10, -4),
+);
+ifNode('Hold Needed?', [isTrue('hold-needed', '={{ !!$json.hold }}')], at(11, -4));
+respond('Respond Availability', '={{ $json.response }}', at(12, -3));
+node(
+  'Insert Hold',
+  'n8n-nodes-base.dataTable',
+  1.1,
+  {
+    resource: 'row',
+    operation: 'insert',
+    dataTableId: holdsTable,
+    columns: {
+      mappingMode: 'defineBelow',
+      value: Object.fromEntries(Object.keys(HOLD_COLUMNS).map((c) => [c, `={{ $json.hold.${c} }}`])),
+      schema: holdSchema(Object.keys(HOLD_COLUMNS)),
+    },
+    options: {},
+  },
+  { ...fallible },
+  at(12, -5),
+);
+readHolds('Read Holds - Verify', at(13, -5));
+code(
+  'Resolve Hold',
+  withRules(`
+${ROWS_OF}
+${HOLDS_OF}
+const { hold } = $('Compute Availability').first().json;
+const result = resolveHold({
+  bookings: rowsOf('Read Bookings - Availability'),
+  holidays: rowsOf('Read Holidays - Availability'),
+  holds: holdsOf('Read Holds - Verify'),
+  holdId: hold.holdId,
   now: new Date(),
   config: $('Clinic Config').first().json,
 });
-return [{ json: { response: { ...response, ...callerIdInfo($('Normalize Request').first().json.callerNumber) } } }];
+// A moved hold gets its new token; a squeezed-out hold is released by expiring it now.
+const update = { token: result.token ?? hold.token, expiresAt: result.token === null ? new Date().toISOString() : hold.expiresAt };
+const response = { ...result.response, ...callerIdInfo($('Normalize Request').first().json.callerNumber) };
+return [{ json: { changed: result.changed, holdId: hold.holdId, update, response } }];
 `),
-  at(9, -4),
+  at(14, -5),
 );
-respond('Respond Availability', '={{ $json.response }}', at(10, -4));
+ifNode('Hold Moved?', [isTrue('hold-moved', '={{ $json.changed }}')], at(15, -5));
+node(
+  'Update Hold',
+  'n8n-nodes-base.dataTable',
+  1.1,
+  {
+    resource: 'row',
+    operation: 'update',
+    dataTableId: holdsTable,
+    matchType: 'allConditions',
+    filters: { conditions: [{ keyName: 'holdId', condition: 'eq', keyValue: '={{ $json.holdId }}' }] },
+    columns: {
+      mappingMode: 'defineBelow',
+      value: { token: '={{ $json.update.token }}', expiresAt: '={{ $json.update.expiresAt }}' },
+      schema: holdSchema(['token', 'expiresAt']),
+    },
+    options: {},
+  },
+  { ...fallible },
+  at(16, -6),
+);
+respond('Respond Held', "={{ $('Resolve Hold').first().json.response }}", at(17, -5));
 
 // book_appointment
 code(
@@ -206,13 +312,16 @@ ifNode('Args Valid?', [isTrue('args-valid', '={{ $json.valid }}')], at(8, 0));
 respond('Respond Invalid Args', '={{ $json.response }}', at(9, 1));
 readSheet('Read Bookings - Booking', bookingsSheet, at(9, 0));
 readSheet('Read Holidays - Booking', holidaysSheet, at(10, 0));
+readHolds('Read Holds - Booking', at(10, 1));
 code(
   'Decide Booking',
   withRules(`
 ${ROWS_OF}
+${HOLDS_OF}
 const decision = decideBooking({
   bookings: rowsOf('Read Bookings - Booking'),
   holidays: rowsOf('Read Holidays - Booking'),
+  holds: holdsOf('Read Holds - Booking'),
   booking: $('Validate Booking Args').first().json.booking,
   callId: $('Normalize Request').first().json.callId,
   // Identifies this row for the clash check and for cancelling later.
@@ -337,12 +446,20 @@ const connections = {
   'Normalize Request': withError('Route by Function'),
   'Route by Function': main('Read Bookings - Availability', 'Validate Booking Args', 'Read Bookings - Find', 'Read Bookings - Cancel', 'Respond Unknown Function'),
   'Read Bookings - Availability': main('Read Holidays - Availability'),
-  'Read Holidays - Availability': main('Compute Availability'),
-  'Compute Availability': withError('Respond Availability'),
+  'Read Holidays - Availability': main('Read Holds - Availability'),
+  'Read Holds - Availability': main('Compute Availability'),
+  'Compute Availability': withError('Hold Needed?'),
+  'Hold Needed?': main('Insert Hold', 'Respond Availability'),
+  'Insert Hold': withError('Read Holds - Verify'),
+  'Read Holds - Verify': main('Resolve Hold'),
+  'Resolve Hold': withError('Hold Moved?'),
+  'Hold Moved?': main('Update Hold', 'Respond Held'),
+  'Update Hold': withError('Respond Held'),
   'Validate Booking Args': withError('Args Valid?'),
   'Args Valid?': main('Read Bookings - Booking', 'Respond Invalid Args'),
   'Read Bookings - Booking': main('Read Holidays - Booking'),
-  'Read Holidays - Booking': main('Decide Booking'),
+  'Read Holidays - Booking': main('Read Holds - Booking'),
+  'Read Holds - Booking': main('Decide Booking'),
   'Decide Booking': withError('Can Book?'),
   'Can Book?': main('Append Booking', 'Respond Not Booked'),
   'Append Booking': withError('Read Bookings - Verify'),
