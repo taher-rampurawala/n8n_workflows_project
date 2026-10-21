@@ -245,3 +245,11 @@ test('a name sent as spelled letters is joined into words', () => {
   assert.equal(validateBookingArgs({ ...args, patient_name: 'A. K. Sharma' }, '').value.patientName, 'A. K. Sharma');
   assert.equal(validateBookingArgs({ ...args, patient_name: 'Mary-Jane Fernandes' }, '').value.patientName, 'Mary-Jane Fernandes');
 });
+
+test('a name sent as spaced single letters is rejected so the agent resends it as words', () => {
+  const args = { date: '2026-10-19', age: 6, reason: 'Gum treatment', phone: '9748785540' };
+  const res = validateBookingArgs({ ...args, patient_name: 'S A I F U D D I N R A M P U R A W A L A' }, '');
+  assert.deepEqual(res, { ok: false, message: 'Name sent as letters: call book_appointment again with patient_name written as words, e.g. "Saifuddin Rampurawala". Do not ask the caller again.' });
+  // Up to two initials are a normal name.
+  assert.equal(validateBookingArgs({ ...args, patient_name: 'A K Sharma' }, '').value.patientName, 'A K Sharma');
+});

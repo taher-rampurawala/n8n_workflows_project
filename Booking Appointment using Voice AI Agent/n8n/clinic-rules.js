@@ -141,6 +141,10 @@ function validateBookingArgs(args, callerNumber) {
 
   if (!isValidDate(date)) return fail('Invalid date');
   if (patientName.length < 2) return fail('Invalid name');
+  // Three or more single letters in a row is a spelling, not a name; word breaks are lost, so ask the agent to resend.
+  if (/(^|\s)([a-z]\s+){2,}[a-z](\s|$)/i.test(patientName)) {
+    return fail('Name sent as letters: call book_appointment again with patient_name written as words, e.g. "Saifuddin Rampurawala". Do not ask the caller again.');
+  }
   if (!Number.isInteger(age) || age < 1 || age > 120) return fail('Invalid age');
   if (!reason) return fail('Invalid reason');
   if (reason === 'Other' && !detail) return fail('Please describe the reason');

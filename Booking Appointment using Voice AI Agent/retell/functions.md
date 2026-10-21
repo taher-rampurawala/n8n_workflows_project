@@ -57,7 +57,7 @@ Only today, from 9 AM to 5 PM IST, is bookable. `call_back_spoken` is "today aft
   "type": "object",
   "properties": {
     "date": { "type": "string", "description": "Today's date as yyyy-MM-dd (the date returned by check_availability)." },
-    "patient_name": { "type": "string", "description": "Patient's full name, exactly as the caller confirmed the spelling letter by letter." },
+    "patient_name": { "type": "string", "description": "Patient's full name in normal words with capital first letters, using the spelling the caller confirmed, e.g. Saifuddin Rampurawala. Never spelled out as letters." },
     "age": { "type": "integer", "description": "Patient's age in years, 1 to 120." },
     "reason": {
       "type": "string",
@@ -83,7 +83,7 @@ Responses:
 { "ok": true, "booked": false, "reason": "not_today | before_opening | past_cutoff | full | closed | past_date | invalid_date",
   "call_back_spoken": "tomorrow after nine AM" }
 
-{ "ok": false, "message": "Invalid date | Invalid name | Invalid age | Invalid reason | Please describe the reason | Invalid phone number" }
+{ "ok": false, "message": "Invalid date | Invalid name | Name sent as letters: … | Invalid age | Invalid reason | Please describe the reason | Invalid phone number" }
 
 { "ok": false, "message": "System problem, please offer a transfer" }
 ```
