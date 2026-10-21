@@ -16,6 +16,8 @@ The webhook always answers HTTP 200 with JSON (a bad signature gets `{ok:false, 
 |---|---|---|---|
 | `check_availability` | Custom (n8n webhook) | booking | Next token and time for a day, or why it's unavailable plus the next open slot |
 | `book_appointment` | Custom (n8n webhook) | booking | Books a token; n8n recounts and assigns the token and time |
+| `find_booking` | Custom (n8n webhook) | manage_booking | Today's active bookings made with a phone number |
+| `cancel_booking` | Custom (n8n webhook) | manage_booking | Cancels one of today's bookings by token; frees the token |
 | `transfer_call` | Retell built-in Transfer Call | all | Connects to reception **+919163495068** |
 | `end_call` | Retell built-in End Call | all | Hangs up |
 
@@ -88,4 +90,48 @@ Responses:
 { "ok": false, "message": "System problem, please offer a transfer" }
 ```
 
-The sheet row written: `Date, Time (HH:mm), TokenNumber, PatientName, Age, Reason, WhatsAppNumber (91 + 10 digits), BookedAt (ISO), Channel = Voice, CallId`.
+## `find_booking`
+
+**Description (shown to the LLM):** Find today's active bookings made with a phone number, before cancelling one. Leave phone empty to use the number the caller is calling from.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "phone": { "type": "string", "description": "Only if the booking was made with a different number: the digits read back to the caller, separated by spaces, e.g. 9 1 6 3 4 9 5 0 6 8. Otherwise empty." }
+  },
+  "required": []
+}
+```
+
+Responses:
+```json
+{ "ok": true, "bookings": [ { "token": 1, "patient_name": "Ravi Kumar", "time_spoken": "seven PM" } ] }
+
+{ "ok": false, "message": "Invalid phone number: need 10 digits, got 0" }
+```
+
+## `cancel_booking`
+
+**Description (shown to the LLM):** Cancel one of today's bookings by its token number, after the caller has confirmed which one. Use the same phone as for find_booking.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "token": { "type": "integer", "description": "Token number of the booking to cancel, from find_booking." },
+    "phone": { "type": "string", "description": "The same phone value used for find_booking (empty for the caller's own number)." }
+  },
+  "required": ["token"]
+}
+```
+
+Responses:
+```json
+{ "ok": true, "cancelled": true, "token": 2, "patient_name": "Ravi Kumar", "time_spoken": "seven fifteen PM" }
+
+{ "ok": true, "cancelled": false, "reason": "not_found | needs_reception" }
+```
+`needs_reception`: the booking has no BookingId (made on WhatsApp or before cancelling existed). Cancelled rows stay in the sheet with `Status = Cancelled`; the token is reused by the next booking.
+
+The sheet row written: `Date, Time (HH:mm), TokenNumber, PatientName, Age, Reason, WhatsAppNumber (91 + 10 digits), BookedAt (ISO), Channel = Voice, CallId, Status = Active, BookingId`.

@@ -164,14 +164,17 @@ node(
   'Route by Function',
   'n8n-nodes-base.switch',
   3.4,
-  { rules: { values: [rule('check_availability'), rule('book_appointment')] }, options: { fallbackOutput: 'extra', renameFallbackOutput: 'unknown' } },
+  {
+    rules: { values: ['check_availability', 'book_appointment', 'find_booking', 'cancel_booking'].map(rule) },
+    options: { fallbackOutput: 'extra', renameFallbackOutput: 'unknown' },
+  },
   {},
   at(6, 0),
 );
 
 // check_availability
-readSheet('Read Bookings - Availability', bookingsSheet, at(7, -2));
-readSheet('Read Holidays - Availability', holidaysSheet, at(8, -2));
+readSheet('Read Bookings - Availability', bookingsSheet, at(7, -4));
+readSheet('Read Holidays - Availability', holidaysSheet, at(8, -4));
 code(
   'Compute Availability',
   withRules(`
@@ -185,9 +188,9 @@ const response = checkAvailability({
 });
 return [{ json: { response: { ...response, ...callerIdInfo($('Normalize Request').first().json.callerNumber) } } }];
 `),
-  at(9, -2),
+  at(9, -4),
 );
-respond('Respond Availability', '={{ $json.response }}', at(10, -2));
+respond('Respond Availability', '={{ $json.response }}', at(10, -4));
 
 // book_appointment
 code(
@@ -212,6 +215,8 @@ const decision = decideBooking({
   holidays: rowsOf('Read Holidays - Booking'),
   booking: $('Validate Booking Args').first().json.booking,
   callId: $('Normalize Request').first().json.callId,
+  // Identifies this row for the clash check and for cancelling later.
+  bookingId: \`VB-\${Date.now()}-\${Math.random().toString(36).slice(2, 8)}\`,
   now: new Date(),
   config: $('Clinic Config').first().json,
 });
@@ -222,52 +227,91 @@ return [{ json: decision }];
 ifNode('Can Book?', [isTrue('can-book', '={{ $json.canBook }}')], at(12, 0));
 respond('Respond Not Booked', '={{ $json.response }}', at(13, 1));
 
-const COLUMNS = ['Date', 'Time', 'TokenNumber', 'PatientName', 'Age', 'Reason', 'WhatsAppNumber', 'BookedAt', 'Channel', 'CallId'];
-node(
-  'Append Booking',
-  'n8n-nodes-base.googleSheets',
-  4.7,
-  {
-    resource: 'sheet',
-    operation: 'append',
-    authentication: 'oAuth2',
-    documentId: document,
-    sheetName: bookingsSheet,
-    columns: {
-      mappingMode: 'defineBelow',
-      value: Object.fromEntries(COLUMNS.map((c) => [c, `={{ $json.row.${c} }}`])),
-      matchingColumns: [],
-      schema: COLUMNS.map((c) => ({ id: c, displayName: c, required: false, defaultMatch: false, display: true, type: 'string', canBeUsedToMatch: c === 'Date' })),
-    },
-    options: {},
-  },
-  { credentials: CRED.sheets, ...fallible },
-  at(13, 0),
-);
-respond('Respond Booked', "={{ $('Decide Booking').first().json.response }}", at(14, 0));
-readSheet('Read Bookings - Verify', bookingsSheet, at(15, 0), {
+const COLUMNS = ['Date', 'Time', 'TokenNumber', 'PatientName', 'Age', 'Reason', 'WhatsAppNumber', 'BookedAt', 'Channel', 'CallId', 'Status', 'BookingId'];
+const columnsOf = (matchingColumns) => ({
+  mappingMode: 'defineBelow',
+  value: Object.fromEntries(COLUMNS.map((c) => [c, `={{ $json.row.${c} }}`])),
+  matchingColumns,
+  schema: COLUMNS.map((c) => ({ id: c, displayName: c, required: false, defaultMatch: false, display: true, type: 'string', canBeUsedToMatch: true })),
+});
+const sheetWrite = (name, operation, matchingColumns, pos) =>
+  node(
+    name,
+    'n8n-nodes-base.googleSheets',
+    4.7,
+    { resource: 'sheet', operation, authentication: 'oAuth2', documentId: document, sheetName: bookingsSheet, columns: columnsOf(matchingColumns), options: {} },
+    { credentials: CRED.sheets, ...fallible },
+    pos,
+  );
+
+sheetWrite('Append Booking', 'append', [], at(13, 0));
+// Re-read after saving so two callers booking at the same moment cannot both keep the same token.
+readSheet('Read Bookings - Verify', bookingsSheet, at(14, 0), {
   values: [{ lookupColumn: 'Date', lookupValue: "={{ $('Decide Booking').first().json.row.Date }}" }],
 });
 code(
-  'Check Duplicate Token',
-  `
-// Residual race: two calls booking the same date within the same second can get the same token.
-// Throwing here fails the execution, so the Error Alerts workflow emails the owner to fix it by hand.
+  'Resolve Token',
+  withRules(`
 ${ROWS_OF}
-const { row } = $('Decide Booking').first().json;
-const same = rowsOf('Read Bookings - Verify').filter((r) => String(r.Date) === row.Date && Number(r.TokenNumber) === row.TokenNumber);
-if (same.length > 1) {
-  throw new Error(\`Duplicate token \${row.TokenNumber} on \${row.Date} (\${same.length} rows). Re-number one booking and call the patient.\`);
-}
-return [{ json: { duplicate: false, date: row.Date, token: row.TokenNumber } }];
-`,
-  at(16, 0),
-  {},
+const result = resolveToken({
+  bookings: rowsOf('Read Bookings - Verify'),
+  holidays: rowsOf('Read Holidays - Booking'),
+  bookingId: $('Decide Booking').first().json.row.BookingId,
+  now: new Date(),
+  config: $('Clinic Config').first().json,
+});
+return [{ json: result }];
+`),
+  at(15, 0),
 );
+ifNode('Token Changed?', [isTrue('token-changed', '={{ $json.changed }}')], at(16, 0));
+sheetWrite('Update Booking Row', 'update', ['BookingId'], at(17, -1));
+respond('Respond Booked', "={{ $('Resolve Token').first().json.response }}", at(18, 0));
+
+// find_booking
+readSheet('Read Bookings - Find', bookingsSheet, at(7, 3));
+code(
+  'Find Bookings',
+  withRules(`
+${ROWS_OF}
+const req = $('Normalize Request').first().json;
+const response = findBookings({
+  bookings: rowsOf('Read Bookings - Find'),
+  phone: req.args.phone || req.callerNumber,
+  now: new Date(),
+  config: $('Clinic Config').first().json,
+});
+return [{ json: { response } }];
+`),
+  at(8, 3),
+);
+respond('Respond Find', '={{ $json.response }}', at(9, 3));
+
+// cancel_booking
+readSheet('Read Bookings - Cancel', bookingsSheet, at(7, 5));
+code(
+  'Plan Cancel',
+  withRules(`
+${ROWS_OF}
+const req = $('Normalize Request').first().json;
+const plan = planCancel({
+  bookings: rowsOf('Read Bookings - Cancel'),
+  token: req.args.token,
+  phone: req.args.phone || req.callerNumber,
+  now: new Date(),
+  config: $('Clinic Config').first().json,
+});
+return [{ json: plan }];
+`),
+  at(8, 5),
+);
+ifNode('Can Cancel?', [isTrue('can-cancel', '={{ $json.canCancel }}')], at(9, 5));
+sheetWrite('Cancel Booking Row', 'update', ['BookingId'], at(10, 4));
+respond('Respond Cancel', "={{ $('Plan Cancel').first().json.response }}", at(11, 5));
 
 // fallback + errors
-respond('Respond Unknown Function', '={{ { ok: false, message: "Unknown function" } }}', at(7, 2));
-respond('Respond System Error', '={{ { ok: false, message: "System problem, please offer a transfer" } }}', at(9, 4));
+respond('Respond Unknown Function', '={{ { ok: false, message: "Unknown function" } }}', at(7, 7));
+respond('Respond System Error', '={{ { ok: false, message: "System problem, please offer a transfer" } }}', at(9, 9));
 node(
   'Raise Error Alert',
   'n8n-nodes-base.stopAndError',
@@ -278,7 +322,7 @@ node(
       "={{ 'Voice booking failed: ' + (typeof $json.error === 'string' ? $json.error : ($json.error?.message || JSON.stringify($json).slice(0, 500))) }}",
   },
   {},
-  at(10, 4),
+  at(10, 9),
 );
 
 const main = (...targets) => ({ main: targets.map((t) => (t ? [].concat(t).map((n) => ({ node: n, type: 'main', index: 0 })) : [])) });
@@ -291,7 +335,7 @@ const connections = {
   'Signature Valid?': main('Clinic Config', 'Respond Unauthorized'),
   'Clinic Config': main('Normalize Request'),
   'Normalize Request': withError('Route by Function'),
-  'Route by Function': main('Read Bookings - Availability', 'Validate Booking Args', 'Respond Unknown Function'),
+  'Route by Function': main('Read Bookings - Availability', 'Validate Booking Args', 'Read Bookings - Find', 'Read Bookings - Cancel', 'Respond Unknown Function'),
   'Read Bookings - Availability': main('Read Holidays - Availability'),
   'Read Holidays - Availability': main('Compute Availability'),
   'Compute Availability': withError('Respond Availability'),
@@ -301,10 +345,18 @@ const connections = {
   'Read Holidays - Booking': main('Decide Booking'),
   'Decide Booking': withError('Can Book?'),
   'Can Book?': main('Append Booking', 'Respond Not Booked'),
-  'Append Booking': withError('Respond Booked'),
-  'Respond Booked': main('Read Bookings - Verify'),
-  // Check Duplicate Token has no error output: a failed re-read or a duplicate fails the run (→ alert email).
-  'Read Bookings - Verify': main('Check Duplicate Token'),
+  'Append Booking': withError('Read Bookings - Verify'),
+  // A failure after the append answers {ok:false}; the agent retries and gets already_booked.
+  'Read Bookings - Verify': main('Resolve Token'),
+  'Resolve Token': withError('Token Changed?'),
+  'Token Changed?': main('Update Booking Row', 'Respond Booked'),
+  'Update Booking Row': withError('Respond Booked'),
+  'Read Bookings - Find': main('Find Bookings'),
+  'Find Bookings': withError('Respond Find'),
+  'Read Bookings - Cancel': main('Plan Cancel'),
+  'Plan Cancel': withError('Can Cancel?'),
+  'Can Cancel?': main('Cancel Booking Row', 'Respond Cancel'),
+  'Cancel Booking Row': withError('Respond Cancel'),
   'Respond System Error': main('Raise Error Alert'),
 };
 

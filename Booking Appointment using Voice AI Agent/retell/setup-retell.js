@@ -25,6 +25,7 @@ const STATES = {
   faq: 'states/03_faq.md',
   transfer: 'states/04_transfer.md',
   closing: 'states/05_closing.md',
+  manage_booking: 'states/06_manage_booking.md',
 };
 
 function edgesFrom(md) {
@@ -61,6 +62,18 @@ const customTool = (name, waitLine) => ({
   args_at_root: false,
 });
 
+// Custom (n8n webhook) functions attached to each state; transfer_call / end_call are general tools.
+const STATE_TOOLS = {
+  booking: [
+    customTool('check_availability', 'Say a short line like "One moment while I check."'),
+    customTool('book_appointment', 'Say a short line like "Booking that now."'),
+  ],
+  manage_booking: [
+    customTool('find_booking', 'Say a short line like "One moment while I look that up."'),
+    customTool('cancel_booking', 'Say a short line like "Cancelling that now."'),
+  ],
+};
+
 const beginMessage = read(STATES.intro).match(/^> (.*)$/m)[1];
 
 const llm = {
@@ -85,10 +98,7 @@ const llm = {
       name,
       state_prompt: md,
       edges: edgesFrom(md),
-      tools:
-        name === 'booking'
-          ? [customTool('check_availability', 'Say a short line like "One moment while I check."'), customTool('book_appointment', 'Say a short line like "Booking that now."')]
-          : [],
+      tools: STATE_TOOLS[name] ?? [],
     };
   }),
   starting_state: 'intro',

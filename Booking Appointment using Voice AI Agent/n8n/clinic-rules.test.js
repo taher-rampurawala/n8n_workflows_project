@@ -1,13 +1,22 @@
 // Run: node --test "Booking Appointment using Voice AI Agent/n8n/clinic-rules.test.js"
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { checkAvailability, validateBookingArgs, decideBooking, normalizeRequest, callerIdInfo } = require('./clinic-rules');
+const {
+  checkAvailability,
+  validateBookingArgs,
+  decideBooking,
+  resolveToken,
+  findBookings,
+  planCancel,
+  normalizeRequest,
+  callerIdInfo,
+} = require('./clinic-rules');
 
 // Clinic times are IST (UTC+5:30). 19 Oct 2026 is a Monday.
 const ist = (date, hhmm) => new Date(`${date}T${hhmm}:00+05:30`);
 const MON_10AM = ist('2026-10-19', '10:00');
 
-const row = (Date, TokenNumber, WhatsAppNumber = '919800000000') => ({ Date, TokenNumber, WhatsAppNumber });
+const row = (Date, TokenNumber, WhatsAppNumber = '919800000000', PatientName = 'Some Patient') => ({ Date, TokenNumber, WhatsAppNumber, PatientName });
 const check = (requested_date, { bookings = [], holidays = [], now = MON_10AM } = {}) =>
   checkAvailability({ bookings, holidays, args: { requested_date }, now });
 
@@ -140,11 +149,12 @@ test('invalid booking args are rejected with a speakable message', () => {
 // ---------------------------------------------------------------- decideBooking
 
 const RAVI = { date: '2026-10-19', patientName: 'Ravi Kumar', age: 34, reason: 'Fillings', phone: '9830012345' };
+const decide = (bookings, extra = {}) =>
+  decideBooking({ bookings, holidays: [], booking: RAVI, callId: 'call_abc', bookingId: 'VB-1', now: MON_10AM, ...extra });
 
-test('booking recounts today and echoes the saved name and number for read-back', () => {
-  const bookings = [row('2026-10-19', 1), row('2026-10-19', 2), row('2026-10-18', 1, '919830012345')];
-  const res = decideBooking({ bookings, holidays: [], booking: RAVI, callId: 'call_abc', now: MON_10AM });
-  assert.deepEqual(res, {
+test('booking takes the lowest free token and echoes the saved name and number for read-back', () => {
+  const bookings = [row('2026-10-19', 1), row('2026-10-19', 2), row('2026-10-18', 1, '919830012345', 'Ravi Kumar')];
+  assert.deepEqual(decide(bookings), {
     canBook: true,
     row: {
       Date: '2026-10-19',
@@ -157,6 +167,8 @@ test('booking recounts today and echoes the saved name and number for read-back'
       BookedAt: '2026-10-19T04:30:00.000Z',
       Channel: 'Voice',
       CallId: 'call_abc',
+      Status: 'Active',
+      BookingId: 'VB-1',
     },
     response: {
       ok: true,
@@ -171,36 +183,141 @@ test('booking recounts today and echoes the saved name and number for read-back'
   });
 });
 
-test('same phone on the same date returns the existing booking instead', () => {
-  const bookings = [row('2026-10-19', 1), row('2026-10-19', 2, '+91 98300-12345')];
-  const res = decideBooking({ bookings, holidays: [], booking: RAVI, callId: 'call_abc', now: MON_10AM });
-  assert.deepEqual(res, {
+test('same patient name and same phone today returns the existing booking', () => {
+  const bookings = [row('2026-10-19', 1), row('2026-10-19', 2, '+91 98300-12345', '  ravi   KUMAR ')];
+  assert.deepEqual(decide(bookings), {
     canBook: false,
     response: {
       ok: true,
       booked: false,
       reason: 'already_booked',
       token: 2,
+      patient_name: '  ravi   KUMAR ',
       date_spoken: 'Monday, the 19th of October',
       time_spoken: 'seven fifteen PM',
     },
   });
 });
 
+test('one phone can book different family members; a different phone can book the same name', () => {
+  const sibling = [row('2026-10-19', 1, '919830012345', 'Asha Kumar')];
+  assert.equal(decide(sibling).canBook, true);
+  const otherFamily = [row('2026-10-19', 1, '919811111111', 'Ravi Kumar')];
+  assert.equal(decide(otherFamily).canBook, true);
+});
+
+test('cancelled bookings free their token and do not count towards full', () => {
+  const bookings = [row('2026-10-19', 1), { ...row('2026-10-19', 2), Status: 'Cancelled' }, row('2026-10-19', 3)];
+  const res = decide(bookings);
+  assert.equal(res.row.TokenNumber, 2);
+  assert.equal(res.row.Time, '19:15');
+
+  const fiveWithOneCancelled = [1, 2, 3, 4, 5].map((t) => ({ ...row('2026-10-19', t), Status: t === 4 ? 'cancelled' : '' }));
+  assert.equal(decide(fiveWithOneCancelled).row.TokenNumber, 4);
+  // A cancelled booking of the same patient does not block re-booking.
+  assert.equal(decide([{ ...row('2026-10-19', 1, '919830012345', 'Ravi Kumar'), Status: 'Cancelled' }]).canBook, true);
+});
+
 test('anything but an open slot today is refused with a call-back day', () => {
   const full = [1, 2, 3, 4, 5].map((t) => row('2026-10-19', t));
   const cases = [
-    [{ bookings: full, booking: RAVI, now: MON_10AM }, 'full', 'tomorrow after nine AM'],
-    [{ bookings: [], booking: { ...RAVI, date: '2026-10-20' }, now: MON_10AM }, 'not_today', 'tomorrow after nine AM'],
-    [{ bookings: [], booking: RAVI, now: ist('2026-10-19', '18:00') }, 'past_cutoff', 'tomorrow after nine AM'],
-    [{ bookings: [], booking: RAVI, now: ist('2026-10-19', '08:00') }, 'before_opening', 'today after nine AM'],
+    [{ bookings: full }, 'full', 'tomorrow after nine AM'],
+    [{ bookings: [], booking: { ...RAVI, date: '2026-10-20' } }, 'not_today', 'tomorrow after nine AM'],
+    [{ bookings: [], now: ist('2026-10-19', '18:00') }, 'past_cutoff', 'tomorrow after nine AM'],
+    [{ bookings: [], now: ist('2026-10-19', '08:00') }, 'before_opening', 'today after nine AM'],
   ];
   for (const [input, reason, callBack] of cases) {
-    const res = decideBooking({ holidays: [], callId: 'call_abc', ...input });
+    const res = decide(input.bookings, input);
     assert.equal(res.canBook, false, reason);
     assert.equal(res.row, undefined, reason);
     assert.deepEqual(res.response, { ok: true, booked: false, reason, call_back_spoken: callBack });
   }
+});
+
+// ---------------------------------------------------------------- resolveToken (two callers booking at the same moment)
+
+// A fresh read after our append: row_number is the sheet order, so it tells who saved first.
+const saved = (row_number, TokenNumber, BookingId, extra = {}) => ({
+  row_number,
+  ...row('2026-10-19', TokenNumber, '919830012345', `Patient ${BookingId}`),
+  Time: '',
+  BookingId,
+  Status: 'Active',
+  ...extra,
+});
+const resolve = (bookings, bookingId) => resolveToken({ bookings, holidays: [], bookingId, now: MON_10AM });
+
+test('no clash: the booking keeps its token and nothing needs updating', () => {
+  const res = resolve([saved(2, 1, 'A'), saved(3, 2, 'B')], 'B');
+  assert.equal(res.changed, false);
+  assert.equal(res.response.booked, true);
+  assert.equal(res.response.token, 2);
+  assert.equal(res.response.patient_name, 'Patient B');
+});
+
+test('clash: whoever saved first keeps the token, the later one moves to the next free token', () => {
+  const rows = [saved(2, 1, 'A'), saved(3, 2, 'B'), saved(4, 2, 'C')];
+  assert.equal(resolve(rows, 'B').changed, false);
+  const later = resolve(rows, 'C');
+  assert.equal(later.changed, true);
+  assert.equal(later.row.TokenNumber, 3);
+  assert.equal(later.row.Time, '19:30');
+  assert.equal(later.row.row_number, undefined);
+  assert.equal(later.response.token, 3);
+  assert.equal(later.response.time_spoken, 'seven thirty PM');
+});
+
+test('clash with no free token left: the later booking is cancelled and told today is full', () => {
+  const rows = [1, 2, 3, 4, 5].map((t, i) => saved(i + 2, t, `P${t}`)).concat(saved(7, 5, 'LATE'));
+  const res = resolve(rows, 'LATE');
+  assert.equal(res.changed, true);
+  assert.equal(res.row.Status, 'Cancelled');
+  assert.deepEqual(res.response, { ok: true, booked: false, reason: 'full', call_back_spoken: 'tomorrow after nine AM' });
+});
+
+test('cancelled rows are ignored when resolving', () => {
+  const rows = [saved(2, 1, 'A', { Status: 'Cancelled' }), saved(3, 1, 'B')];
+  assert.equal(resolve(rows, 'B').changed, false);
+});
+
+// ---------------------------------------------------------------- findBookings / planCancel
+
+test("find returns today's active bookings on the caller's phone", () => {
+  const bookings = [
+    row('2026-10-19', 1, '919830012345', 'Ravi Kumar'),
+    row('2026-10-19', 2, '919830012345', 'Asha Kumar'),
+    { ...row('2026-10-19', 3, '919830012345', 'Old Booking'), Status: 'Cancelled' },
+    row('2026-10-19', 4, '919811111111', 'Someone Else'),
+    row('2026-10-18', 1, '919830012345', 'Yesterday'),
+  ];
+  assert.deepEqual(findBookings({ bookings, phone: '+91 98300 12345', now: MON_10AM }), {
+    ok: true,
+    bookings: [
+      { token: 1, patient_name: 'Ravi Kumar', time_spoken: 'seven PM' },
+      { token: 2, patient_name: 'Asha Kumar', time_spoken: 'seven fifteen PM' },
+    ],
+  });
+  assert.deepEqual(findBookings({ bookings, phone: '12345', now: MON_10AM }), { ok: false, message: 'Invalid phone number: need 10 digits, got 5' });
+});
+
+test('cancel marks the matching booking cancelled; only the same phone can cancel it', () => {
+  const ravi = { row_number: 5, ...row('2026-10-19', 2, '919830012345', 'Ravi Kumar'), Time: '19:15', BookingId: 'VB-9', Status: 'Active' };
+  const bookings = [row('2026-10-19', 1), ravi];
+  const res = planCancel({ bookings, token: 2, phone: '9830012345', now: MON_10AM });
+  assert.equal(res.canCancel, true);
+  assert.deepEqual(res.row, { ...ravi, row_number: undefined, Status: 'Cancelled' });
+  assert.deepEqual(res.response, { ok: true, cancelled: true, token: 2, patient_name: 'Ravi Kumar', time_spoken: 'seven fifteen PM' });
+
+  const wrongPhone = planCancel({ bookings, token: 2, phone: '9811111111', now: MON_10AM });
+  assert.deepEqual(wrongPhone, { canCancel: false, response: { ok: true, cancelled: false, reason: 'not_found' } });
+});
+
+test('a booking without a BookingId (e.g. made on WhatsApp) is handed to reception', () => {
+  const bookings = [row('2026-10-19', 1, '919830012345', 'Ravi Kumar')];
+  assert.deepEqual(planCancel({ bookings, token: 1, phone: '9830012345', now: MON_10AM }), {
+    canCancel: false,
+    response: { ok: true, cancelled: false, reason: 'needs_reception' },
+  });
 });
 
 // ---------------------------------------------------------------- normalizeRequest

@@ -42,8 +42,15 @@ function speakTime(minutesOfDay) {
   return [NUMBER_WORDS[h % 12], words, h >= 12 ? 'PM' : 'AM'].filter(Boolean).join(' ');
 }
 
-function countOn(bookings, dateStr) {
-  return bookings.filter((b) => String(b.Date ?? '').trim() === dateStr).length;
+// A blank Status (WhatsApp rows, older voice rows) counts as active.
+const isActive = (b) => String(b.Status ?? '').trim().toLowerCase() !== 'cancelled';
+const activeOn = (bookings, dateStr) => bookings.filter((b) => String(b.Date ?? '').trim() === dateStr && isActive(b));
+const countOn = (bookings, dateStr) => activeOn(bookings, dateStr).length;
+
+// Lowest token 1..slots not held by an active booking (a cancelled token is reused), or null when full.
+function lowestFreeToken(takenTokens, slots) {
+  for (let t = 1; t <= slots; t++) if (!takenTokens.has(t)) return t;
+  return null;
 }
 
 const addDays = (dateStr, n) => formatDate(new Date(parseDate(dateStr).getTime() + n * 86400000));
@@ -63,7 +70,8 @@ function blockReason(ctx, date) {
 }
 
 function slotOn(ctx, date) {
-  const token = countOn(ctx.bookings, date) + 1;
+  const taken = new Set(activeOn(ctx.bookings, date).map((b) => Number(b.TokenNumber)));
+  const token = lowestFreeToken(taken, ctx.config.slots);
   return { date, date_spoken: speakDate(date), token, time_spoken: speakTime(slotMinutesOfDay(token, ctx.config)) };
 }
 
@@ -110,7 +118,7 @@ function checkAvailability({ bookings, holidays, args, now, config = DEFAULT_CON
     };
   }
   const slot = slotOn(ctx, date);
-  return { ok: true, available: true, ...slot, slots_left: config.slots - slot.token + 1 };
+  return { ok: true, available: true, ...slot, slots_left: config.slots - countOn(bookings, date) };
 }
 
 const REASONS = ['Consultation', 'Fillings', 'Tooth extraction', 'Gum treatment', 'Other'];
@@ -178,12 +186,32 @@ function callerIdInfo(callerNumber) {
 const hhmm = (minutesOfDay) =>
   `${String(Math.floor(minutesOfDay / 60)).padStart(2, '0')}:${String(minutesOfDay % 60).padStart(2, '0')}`;
 
+const sameName = (a, b) => String(a ?? '').trim().replace(/\s+/g, ' ').toLowerCase() === String(b ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
+const sheetRow = ({ row_number, ...row }) => row; // row_number comes from reads and is not a sheet column
+
+// What the agent reads back after a booking, built from the saved row.
+function bookedResponse(row, config) {
+  const token = Number(row.TokenNumber);
+  return {
+    ok: true,
+    booked: true,
+    token,
+    date_spoken: speakDate(row.Date),
+    time_spoken: speakTime(slotMinutesOfDay(token, config)),
+    reason: row.Reason,
+    // Echoed so the agent reads back what was actually saved: LLMs mis-copy names and digits into tool args.
+    patient_name: row.PatientName,
+    phone_spoken: speakPhone(normalizePhone(row.WhatsAppNumber)),
+  };
+}
+
 // Decides a validated booking against a fresh read of the sheet. The agent never picks the token.
-function decideBooking({ bookings, holidays, booking, callId, now, config = DEFAULT_CONFIG }) {
+// A duplicate is the same patient name on the same phone on the same day; family members on one phone are fine.
+function decideBooking({ bookings, holidays, booking, callId, bookingId, now, config = DEFAULT_CONFIG }) {
   const ctx = makeContext({ bookings, holidays, now, config });
 
-  const existing = bookings.find(
-    (b) => String(b.Date ?? '').trim() === booking.date && normalizePhone(b.WhatsAppNumber) === booking.phone,
+  const existing = activeOn(bookings, booking.date).find(
+    (b) => normalizePhone(b.WhatsAppNumber) === booking.phone && sameName(b.PatientName, booking.patientName),
   );
   if (existing) {
     const token = Number(existing.TokenNumber);
@@ -194,6 +222,7 @@ function decideBooking({ bookings, holidays, booking, callId, now, config = DEFA
         booked: false,
         reason: 'already_booked',
         token,
+        patient_name: existing.PatientName,
         date_spoken: speakDate(booking.date),
         time_spoken: speakTime(slotMinutesOfDay(token, config)),
       },
@@ -209,30 +238,99 @@ function decideBooking({ bookings, holidays, booking, callId, now, config = DEFA
   }
 
   const slot = slotOn(ctx, booking.date);
+  const row = {
+    Date: booking.date,
+    Time: hhmm(slotMinutesOfDay(slot.token, config)),
+    TokenNumber: slot.token,
+    PatientName: booking.patientName,
+    Age: booking.age,
+    Reason: booking.reason,
+    WhatsAppNumber: `91${booking.phone}`,
+    BookedAt: now.toISOString(),
+    Channel: 'Voice',
+    CallId: callId,
+    Status: 'Active',
+    BookingId: bookingId,
+  };
+  return { canBook: true, row, response: bookedResponse(row, config) };
+}
+
+// Two callers booking at the same moment can both be given the same token. After our append we re-read the
+// sheet and replay the day's active bookings in sheet order (row_number = who saved first): each keeps its
+// token unless an earlier row already holds it, in which case it takes the lowest free token. Every
+// execution replays the same way, so each fixes only its own row and they agree on the outcome.
+function resolveToken({ bookings, holidays, bookingId, now, config = DEFAULT_CONFIG }) {
+  const mine = bookings.find((b) => b.BookingId === bookingId);
+  if (!mine) throw new Error(`Booking ${bookingId} not found after saving it`);
+  const day = activeOn(bookings, String(mine.Date).trim()).sort((a, b) => Number(a.row_number) - Number(b.row_number));
+
+  const taken = new Set();
+  let myToken = null;
+  for (const b of day) {
+    const wanted = Number(b.TokenNumber);
+    const token = wanted >= 1 && wanted <= config.slots && !taken.has(wanted) ? wanted : lowestFreeToken(taken, config.slots);
+    if (token !== null) taken.add(token);
+    if (b.BookingId === bookingId) myToken = token;
+  }
+
+  if (myToken === null) {
+    const ctx = makeContext({ bookings, holidays, now, config });
+    return {
+      changed: true,
+      row: { ...sheetRow(mine), Status: 'Cancelled' },
+      response: { ok: true, booked: false, reason: 'full', call_back_spoken: callBackSpoken(ctx, 'full', mine.Date) },
+    };
+  }
+  const row = { ...sheetRow(mine), TokenNumber: myToken, Time: hhmm(slotMinutesOfDay(myToken, config)) };
+  return { changed: myToken !== Number(mine.TokenNumber), row, response: bookedResponse(row, config) };
+}
+
+function phoneError(phone) {
+  return phone.length === 10 ? null : { ok: false, message: `Invalid phone number: need 10 digits, got ${phone.length}` };
+}
+
+// Today's active bookings made with this phone number, for the agent to read out before cancelling.
+function findBookings({ bookings, phone, now, config = DEFAULT_CONFIG }) {
+  const digits = normalizePhone(phone);
+  const invalid = phoneError(digits);
+  if (invalid) return invalid;
+  const { date: today } = clinicNow(now, config);
   return {
-    canBook: true,
-    row: {
-      Date: booking.date,
-      Time: hhmm(slotMinutesOfDay(slot.token, config)),
-      TokenNumber: slot.token,
-      PatientName: booking.patientName,
-      Age: booking.age,
-      Reason: booking.reason,
-      WhatsAppNumber: `91${booking.phone}`,
-      BookedAt: now.toISOString(),
-      Channel: 'Voice',
-      CallId: callId,
-    },
+    ok: true,
+    bookings: activeOn(bookings, today)
+      .filter((b) => normalizePhone(b.WhatsAppNumber) === digits)
+      .sort((a, b) => Number(a.TokenNumber) - Number(b.TokenNumber))
+      .map((b) => ({
+        token: Number(b.TokenNumber),
+        patient_name: b.PatientName,
+        time_spoken: speakTime(slotMinutesOfDay(Number(b.TokenNumber), config)),
+      })),
+  };
+}
+
+// Cancels today's active booking with this token, only for the phone it was booked with. The row stays in the
+// sheet as Cancelled, which frees the token for the next caller.
+function planCancel({ bookings, token, phone, now, config = DEFAULT_CONFIG }) {
+  const digits = normalizePhone(phone);
+  const invalid = phoneError(digits);
+  if (invalid) return { canCancel: false, response: invalid };
+  const { date: today } = clinicNow(now, config);
+  const match = activeOn(bookings, today).find(
+    (b) => Number(b.TokenNumber) === Number(token) && normalizePhone(b.WhatsAppNumber) === digits,
+  );
+  if (!match) return { canCancel: false, response: { ok: true, cancelled: false, reason: 'not_found' } };
+  if (!String(match.BookingId ?? '').trim()) {
+    return { canCancel: false, response: { ok: true, cancelled: false, reason: 'needs_reception' } };
+  }
+  return {
+    canCancel: true,
+    row: { ...match, row_number: undefined, Status: 'Cancelled' },
     response: {
       ok: true,
-      booked: true,
-      token: slot.token,
-      date_spoken: slot.date_spoken,
-      time_spoken: slot.time_spoken,
-      reason: booking.reason,
-      // Echoed so the agent reads back what was actually saved: LLMs mis-copy names and digits into tool args.
-      patient_name: booking.patientName,
-      phone_spoken: speakPhone(booking.phone),
+      cancelled: true,
+      token: Number(match.TokenNumber),
+      patient_name: match.PatientName,
+      time_spoken: speakTime(slotMinutesOfDay(Number(match.TokenNumber), config)),
     },
   };
 }
@@ -259,4 +357,14 @@ function normalizeRequest(body) {
   };
 }
 
-module.exports = { DEFAULT_CONFIG, checkAvailability, validateBookingArgs, decideBooking, normalizeRequest, callerIdInfo };
+module.exports = {
+  DEFAULT_CONFIG,
+  checkAvailability,
+  validateBookingArgs,
+  decideBooking,
+  resolveToken,
+  findBookings,
+  planCancel,
+  normalizeRequest,
+  callerIdInfo,
+};
