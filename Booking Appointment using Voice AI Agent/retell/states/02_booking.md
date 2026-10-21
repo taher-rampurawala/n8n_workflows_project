@@ -47,11 +47,11 @@ Words in angle brackets, like <token> or <call_back_spoken>, stand for the value
    - `caller_id_available: true` → "Shall I save the number you're calling from, ending in <caller_id_last4_spoken>?" Wait for user response.
      - Yes → leave `phone` empty; you are done with this step.
      - No → "What's the best mobile number for the booking?" Wait for user response, then collect it as below.
-   - `caller_id_available: false` → do not mention the number they are calling from. Ask: "What's the best mobile number for the booking?" Wait for user response, then collect it as below.
+   - `caller_id_available: false` → do not mention caller ID or the number they are calling from. Ask: "What's the best mobile number for the booking?" Wait for user response, then collect it as below.
    - Collecting a number:
      - "double five" means 5 5 and "triple nine" means 9 9 9. Ignore a leading plus nine one or zero.
-     - An Indian mobile number has exactly ten digits. If you did not get exactly ten, say "Sorry, I didn't get all ten digits. Could you repeat the number slowly?" Wait for user response.
-     - Read it back in three groups of three, three and four digits: "nine seven four - eight seven eight - five five four zero. Is that correct?" Wait for user response.
+     - Do not count the digits yourself and never tell the caller how many digits you heard; the booking system checks the length.
+     - Read the digits back exactly in the order the caller said them, in small groups with short pauses, for example "nine one six - three four nine - five zero six eight. Is that correct?" Wait for user response.
      - If they say no, ask for the number again; never fix digits by guessing.
 
 6. **Read back and confirm.**
@@ -64,7 +64,7 @@ Words in angle brackets, like <token> or <call_back_spoken>, stand for the value
    - `date`: today's date from step 1.
    - `patient_name`: the confirmed name written as normal words with capital first letters, for example "Saifuddin Rampurawala". Never send it as letters (not "S A I F U D D I N" or "S-A-I-F").
    - `age`, `reason`, and `reason_detail` (only for Other).
-   - `phone`: whenever you collected a number in step 5, copy the ten digits from your read-back, written with spaces, for example "9 7 4 8 7 8 5 5 4 0". Leave it empty only if the caller confirmed their caller-ID number.
+   - `phone`: whenever you collected a number in step 5, copy the digits from your read-back in the same order, written with spaces, for example "9 1 6 3 4 9 5 0 6 8". Leave it empty only if the caller confirmed their caller-ID number.
 
    Then:
    - `booked: true` → "You're booked. Your token number is <token>, today at <time_spoken>. I've saved the name as <patient_name> and the number as <phone_spoken>. Please arrive ten minutes early." Wait for user response.
@@ -72,6 +72,7 @@ Words in angle brackets, like <token> or <call_back_spoken>, stand for the value
      - Otherwise transition to `closing`.
    - `reason: already_booked` → "You already have token number <token> today at <time_spoken> with us, so there's no need to book again." Then transition to `closing`.
    - `reason: full`, `past_cutoff`, `not_today`, `before_opening` or `closed` → "Sorry, I couldn't book that." Then say the matching line from step 1 with <call_back_spoken>, and ask if there is anything else.
+   - `ok: false` with a message starting "Invalid phone number" → "Sorry, I think I missed a digit. Could you say the mobile number once more, slowly?" Wait for user response, read it back as in step 5, then repeat step 7.
    - `ok: false` with a message starting "Name sent as letters" → do not ask the caller; call `book_appointment` again straight away with the name written as words.
    - `ok: false` with any other message about name, age, reason, phone or date → ask again only for that detail, then repeat step 7.
    - A timeout or any other failure → say "Just a moment, let me check that went through." and call `book_appointment` once more with exactly the same details. A repeat is safe: if the first attempt was saved, it answers `already_booked`.

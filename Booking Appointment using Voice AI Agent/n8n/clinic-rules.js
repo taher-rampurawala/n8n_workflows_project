@@ -115,8 +115,14 @@ function checkAvailability({ bookings, holidays, args, now, config = DEFAULT_CON
 
 const REASONS = ['Consultation', 'Fillings', 'Tooth extraction', 'Gum treatment', 'Other'];
 
-// Indian numbers are matched on their last 10 digits (drops +91 / leading 0 / spaces).
-const normalizePhone = (s) => String(s ?? '').replace(/\D/g, '').slice(-10);
+// Digits of an Indian number without the +91 / 0 prefix. Anything else is kept whole (not trimmed to 10),
+// so a mis-heard extra or missing digit fails validation instead of saving someone else's number.
+function normalizePhone(s) {
+  const digits = String(s ?? '').replace(/\D/g, '');
+  if (digits.length === 12 && digits.startsWith('91')) return digits.slice(2);
+  if (digits.length === 11 && digits.startsWith('0')) return digits.slice(1);
+  return digits;
+}
 
 // The agent sometimes sends the read-back spelling ("S-A-I-F R-A-M") instead of the name; join such words.
 const SPELLED_WORD = /^[a-z](\s*-\s*[a-z])+$/i;
@@ -148,7 +154,7 @@ function validateBookingArgs(args, callerNumber) {
   if (!Number.isInteger(age) || age < 1 || age > 120) return fail('Invalid age');
   if (!reason) return fail('Invalid reason');
   if (reason === 'Other' && !detail) return fail('Please describe the reason');
-  if (phone.length !== 10) return fail('Invalid phone number');
+  if (phone.length !== 10) return fail(`Invalid phone number: need 10 digits, got ${phone.length}`);
 
   return {
     ok: true,

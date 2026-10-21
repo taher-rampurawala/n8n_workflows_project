@@ -83,7 +83,7 @@ Responses:
 { "ok": true, "booked": false, "reason": "not_today | before_opening | past_cutoff | full | closed | past_date | invalid_date",
   "call_back_spoken": "tomorrow after nine AM" }
 
-{ "ok": false, "message": "Invalid date | Invalid name | Name sent as letters: … | Invalid age | Invalid reason | Please describe the reason | Invalid phone number" }
+{ "ok": false, "message": "Invalid date | Invalid name | Name sent as letters: … | Invalid age | Invalid reason | Please describe the reason | Invalid phone number: need 10 digits, got N" }
 
 { "ok": false, "message": "System problem, please offer a transfer" }
 ```

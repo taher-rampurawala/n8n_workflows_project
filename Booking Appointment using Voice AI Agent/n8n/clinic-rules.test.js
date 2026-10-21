@@ -130,7 +130,11 @@ test('invalid booking args are rejected with a speakable message', () => {
   for (const [args, message] of cases) {
     assert.deepEqual(validateBookingArgs(args, '+919830012345'), { ok: false, message }, JSON.stringify(args));
   }
-  assert.deepEqual(validateBookingArgs(good, ''), { ok: false, message: 'Invalid phone number' });
+  assert.deepEqual(validateBookingArgs(good, ''), { ok: false, message: 'Invalid phone number: need 10 digits, got 0' });
+  assert.deepEqual(validateBookingArgs({ ...good, phone: '9 1 6 3 4 9 5 0 6' }, ''), { ok: false, message: 'Invalid phone number: need 10 digits, got 9' });
+  assert.equal(validateBookingArgs({ ...good, phone: '9 1 6 3 4 9 5 0 6 8' }, '').value.phone, '9163495068');
+  // An extra digit must not be silently dropped (it would save someone else's number).
+  assert.deepEqual(validateBookingArgs({ ...good, phone: '9 1 6 3 4 9 5 0 6 8 8' }, ''), { ok: false, message: 'Invalid phone number: need 10 digits, got 11' });
 });
 
 // ---------------------------------------------------------------- decideBooking
