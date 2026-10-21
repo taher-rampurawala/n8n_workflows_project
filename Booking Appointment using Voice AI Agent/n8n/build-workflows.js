@@ -183,7 +183,7 @@ const response = checkAvailability({
   now: new Date(),
   config: $('Clinic Config').first().json,
 });
-return [{ json: { response } }];
+return [{ json: { response: { ...response, ...callerIdInfo($('Normalize Request').first().json.callerNumber) } } }];
 `),
   at(9, -2),
 );

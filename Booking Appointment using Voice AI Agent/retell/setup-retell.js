@@ -56,7 +56,7 @@ const customTool = (name, waitLine) => ({
   speak_during_execution: true,
   speak_after_execution: true,
   execution_message_description: waitLine,
-  timeout_ms: 10000,
+  timeout_ms: 30000, // Google Sheets reads occasionally take 10+ s; a timeout here made Riya report a booking that had succeeded
   max_retry: 0, // book_appointment is not idempotent
   args_at_root: false,
 });

@@ -26,7 +26,7 @@
 
 ## Dynamic variables used
 - `{{current_time_Asia/Kolkata}}` — Retell system variable
-- `{{user_number}}` — Retell system variable (caller ID; empty on web calls)
+- Caller ID is not read from `{{user_number}}`: n8n returns `caller_id_available` / `caller_id_last4_spoken` in every `check_availability` reply (empty `{{user_number}}` on web calls confused the agent).
 
 No custom variables need to be passed in.
 

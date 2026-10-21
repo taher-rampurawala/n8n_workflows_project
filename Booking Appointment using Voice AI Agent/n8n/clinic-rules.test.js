@@ -1,7 +1,7 @@
 // Run: node --test "Booking Appointment using Voice AI Agent/n8n/clinic-rules.test.js"
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { checkAvailability, validateBookingArgs, decideBooking, normalizeRequest } = require('./clinic-rules');
+const { checkAvailability, validateBookingArgs, decideBooking, normalizeRequest, callerIdInfo } = require('./clinic-rules');
 
 // Clinic times are IST (UTC+5:30). 19 Oct 2026 is a Monday.
 const ist = (date, hhmm) => new Date(`${date}T${hhmm}:00+05:30`);
@@ -224,4 +224,24 @@ test('web calls and malformed bodies normalize to safe empty values', () => {
   });
   assert.deepEqual(normalizeRequest(undefined), { fnName: '', args: {}, callId: '', callerNumber: '' });
   assert.deepEqual(normalizeRequest({ name: 'x', args: 'not json' }).args, {});
+});
+
+// ---------------------------------------------------------------- caller ID and spelled names
+
+test('caller ID info tells the agent whether a number is on file, with its last four digits spoken', () => {
+  assert.deepEqual(callerIdInfo('+919830012345'), { caller_id_available: true, caller_id_last4_spoken: 'two three four five' });
+  for (const missing of ['', undefined, 'anonymous', '+1234']) {
+    assert.deepEqual(callerIdInfo(missing), { caller_id_available: false, caller_id_last4_spoken: null }, String(missing));
+  }
+});
+
+test('a name sent as spelled letters is joined into words', () => {
+  const args = { date: '2026-10-19', age: 6, reason: 'Gum treatment', phone: '9748785540' };
+  const spelled = validateBookingArgs({ ...args, patient_name: 'S-A-I-F-U-D-D-I-N R-A-M-P-U-R-A-W-A-L-A' }, '');
+  assert.equal(spelled.value.patientName, 'Saifuddin Rampurawala');
+  const spaced = validateBookingArgs({ ...args, patient_name: 's - a - i  r - a - m' }, '');
+  assert.equal(spaced.value.patientName, 'Sai Ram');
+  // Ordinary names and initials are left alone.
+  assert.equal(validateBookingArgs({ ...args, patient_name: 'A. K. Sharma' }, '').value.patientName, 'A. K. Sharma');
+  assert.equal(validateBookingArgs({ ...args, patient_name: 'Mary-Jane Fernandes' }, '').value.patientName, 'Mary-Jane Fernandes');
 });

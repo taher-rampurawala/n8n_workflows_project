@@ -7,7 +7,7 @@ Both custom functions POST to the **same** n8n webhook, which routes by the func
 - **Method:** POST, **Payload: args only** = OFF (n8n needs `name` and `call`)
 - **Header:** `X-Clinic-Secret: <same value as the n8n credential "Retell Webhook - X-Clinic-Secret">`
 - **Signature:** Retell adds `X-Retell-Signature`; n8n verifies it with the Retell API key (n8n Crypto credential "Retell API - CLAUDE_TANGO_KEY").
-- **Timeout:** 10000 ms · **Retries:** 0 (`book_appointment` is not idempotent)
+- **Timeout:** 30000 ms (Sheets reads sometimes take 10+ s) · **Retries:** 0 in Retell; the prompt retries `book_appointment` once after a failure, which is safe because a repeat returns `already_booked`
 - **Speak during execution:** on; **speak after execution:** on
 
 The webhook always answers HTTP 200 with JSON (a bad signature gets `{ok:false, message:"Unauthorized"}`). `ok: false` means "apologize and offer a transfer" unless the message names a detail to re-ask.
@@ -39,13 +39,14 @@ The webhook always answers HTTP 200 with JSON (a bad signature gets `{ok:false, 
 Responses:
 ```json
 { "ok": true, "available": true, "date": "2026-10-19", "date_spoken": "Monday, the 19th of October",
-  "token": 3, "time_spoken": "seven thirty PM", "slots_left": 3 }
+  "token": 3, "time_spoken": "seven thirty PM", "slots_left": 3,
+  "caller_id_available": true, "caller_id_last4_spoken": "five five four zero" }
 
 { "ok": true, "available": false, "reason": "not_today | before_opening | past_cutoff | full | closed | past_date | invalid_date",
   "requested_date_spoken": "Tuesday, the 20th of October",
   "call_back_spoken": "tomorrow after nine AM" }
 ```
-Only today, from 9 AM to 5 PM IST, is bookable. `call_back_spoken` is "today after nine AM" (before opening), the asked-for day (`not_today`), or the next open day (`past_cutoff`, `full`, `closed`), e.g. "on Monday, the 26th of October, after nine AM"; it is `null` for `past_date` / `invalid_date`. `requested_date_spoken` is `null` for `invalid_date`.
+Only today, from 9 AM to 5 PM IST, is bookable. `call_back_spoken` is "today after nine AM" (before opening), the asked-for day (`not_today`), or the next open day (`past_cutoff`, `full`, `closed`), e.g. "on Monday, the 26th of October, after nine AM"; it is `null` for `past_date` / `invalid_date`. `requested_date_spoken` is `null` for `invalid_date`. Every `check_availability` reply also carries `caller_id_available` and `caller_id_last4_spoken` (`null` on web calls or withheld numbers).
 
 ## `book_appointment`
 

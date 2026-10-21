@@ -42,12 +42,12 @@ Words in angle brackets, like <token> or <call_back_spoken>, stand for the value
    - Map the answer to one of: Consultation, Fillings, Tooth extraction, Gum treatment, Other.
    - If Other, ask for a short description in a few words. Wait for user response.
 
-5. **Confirm the phone number.**
-   The caller's number from caller ID is: "{{user_number}}". If that is blank or is not a phone number (for example on a web call), you do not have it.
-   - If you have it: "I'll save the number you're calling from, ending in <its last four digits, one by one>. Is that right?" Wait for user response.
-     - Yes → leave `phone` empty.
-     - No → collect the number as below and use it as `phone`.
-   - If you do not have it, ask: "What's the best mobile number for the booking?" Wait for user response. Collect it as below and use it as `phone`.
+5. **Confirm the phone number.** Ask for it only once.
+   Use `caller_id_available` from the `check_availability` result:
+   - `caller_id_available: true` → "Shall I save the number you're calling from, ending in <caller_id_last4_spoken>?" Wait for user response.
+     - Yes → leave `phone` empty; you are done with this step.
+     - No → "What's the best mobile number for the booking?" Wait for user response, then collect it as below.
+   - `caller_id_available: false` → do not mention the number they are calling from. Ask: "What's the best mobile number for the booking?" Wait for user response, then collect it as below.
    - Collecting a number:
      - "double five" means 5 5 and "triple nine" means 9 9 9. Ignore a leading plus nine one or zero.
      - An Indian mobile number has exactly ten digits. If you did not get exactly ten, say "Sorry, I didn't get all ten digits. Could you repeat the number slowly?" Wait for user response.
@@ -73,7 +73,9 @@ Words in angle brackets, like <token> or <call_back_spoken>, stand for the value
    - `reason: already_booked` → "You already have token number <token> today at <time_spoken> with us, so there's no need to book again." Then transition to `closing`.
    - `reason: full`, `past_cutoff`, `not_today`, `before_opening` or `closed` → "Sorry, I couldn't book that." Then say the matching line from step 1 with <call_back_spoken>, and ask if there is anything else.
    - `ok: false` with a message about name, age, reason, phone or date → ask again only for that detail, then repeat step 7.
-   - Any other failure → "I'm sorry, I couldn't complete the booking." Do not say it is booked. Offer to connect them to reception.
+   - A timeout or any other failure → say "Just a moment, let me check that went through." and call `book_appointment` once more with exactly the same details. A repeat is safe: if the first attempt was saved, it answers `already_booked`.
+     - On this retry, `already_booked` means the booking you just made worked: say "You're booked. Your token number is <token>, today at <time_spoken>. Please arrive ten minutes early." and transition to `closing`.
+     - If it fails again → "I'm sorry, I couldn't complete the booking." Do not say it is booked. Offer to connect them to reception.
 
 ## Functions used here
 - `check_availability`: today's next token, or why a day can't be booked and when to call back.

@@ -118,11 +118,23 @@ const REASONS = ['Consultation', 'Fillings', 'Tooth extraction', 'Gum treatment'
 // Indian numbers are matched on their last 10 digits (drops +91 / leading 0 / spaces).
 const normalizePhone = (s) => String(s ?? '').replace(/\D/g, '').slice(-10);
 
+// The agent sometimes sends the read-back spelling ("S-A-I-F R-A-M") instead of the name; join such words.
+const SPELLED_WORD = /^[a-z](\s*-\s*[a-z])+$/i;
+const joinSpelledName = (name) =>
+  name
+    .split(/(?<!-)\s+(?!-)/)
+    .map((w) => {
+      if (!SPELLED_WORD.test(w)) return w;
+      const letters = w.replace(/[\s-]/g, '');
+      return letters[0].toUpperCase() + letters.slice(1).toLowerCase();
+    })
+    .join(' ');
+
 function validateBookingArgs(args, callerNumber) {
   const reason = REASONS.find((r) => r.toLowerCase() === String(args.reason ?? '').trim().toLowerCase());
   const detail = String(args.reason_detail ?? '').trim();
   const date = String(args.date ?? '').trim();
-  const patientName = String(args.patient_name ?? '').trim();
+  const patientName = joinSpelledName(String(args.patient_name ?? '').trim());
   const age = Number(args.age);
   const phone = normalizePhone(args.phone || callerNumber);
   const fail = (message) => ({ ok: false, message });
@@ -144,6 +156,14 @@ const DIGIT_WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seve
 // 10-digit number read in 3 - 3 - 4 groups: "nine eight three - zero zero one - two three four five".
 const speakPhone = (digits) =>
   [digits.slice(0, 3), digits.slice(3, 6), digits.slice(6)].map((g) => [...g].map((d) => DIGIT_WORDS[d]).join(' ')).join(' - ');
+
+// Whether the call carries a usable caller ID (web calls and withheld numbers don't), so the agent
+// branches on a function result instead of an empty {{user_number}}.
+function callerIdInfo(callerNumber) {
+  const digits = normalizePhone(callerNumber);
+  if (digits.length !== 10) return { caller_id_available: false, caller_id_last4_spoken: null };
+  return { caller_id_available: true, caller_id_last4_spoken: [...digits.slice(-4)].map((d) => DIGIT_WORDS[d]).join(' ') };
+}
 
 const hhmm = (minutesOfDay) =>
   `${String(Math.floor(minutesOfDay / 60)).padStart(2, '0')}:${String(minutesOfDay % 60).padStart(2, '0')}`;
@@ -229,4 +249,4 @@ function normalizeRequest(body) {
   };
 }
 
-module.exports = { DEFAULT_CONFIG, checkAvailability, validateBookingArgs, decideBooking, normalizeRequest };
+module.exports = { DEFAULT_CONFIG, checkAvailability, validateBookingArgs, decideBooking, normalizeRequest, callerIdInfo };
