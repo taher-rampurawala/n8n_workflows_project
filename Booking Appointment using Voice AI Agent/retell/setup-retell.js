@@ -64,7 +64,7 @@ const customTool = (name, waitLine) => ({
 const beginMessage = read(STATES.intro).match(/^> (.*)$/m)[1];
 
 const llm = {
-  model: 'claude-5.5-haiku',
+  model: 'claude-5.5-sonnet', // haiku miscounted digits and mis-copied names into tool args
   model_temperature: 0.2,
   start_speaker: 'agent',
   begin_message: beginMessage,
@@ -98,6 +98,7 @@ const agent = (llmId) => ({
   agent_name: 'Riya - Smile Care Dental Clinic',
   response_engine: { type: 'retell-llm', llm_id: llmId },
   voice_id: '11labs-Monika',
+  voice_temperature: 0.2, // steady, even delivery; the default 1 lets the voice get excited
   language: ['en-IN', 'hi-IN'],
   interruption_sensitivity: 0.9, // callers should be able to cut in easily; below 1 so background noise does not
   // Patience and recognition: callers pause mid-name, and Indian names need the accurate transcriber.

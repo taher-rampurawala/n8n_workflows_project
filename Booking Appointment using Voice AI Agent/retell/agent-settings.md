@@ -9,9 +9,10 @@
 | States | `intro` (start) → `booking`, `faq`, `transfer`, `closing` — files in `states/` |
 | Begin message | "Thank you for calling Smile Care Dental Clinic. This is Riya, the clinic's virtual assistant. This call may be recorded. How can I help you today?" |
 | Who speaks first | Agent |
-| Model | `claude-5.5-haiku` |
+| Model | `claude-5.5-sonnet` (switched from haiku on 2026-10-21 for accuracy with names and numbers) |
 | Temperature | 0.2 |
 | Voice | `11labs-Monika` (Monika, en-IN, ElevenLabs); alternatives: `inworld-Saanvi`, `openai-Monika` |
+| Voice temperature | 0.2 (steady, even delivery; prompt also forbids excited wording) |
 | Language | `en-IN` + `hi-IN` |
 | Interruption sensitivity | 0.9 (caller can cut in easily; prompt says take the new input and continue) |
 | Speech-to-text | `stt_mode: accurate`; boosted keywords: Smile Care, Riya, Muzaffar Ahmed Street, Esplanade, Park Street, UPI, token |
