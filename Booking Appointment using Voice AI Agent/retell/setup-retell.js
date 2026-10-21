@@ -99,7 +99,7 @@ const agent = (llmId) => ({
   response_engine: { type: 'retell-llm', llm_id: llmId },
   voice_id: '11labs-Monika',
   language: ['en-IN', 'hi-IN'],
-  interruption_sensitivity: 0.6,
+  interruption_sensitivity: 0.9, // callers should be able to cut in easily; below 1 so background noise does not
   // Patience and recognition: callers pause mid-name, and Indian names need the accurate transcriber.
   stt_mode: 'accurate',
   responsiveness: 0.7,

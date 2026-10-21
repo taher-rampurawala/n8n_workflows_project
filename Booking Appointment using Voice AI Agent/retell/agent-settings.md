@@ -13,7 +13,7 @@
 | Temperature | 0.2 |
 | Voice | `11labs-Monika` (Monika, en-IN, ElevenLabs); alternatives: `inworld-Saanvi`, `openai-Monika` |
 | Language | `en-IN` + `hi-IN` |
-| Interruption sensitivity | 0.6 |
+| Interruption sensitivity | 0.9 (caller can cut in easily; prompt says take the new input and continue) |
 | Speech-to-text | `stt_mode: accurate`; boosted keywords: Smile Care, Riya, Muzaffar Ahmed Street, Esplanade, Park Street, UPI, token |
 | Responsiveness | 0.7 with dynamic responsiveness (waits through mid-sentence pauses) |
 | "Are you still there?" reminder | after 15 s of silence, once |
