@@ -18,6 +18,7 @@ The webhook always answers HTTP 200 with JSON (a bad signature gets `{ok:false, 
 | `book_appointment` | Custom (n8n webhook) | booking | Books a token; n8n recounts and assigns the token and time |
 | `find_booking` | Custom (n8n webhook) | manage_booking | Today's active bookings made with a phone number |
 | `cancel_booking` | Custom (n8n webhook) | manage_booking | Cancels one of today's bookings by token; frees the token |
+| `move_booking` | Custom (n8n webhook) | manage_booking | Moves one of today's bookings to another free token (earliest by default) |
 | `transfer_call` | Retell built-in Transfer Call | all | Connects to reception **+919163495068** |
 | `end_call` | Retell built-in End Call | all | Hangs up |
 
@@ -133,5 +134,29 @@ Responses:
 { "ok": true, "cancelled": false, "reason": "not_found | needs_reception" }
 ```
 `needs_reception`: the booking has no BookingId (made on WhatsApp or before cancelling existed). Cancelled rows stay in the sheet with `Status = Cancelled`; the token is reused by the next booking.
+
+## `move_booking`
+
+**Description (shown to the LLM):** Move one of today's bookings to another free time today, for example to an earlier token that was just freed. Use this to change a time; never cancel and re-book.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "token": { "type": "integer", "description": "Current token number of the booking, from find_booking." },
+    "to_token": { "type": "integer", "description": "Only if the caller named a time: 1 = seven PM, 2 = seven fifteen, 3 = seven thirty, 4 = seven forty-five, 5 = eight PM. Leave empty for the earliest free time." },
+    "phone": { "type": "string", "description": "The same phone value used for find_booking (empty for the caller's own number)." }
+  },
+  "required": ["token"]
+}
+```
+
+Responses:
+```json
+{ "ok": true, "moved": true, "old_token": 2, "token": 1, "patient_name": "Saifuddin Rampurawala", "time_spoken": "seven PM" }
+
+{ "ok": true, "moved": false, "reason": "no_earlier_slot | token_taken | not_found | needs_reception" }
+```
+Tokens booked or held by other callers are skipped. After saving, n8n re-reads the sheet; if someone booked the same token at that moment, the move is undone (`token_taken`).
 
 The sheet row written: `Date, Time (HH:mm), TokenNumber, PatientName, Age, Reason, WhatsAppNumber (91 + 10 digits), BookedAt (ISO), Channel = Voice, CallId, Status = Active, BookingId`.

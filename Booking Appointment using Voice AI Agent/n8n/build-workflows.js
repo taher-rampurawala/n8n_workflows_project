@@ -197,7 +197,7 @@ node(
   'n8n-nodes-base.switch',
   3.4,
   {
-    rules: { values: ['check_availability', 'book_appointment', 'find_booking', 'cancel_booking'].map(rule) },
+    rules: { values: ['check_availability', 'book_appointment', 'find_booking', 'cancel_booking', 'move_booking'].map(rule) },
     options: { fallbackOutput: 'extra', renameFallbackOutput: 'unknown' },
   },
   {},
@@ -418,6 +418,54 @@ ifNode('Can Cancel?', [isTrue('can-cancel', '={{ $json.canCancel }}')], at(9, 5)
 sheetWrite('Cancel Booking Row', 'update', ['BookingId'], at(10, 4));
 respond('Respond Cancel', "={{ $('Plan Cancel').first().json.response }}", at(11, 5));
 
+// move_booking: change today's booking to another free token (earliest free by default).
+readSheet('Read Bookings - Move', bookingsSheet, at(7, 7));
+readHolds('Read Holds - Move', at(8, 7));
+code(
+  'Plan Move',
+  withRules(`
+${ROWS_OF}
+${HOLDS_OF}
+const req = $('Normalize Request').first().json;
+const plan = planMove({
+  bookings: rowsOf('Read Bookings - Move'),
+  holds: holdsOf('Read Holds - Move'),
+  callId: req.callId,
+  token: req.args.token,
+  to_token: req.args.to_token,
+  phone: req.args.phone || req.callerNumber,
+  now: new Date(),
+  config: $('Clinic Config').first().json,
+});
+return [{ json: plan }];
+`),
+  at(9, 7),
+);
+ifNode('Can Move?', [isTrue('can-move', '={{ $json.canMove }}')], at(10, 7));
+respond('Respond Move', "={{ $('Plan Move').first().json.response }}", at(11, 8));
+sheetWrite('Move Booking Row', 'update', ['BookingId'], at(11, 6));
+readSheet('Read Bookings - Move Verify', bookingsSheet, at(12, 6), {
+  values: [{ lookupColumn: 'Date', lookupValue: "={{ $('Plan Move').first().json.row.Date }}" }],
+});
+code(
+  'Check Move',
+  withRules(`
+${ROWS_OF}
+const plan = $('Plan Move').first().json;
+const config = $('Clinic Config').first().json;
+const clash = moveClashes({ bookings: rowsOf('Read Bookings - Move Verify'), bookingId: plan.row.BookingId });
+// Someone booked the same token at the same moment: put this booking back on its old token.
+const oldToken = plan.response.old_token;
+const row = { ...plan.row, TokenNumber: oldToken, Time: hhmm(slotMinutesOfDay(oldToken, config)) };
+const response = clash ? { ok: true, moved: false, reason: 'token_taken' } : plan.response;
+return [{ json: { clash, row, response } }];
+`),
+  at(13, 6),
+);
+ifNode('Move Clashed?', [isTrue('move-clashed', '={{ $json.clash }}')], at(14, 6));
+sheetWrite('Revert Move Row', 'update', ['BookingId'], at(15, 5));
+respond('Respond Moved', "={{ $('Check Move').first().json.response }}", at(16, 6));
+
 // fallback + errors
 respond('Respond Unknown Function', '={{ { ok: false, message: "Unknown function" } }}', at(7, 7));
 respond('Respond System Error', '={{ { ok: false, message: "System problem, please offer a transfer" } }}', at(9, 9));
@@ -444,7 +492,7 @@ const connections = {
   'Signature Valid?': main('Clinic Config', 'Respond Unauthorized'),
   'Clinic Config': main('Normalize Request'),
   'Normalize Request': withError('Route by Function'),
-  'Route by Function': main('Read Bookings - Availability', 'Validate Booking Args', 'Read Bookings - Find', 'Read Bookings - Cancel', 'Respond Unknown Function'),
+  'Route by Function': main('Read Bookings - Availability', 'Validate Booking Args', 'Read Bookings - Find', 'Read Bookings - Cancel', 'Read Bookings - Move', 'Respond Unknown Function'),
   'Read Bookings - Availability': main('Read Holidays - Availability'),
   'Read Holidays - Availability': main('Read Holds - Availability'),
   'Read Holds - Availability': main('Compute Availability'),
@@ -474,6 +522,15 @@ const connections = {
   'Plan Cancel': withError('Can Cancel?'),
   'Can Cancel?': main('Cancel Booking Row', 'Respond Cancel'),
   'Cancel Booking Row': withError('Respond Cancel'),
+  'Read Bookings - Move': main('Read Holds - Move'),
+  'Read Holds - Move': main('Plan Move'),
+  'Plan Move': withError('Can Move?'),
+  'Can Move?': main('Move Booking Row', 'Respond Move'),
+  'Move Booking Row': withError('Read Bookings - Move Verify'),
+  'Read Bookings - Move Verify': main('Check Move'),
+  'Check Move': withError('Move Clashed?'),
+  'Move Clashed?': main('Revert Move Row', 'Respond Moved'),
+  'Revert Move Row': withError('Respond Moved'),
   'Respond System Error': main('Raise Error Alert'),
 };
 

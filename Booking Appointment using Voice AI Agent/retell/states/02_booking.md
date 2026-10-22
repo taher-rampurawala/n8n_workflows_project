@@ -88,6 +88,6 @@ Words in angle brackets, like <token> or <call_back_spoken>, stand for the value
 ## Transitions
 - If the booking is done, the caller already had a booking, or they were told to call back and need nothing else, transition to `closing`.
 - If the caller wants to book for another family member, start again from step 1 for that person; the same phone number can be used.
-- If the caller wants to cancel a booking, transition to `manage_booking`.
+- If the caller wants to cancel a booking or move an existing booking to another time, transition to `manage_booking`.
 - If the caller asks a clinic question in the middle (fees, timings, address, parking, payment), answer it from the Clinic facts in one sentence and continue the booking. Only transition to `faq` if the question is not covered there.
 - If the caller wants a person, the saved name or number is wrong, or a function keeps failing, transition to `transfer`.

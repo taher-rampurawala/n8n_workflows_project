@@ -313,6 +313,52 @@ function resolveToken({ bookings, holidays, bookingId, now, config = DEFAULT_CON
   return { changed: myToken !== Number(mine.TokenNumber), row, response: bookedResponse(row, config) };
 }
 
+// Moves today's booking (same phone only) to another free token: the earliest free one by default, which is
+// what "push it to the earlier time" means, or a named to_token. Tokens booked or held by others are skipped.
+function planMove({ bookings, holds = [], callId = '', token, to_token, phone, now, config = DEFAULT_CONFIG }) {
+  const digits = normalizePhone(phone);
+  const invalid = phoneError(digits);
+  if (invalid) return { canMove: false, response: invalid };
+  const ctx = makeContext({ bookings, holidays: [], holds, callId, now, config });
+  const current = Number(token);
+  const match = activeOn(bookings, ctx.today).find((b) => Number(b.TokenNumber) === current && normalizePhone(b.WhatsAppNumber) === digits);
+  const refuse = (reason) => ({ canMove: false, response: { ok: true, moved: false, reason } });
+  if (!match) return refuse('not_found');
+  if (!String(match.BookingId ?? '').trim()) return refuse('needs_reception');
+
+  const taken = takenTokens(ctx, ctx.today);
+  taken.delete(current);
+  let target;
+  if (to_token !== undefined && to_token !== null && to_token !== '') {
+    target = Number(to_token);
+    if (!(target >= 1 && target <= config.slots) || taken.has(target)) return refuse('token_taken');
+  } else {
+    target = lowestFreeToken(taken, config.slots);
+    if (target === null || target >= current) return refuse('no_earlier_slot');
+  }
+  return {
+    canMove: true,
+    row: { ...match, row_number: undefined, TokenNumber: target, Time: hhmm(slotMinutesOfDay(target, config)) },
+    response: {
+      ok: true,
+      moved: true,
+      old_token: current,
+      token: target,
+      patient_name: match.PatientName,
+      time_spoken: speakTime(slotMinutesOfDay(target, config)),
+    },
+  };
+}
+
+// After saving a move, re-read: if another active booking landed on the same token meanwhile, the move is undone.
+function moveClashes({ bookings, bookingId }) {
+  const mine = bookings.find((b) => b.BookingId === bookingId);
+  if (!mine) return false;
+  return activeOn(bookings, String(mine.Date).trim()).some(
+    (b) => b.BookingId !== bookingId && Number(b.TokenNumber) === Number(mine.TokenNumber),
+  );
+}
+
 function newHold({ date, token, holdId, callId, now, config = DEFAULT_CONFIG }) {
   return { date, token, holdId, callId, expiresAt: new Date(now.getTime() + config.holdMinutes * 60000).toISOString() };
 }
@@ -433,6 +479,8 @@ module.exports = {
   resolveToken,
   findBookings,
   planCancel,
+  planMove,
+  moveClashes,
   newHold,
   resolveHold,
   normalizeRequest,

@@ -8,6 +8,8 @@ const {
   resolveToken,
   findBookings,
   planCancel,
+  planMove,
+  moveClashes,
   newHold,
   resolveHold,
   normalizeRequest,
@@ -474,4 +476,57 @@ test('holds whose token is already booked are finished and do not take another t
   assert.equal(res.changed, false);
   assert.equal(res.response.token, 4);
   assert.equal(res.response.slots_left, 2); // 5 minus bookings 1, 2 and C's hold on 3
+});
+
+// ---------------------------------------------------------------- moving a booking to another free token today
+
+const booking = (row_number, TokenNumber, PatientName, phone = '919748785540', extra = {}) => ({
+  row_number,
+  ...row('2026-10-19', TokenNumber, phone, PatientName),
+  Time: '',
+  BookingId: `VB-${row_number}`,
+  Status: 'Active',
+  ...extra,
+});
+
+test('move goes to the earliest free token by default (e.g. the one just freed by a cancel)', () => {
+  const bookings = [booking(2, 1, 'Taher', undefined, { Status: 'Cancelled' }), booking(3, 2, 'Saifuddin'), booking(4, 3, 'Other', '919811111111')];
+  const res = planMove({ bookings, holds: [], callId: 'me', token: 2, phone: '9 7 4 8 7 8 5 5 4 0', now: MON_10AM });
+  assert.equal(res.canMove, true);
+  assert.equal(res.row.TokenNumber, 1);
+  assert.equal(res.row.Time, '19:00');
+  assert.equal(res.row.row_number, undefined);
+  assert.deepEqual(res.response, {
+    ok: true,
+    moved: true,
+    old_token: 2,
+    token: 1,
+    patient_name: 'Saifuddin',
+    time_spoken: 'seven PM',
+  });
+});
+
+test('move to a named token, which must be free and not held by another caller', () => {
+  const bookings = [booking(2, 1, 'Saifuddin'), booking(3, 3, 'Other', '919811111111')];
+  assert.equal(planMove({ bookings, holds: [], callId: 'me', token: 1, to_token: 4, phone: '9748785540', now: MON_10AM }).row.TokenNumber, 4);
+  assert.deepEqual(planMove({ bookings, holds: [], callId: 'me', token: 1, to_token: 3, phone: '9748785540', now: MON_10AM }).response, {
+    ok: true,
+    moved: false,
+    reason: 'token_taken',
+  });
+  const held = [hold(1, 4, 'someone-else')];
+  assert.equal(planMove({ bookings, holds: held, callId: 'me', token: 1, to_token: 4, phone: '9748785540', now: MON_10AM }).response.reason, 'token_taken');
+});
+
+test('move refuses when no earlier token is free, or the booking is not on this phone', () => {
+  const bookings = [booking(2, 1, 'A', '919811111111'), booking(3, 2, 'Saifuddin')];
+  assert.equal(planMove({ bookings, holds: [], callId: 'me', token: 2, phone: '9748785540', now: MON_10AM }).response.reason, 'no_earlier_slot');
+  assert.equal(planMove({ bookings, holds: [], callId: 'me', token: 2, phone: '9811111111', now: MON_10AM }).response.reason, 'not_found');
+});
+
+test('after moving, a clash with a simultaneous booking puts the booking back', () => {
+  const moved = booking(3, 1, 'Saifuddin'); // our row, now on token 1
+  const clash = [booking(2, 1, 'Newcomer', '919822222222', { BookingId: 'VB-NEW' }), moved];
+  assert.equal(moveClashes({ bookings: clash, bookingId: 'VB-3' }), true);
+  assert.equal(moveClashes({ bookings: [moved], bookingId: 'VB-3' }), false);
 });

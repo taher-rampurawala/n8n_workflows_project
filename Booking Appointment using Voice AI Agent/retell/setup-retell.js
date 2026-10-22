@@ -71,6 +71,7 @@ const STATE_TOOLS = {
   manage_booking: [
     customTool('find_booking', 'Say a short line like "One moment while I look that up."'),
     customTool('cancel_booking', 'Say a short line like "Cancelling that now."'),
+    customTool('move_booking', 'Say a short line like "One moment."'),
   ],
 };
 
