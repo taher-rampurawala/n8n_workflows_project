@@ -14,13 +14,17 @@ const {
 } = require('../n8n/clinic-rules');
 // @node-only-end
 
+// Labels the Channel column may take: the Retell agent sends none (Voice), the Telnyx agent sends 'Telnyx Voice'.
+const CHANNELS = ['Voice', 'Telnyx Voice'];
+
 // store: { bookings(), holidays(), holds(), addBooking(row), addHold(hold), endHolds(callId, now), updateBooking(row) }
-// req:   { fnName, args, callId, callerNumber } as produced by n8n's Normalize Request.
+// req:   { fnName, args, callId, callerNumber, channel? } as produced by n8n's Normalize Request.
 function handleRequest(req, store, now, newId, config = DEFAULT_CONFIG) {
   const args = req.args || {};
   const callId = String(req.callId || '');
   const callerNumber = String(req.callerNumber || '');
   const phone = args.phone || callerNumber;
+  const channel = CHANNELS.includes(req.channel) ? req.channel : 'Voice';
   const base = { bookings: store.bookings(), holidays: store.holidays(), now, config };
 
   switch (req.fnName) {
@@ -32,7 +36,7 @@ function handleRequest(req, store, now, newId, config = DEFAULT_CONFIG) {
     case 'book_appointment': {
       const valid = validateBookingArgs(args, callerNumber);
       if (!valid.ok) return valid;
-      const decision = decideBooking({ ...base, holds: store.holds(), booking: valid.value, callId, bookingId: newId('VB') });
+      const decision = decideBooking({ ...base, holds: store.holds(), booking: valid.value, callId, bookingId: newId('VB'), channel });
       if (decision.canBook) {
         store.addBooking(decision.row);
         // The hold became this booking; ending it means a later cancel frees the token at once.

@@ -1,0 +1,242 @@
+{
+  "name": "Dental Voice Booking - Telnyx Webhook",
+  "nodes": [
+    {
+      "id": "dvt-1",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "telnyx/dental-booking",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "webhookId": "c7e1a2b3-4d5e-4f60-8a71-0e1f2a3b4c5d",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "sV6s6l9O7OvJgxLb",
+          "name": "Retell Webhook - X-Clinic-Secret"
+        }
+      }
+    },
+    {
+      "id": "dvt-2",
+      "name": "Normalize Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\nconst item = $input.first().json;\nconst headers = item.headers || {};\n// A header Telnyx could not fill arrives as the raw template (\"{{...}}\") or empty: treat it as unknown.\nconst clean = (v) => {\n  const s = String(v ?? '').trim();\n  return /^\\{\\{.*\\}\\}$/.test(s) ? '' : s;\n};\nconst args = item.body && typeof item.body === 'object' && !Array.isArray(item.body) ? item.body : {};\nreturn [{\n  json: {\n    fnName: String(item.query?.fn ?? ''),\n    args,\n    callId: clean(headers['x-call-id']),\n    callerNumber: clean(headers['x-caller-number']),\n    channel: 'Telnyx Voice',\n  },\n}];\n"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "dvt-3",
+      "name": "Call Booking Engine",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        480,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://script.google.com/macros/s/AKfycbxOn15nLc9KAo9-ElAUZrohvihRpfYziU4pe4NUx8WTF-Khx9KHIef30j7vyUiKEr4pfA/exec",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpQueryAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "timeout": 25000,
+          "redirect": {
+            "redirect": {
+              "followRedirects": true,
+              "maxRedirects": 5
+            }
+          }
+        }
+      },
+      "credentials": {
+        "httpQueryAuth": {
+          "id": "heQ4v5RTTreUrKjV",
+          "name": "Booking Engine - Apps Script"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "dvt-4",
+      "name": "Engine Error?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        720,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "engine-error",
+              "leftValue": "={{ !!$json.system_error || $json.message === \"Unauthorized\" }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "dvt-5",
+      "name": "Respond Result",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        960,
+        200
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "dvt-6",
+      "name": "Respond System Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        960,
+        -200
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { ok: false, message: \"System problem, please offer a transfer\" } }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "dvt-7",
+      "name": "Raise Error Alert",
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        1200,
+        -200
+      ],
+      "parameters": {
+        "errorType": "errorMessage",
+        "errorMessage": "={{ 'Telnyx voice booking failed: ' + ($json.system_error || $json.message || (typeof $json.error === 'string' ? $json.error : ($json.error?.message || JSON.stringify($json).slice(0, 500)))) }}"
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Normalize Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Request": {
+      "main": [
+        [
+          {
+            "node": "Call Booking Engine",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond System Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Booking Engine": {
+      "main": [
+        [
+          {
+            "node": "Engine Error?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond System Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Engine Error?": {
+      "main": [
+        [
+          {
+            "node": "Respond System Error",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond System Error": {
+      "main": [
+        [
+          {
+            "node": "Raise Error Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Kolkata",
+    "errorWorkflow": "VvptA2WfaqA3OvDW",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all"
+  }
+}
