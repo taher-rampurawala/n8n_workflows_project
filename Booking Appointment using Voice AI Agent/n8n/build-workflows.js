@@ -19,7 +19,9 @@ const HOLDS_TABLE_ID = 'ObMZfME6VuEdGL6a'; // Data table "Voice Slot Holds"
 // The rules module minus its CommonJS export, pasted ahead of each Code node's adapter.
 const rules = fs
   .readFileSync(path.join(__dirname, 'clinic-rules.js'), 'utf8')
-  .replace(/\nmodule\.exports = .*\n?$/, '\n');
+  .replace(/\r\n/g, '\n')
+  .replace(/\nmodule\.exports = \{[\s\S]*?\};\s*$/, '\n');
+if (rules.includes('module.exports')) throw new Error('clinic-rules.js export block was not stripped');
 const withRules = (adapter) => `${rules}\n// ---- n8n adapter ----\n${adapter.trim()}\n`;
 
 const document = { __rl: true, mode: 'id', value: SHEET_ID, cachedResultName: 'Appointment Booking' };
