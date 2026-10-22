@@ -1,325 +1,133 @@
 # Plan — Dental Clinic Appointment Booking with a Voice AI Agent
 
-**Update 2026-10-22:** bookings now run through a Google Apps Script web app on the booking sheet (`apps-script/Code.gs`, generated from `n8n/clinic-rules.js` + `apps-script/booking-engine.js` + `apps-script/sheet-adapter.gs.js`). It takes `LockService.getScriptLock()`, so only one check / book / find / cancel / move runs at a time; 2-minute holds live in a hidden `Holds` tab. The n8n webhook (11 nodes) only verifies Retell and forwards the request (Query Auth credential "Booking Engine - Apps Script"). Health check reports the deployed version (`GET <web app URL>`). The n8n data table "Voice Slot Holds" is no longer used. Riya can also move a booking to an earlier free time (`move_booking`).
-**Update 2026-10-21:** same-day booking only (9 AM–5 PM); family bookings (duplicate = same name + same phone); cancel by voice (`find_booking` / `cancel_booking`, sheet columns `Status` + `BookingId`); 2-minute slot holds in the n8n data table "Voice Slot Holds" (`ObMZfME6VuEdGL6a`) because Google Sheets appends are not safe under concurrency; Riya on claude-5.5-sonnet. WhatsApp bot unchanged by decision.
-**Status (2026-10-19):** Phase 0 and Phase 1 done. Both n8n workflows are **published** (`Dental Voice Booking - Retell Webhook` `lHxWgkEL8UcweIDG`, `Dental Voice Booking - Error Alerts` `VvptA2WfaqA3OvDW`). The sheet has the `Channel`/`CallId` columns and the `Holidays` tab, and the WhatsApp bot now writes `Channel = WhatsApp`. Riya exists in Retell (agent `agent_e99b2cdd4f4da3d2c9f4e7cd8c`) with the `X-Clinic-Secret` header, but isn't published or on a phone number yet. The §4.6 live tests passed on 2026-10-19: 1, 3, 4, 5, 6, 7 and 8 against the webhook, and 2 (full date) via unit tests only, to avoid writing 5 rows to the live sheet. Test 6 found and fixed a bug: a failed Sheets read answered "all free". One test row ("TEST Claude - delete me", 2026-10-24, token 1) must be deleted from Bookings by hand. Next: Phase 2 web-call tests in the Retell dashboard. Approved decisions from the grilling session on 2026-10-18.
-**Signature check deviation from §4.5:** n8n blocks `$env` and the `crypto` module in Code nodes, so the HMAC is computed by the built-in **Crypto** node using a Crypto credential (HMAC secret = Retell API key) rather than in a Code node. Other small deviations: a bad signature answers 200 `{ok:false, message:"Unauthorized"}` (no alert email); the duplicate-token flag fails the execution after responding (so the Error Alerts email fires) instead of adding a `warning` field; the timezone is a fixed `tzOffsetMinutes: 330` (India has no DST); signatures older than 5 minutes are rejected.
-**Inputs still pending:** extra services list, Bengali decision (see §9). Clinic facts, numbers and Retell API key received 2026-10-18.
-**Based on:** `WhatsApp Doctor Appointment Booking/whatsapp-doctor-appointment-booking.json` (same clinic, same booking rules).
+**Status (2026-10-22):** Live for testing. Riya (Retell) books, finds, cancels and moves same-day tokens through an n8n webhook that forwards every request to a Google Apps Script booking engine on the shared Google Sheet. All parts are deployed and match this folder. **Not yet done:** publish the Retell agent (dashboard test calls use the draft), connect an Indian phone number, optional call log.
+
+**Clinic:** Smile Care Dental Clinic, Kolkata (the WhatsApp bot for the same sheet keeps the name "Dentoshine Clinic" — decided 2026-10-19).
 
 ---
 
 ## 1. Goal
 
-Patients phone the clinic, talk to **Riya** (a Retell AI voice agent), and book an evening appointment token. Riya asks an n8n webhook for availability and to make the booking; n8n is the single source of truth for slots and writes every booking to the **same Google Sheet tab the WhatsApp bot uses**, so both channels share the same 5 tokens per evening.
+Patients phone the clinic, talk to **Riya** (a Retell AI voice agent), and book an evening appointment token for **today**. Riya never decides availability herself: every check and change goes to one booking engine, which writes to the **same Google Sheet tab the WhatsApp bot uses**, so both channels share the same 5 tokens per evening.
 
 ```
-Caller ──► Retell (Riya: speech, Claude, voice)
-              │  custom functions: check_availability, book_appointment
+Caller ──► Retell: Riya (Claude Sonnet, multi-prompt, ElevenLabs voice)
+              │  custom functions: check_availability · book_appointment
+              │                    find_booking · cancel_booking · move_booking
               ▼
-           n8n webhook  POST /webhook/retell/dental-booking
-              │  routes by function name, applies clinic rules
+           n8n webhook  POST /webhook/retell/dental-booking   (11 nodes)
+              │  X-Clinic-Secret header + X-Retell-Signature HMAC check, then forward
+              ▼
+           Google Apps Script web app  "Smile Care Booking Engine"
+              │  LockService script lock → one request at a time
               ▼
            Google Sheet "Appointment Booking"
-              ├─ Bookings  (shared with WhatsApp bot)
-              ├─ Holidays  (new — extra closed dates)
-              └─ Calls     (new, Phase 3 — call log)
+              ├─ Bookings  (shared with the WhatsApp bot)
+              ├─ Holidays  (extra closed dates)
+              └─ Holds     (hidden; 2-minute token holds)
 ```
 
 ---
 
-## 2. Decisions (settled)
+## 2. Decisions
 
-| # | Decision |
+| Topic | Decision |
 |---|---|
-| Clinic & rules | Same clinic and rules as WhatsApp, kept as config: **5 tokens/evening, 7:00 PM start, 15 min apart (7:00–8:00 PM), no same-day booking after 5:00 PM**, timezone **Asia/Kolkata** |
-| Scope v1 | Book, answer clinic questions (FAQ), transfer to staff. **Cancel/reschedule = v2** |
-| Bookable dates | **Changed 2026-10-21:** same day only, 9 AM–5 PM IST. Any other day → "please call on that day after 9 AM" (n8n returns `call_back_spoken`). Supersedes the 7-day window, `next_available` and the related lines in §4.3, §4.4, §4.6 and §5.3 — current contracts are in `retell/functions.md` |
-| Closed days | **Sunday** closed by default + optional **Holidays** tab |
-| Direction | **Inbound only** (reminder calls = later) |
-| Phone number | Test with Retell web calls + a Retell number; production Indian number via **SIP trunk** (Plivo / Exotel / Twilio) as a separate step |
-| Language | English + Hindi/Hinglish — reply in the caller's language |
-| Patient data | Name, age, reason; phone from caller ID `{{user_number}}` (confirmed, not asked). Reasons: Consultation, Fillings, Tooth extraction, Gum treatment, **Other** (short description) |
-| Integration | 2 custom functions (`check_availability`, `book_appointment`) → **one** n8n webhook, routed by function name. `transfer_call`, `end_call` = Retell built-ins |
-| Double-booking | Agent never chooses the token. n8n **recounts at booking time** and assigns token/time. Residual same-second race accepted for v1 + duplicate-token flag |
-| Duplicate patient | One booking per phone number per day — return the existing booking instead |
-| Security | Secret header check now; Retell signature check once API key arrives |
-| Errors | Webhook always returns `200` with `{ok:false, message}` on failure; Error Trigger workflow emails the owner |
-| Post-call | No WhatsApp confirmation in v1 (needs approved template → v2). Agent reads back token/date/time |
-| Call log | Phase 3 (optional): Retell post-call webhook → **Calls** tab |
-| Agent | **Multi-prompt**, persona **Riya**, female Indian-English voice (Hindi-capable), fast Claude (Haiku-class) model in Retell; fallback fastest GPT-mini if Claude not listed |
-| Opening | AI + recording disclosure in the first line |
-| Shared sheet | Reuse **Bookings** tab; add columns **Channel**, **CallId** |
-| Build | After plan approval: create workflow via n8n MCP, keep **inactive** until tested, export JSON to this folder |
+| Tokens | 5 per evening from 7:00 PM, 15 minutes apart (7:00–8:00 PM), timezone Asia/Kolkata |
+| Bookable dates | **Same day only, 9 AM–5 PM IST** (2026-10-21). Any other day → "please call on that day after nine AM"; the engine returns the spoken call-back day |
+| Closed days | Sunday, plus any date in the **Holidays** tab |
+| Scope | Book, answer clinic questions, find / cancel / move today's booking, transfer to reception. Changing a booking's name, age, reason or phone → reception |
+| Duplicates | Same patient name **and** same phone on the same day → "already booked". One phone can book several family members |
+| Token choice | Never by the agent. The engine gives the lowest free token; a cancelled token is reused |
+| Two callers at once | Engine runs under Google's `LockService` script lock, so requests queue and never share a token (2026-10-22) |
+| Slot hold | An offered token is held for the caller for **2 minutes** while they give details; others are offered the next token. If every free token is held: "call back in a couple of minutes" |
+| Patient data | Name (spelled back and confirmed), age, reason (Consultation, Fillings, Tooth extraction, Gum treatment, Other + short description), mobile number |
+| Phone number | Caller ID offered first when available; otherwise asked once. Digits are read back; the engine checks there are exactly 10 |
+| Read-back | After booking, Riya reads the saved name and number from the engine's reply, so a mis-copied detail is caught on the call |
+| Errors | The webhook always answers HTTP 200 JSON. Engine or network failure → `{ok:false}` (Riya never claims a booking, offers transfer) and the Error Alerts workflow emails the owner |
+| Agent | Multi-prompt, persona **Riya**, `claude-5.5-sonnet`, voice `11labs-Monika` at low voice temperature (calm, never excited), English + Hindi/Hinglish |
+| Conversation rules | Yield to interruptions and continue from the caller's input; never narrate reasoning; never promise an action without a function for it |
+| WhatsApp bot | Unchanged except the date-filter fix and `Channel = WhatsApp`. It does not see voice holds and counts cancelled rows (conservative) — decided 2026-10-21 |
 
 ---
 
-## 3. Phase 0 — Prepare the shared Google Sheet and fix the WhatsApp bug
+## 3. Components
 
-Spreadsheet: **Appointment Booking** (`1bhlO4EFmgqcoXCNK4GrD6BSF-7izvMM1nsk1cgjAg9E`).
+### 3.1 Google Sheet — "Appointment Booking" (`1bhlO4EFmgqcoXCNK4GrD6BSF-7izvMM1nsk1cgjAg9E`)
+- **Bookings** (gid `1583914306`): `Date | Time | TokenNumber | PatientName | Age | Reason | WhatsAppNumber | BookedAt | Channel | CallId | Status | BookingId`. Voice rows: `Channel = Voice`, `Status = Active/Cancelled`, a `BookingId`. Blank `Status` (WhatsApp rows) counts as active. Cancelled rows stay, so the token can be reused.
+- **Holidays**: `Date (yyyy-MM-dd, plain text) | Note`.
+- **Holds**: created and hidden by the engine; old days are deleted automatically.
 
-1. **Bookings tab** — append two columns after `BookedAt`:
-   `Channel` (`WhatsApp` | `Voice`), `CallId` (Retell call id; blank for WhatsApp).
-   Final columns: `Date | Time | TokenNumber | PatientName | Age | Reason | WhatsAppNumber | BookedAt | Channel | CallId`
-   (`WhatsAppNumber` keeps its name so the WhatsApp workflow does not break; for voice it holds the caller's number.)
-2. **Holidays tab** (new) — columns `Date` (yyyy-MM-dd) | `Note`. Any date listed is closed.
-3. **Fix WhatsApp bug** — node **Get Today's Bookings** has *no date filter* (Get Tomorrow's does), so it counts all bookings ever; once 5 rows exist, today is always "full". Add `filtersUI`: `Date` = `{{ $now.setZone("Asia/Kolkata").toFormat("yyyy-MM-dd") }}`.
-4. **WhatsApp Append Booking** — map `Channel = "WhatsApp"`.
-5. Back up the workflow JSON before editing; test one WhatsApp booking end to end.
+### 3.2 Booking engine — Google Apps Script web app
+- Code: `apps-script/Code.gs`, **generated** by `apps-script/build-apps-script.js` from
+  `n8n/clinic-rules.js` (rules, tested), `apps-script/booking-engine.js` (request handler, tested) and `apps-script/sheet-adapter.gs.js` (web app entry, lock, sheet reads/writes).
+- Deployed as a web app (Execute as: Me, Who has access: Anyone). URL: `https://script.google.com/macros/s/AKfycbxOn15nLc9KAo9-ElAUZrohvihRpfYziU4pe4NUx8WTF-Khx9KHIef30j7vyUiKEr4pfA/exec`.
+- Requests must carry `?key=<SECRET>` (Script Property `SECRET`). `GET` on the URL is a health check that reports the deployed **version** (content hash of `Code.gs`).
+- Writes strings as plain text, so Sheets never reformats dates/times and a name can never become a formula.
 
-*Follow-up (not v1):* teach the WhatsApp flow about Sunday/Holidays so both channels agree on closed days.
+### 3.3 n8n — `Dental Voice Booking - Retell Webhook` (`lHxWgkEL8UcweIDG`, 11 nodes)
+Webhook (Header Auth `X-Clinic-Secret`, raw body) → Prepare Signature → Compute HMAC (Crypto credential = Retell API key) → Signature Valid? → Normalize Request → Call Booking Engine (HTTP POST, Query Auth credential, 25 s timeout) → Engine Error? → Respond Result, or Respond System Error → Raise Error Alert.
+Generated by `n8n/build-workflows.js`. Error workflow: `Dental Voice Booking - Error Alerts` (`VvptA2WfaqA3OvDW`, emails taher.advisor@gmail.com). Both must stay **published**.
 
----
-
-## 4. Part 2 — n8n workflow: `Dental Voice Booking - Retell Webhook`
-
-### 4.1 Retell request format (verify against Retell docs at build time)
-
-Retell POSTs each custom-function call to the function URL with JSON roughly like:
-
-```json
-{
-  "name": "check_availability",
-  "args": { "requested_date": "2026-10-21" },
-  "call": { "call_id": "abc123", "from_number": "+9198XXXXXXXX", "to_number": "...", "...": "..." }
-}
-```
-
-The webhook's JSON response is handed back to the LLM as the function result, so responses are short, flat and speakable.
-
-### 4.2 Node flow
-
-```
-Webhook (POST retell/dental-booking, Header Auth, respond via node)
-  → Clinic Config (Set)            slots=5, startTime=19:00, slotMinutes=15, cutoffHour=17,
-                                    closedWeekdays=[7], horizonDays=7, tz=Asia/Kolkata
-  → Normalize Request (Code)       fnName, args, callId, callerNumber, nowIST
-  → Route by Function (Switch on fnName)
-      ├─ check_availability
-      │    → Read Bookings (Sheets, all rows)  ┐ (onError → Error Response)
-      │    → Read Holidays (Sheets)            ┘
-      │    → Compute Availability (Code)
-      │    → Respond: availability JSON
-      ├─ book_appointment
-      │    → Validate Booking Args (Code) ──invalid──► Respond {ok:false, message}
-      │    → Read Bookings + Read Holidays (fresh read = recount)
-      │    → Decide Booking (Code)        duplicate? closed? past cutoff? full? else next token/time
-      │    → IF can book
-      │         ├─ yes → Append Booking (Sheets, Channel=Voice, CallId) → Respond {ok:true, ...}
-      │         └─ no  → Respond {ok:false, reason, next available}
-      └─ fallback (unknown function) → Respond {ok:false, message:"Unknown function"}
-Error Response (Respond 200 {ok:false, message:"System problem, please offer a transfer"})
-```
-
-Separate workflow **`Dental Voice Booking - Error Alerts`**: Error Trigger → email the owner at **taher.advisor@gmail.com** (workflow name, node, error, execution link). Set it as the main workflow's error workflow.
-
-### 4.3 Clinic rules (implemented once, in Code nodes, driven by Clinic Config)
-
-- **Slot times:** token *n* → `19:00 + (n-1) × 15 min` → 7:00, 7:15, 7:30, 7:45, 8:00 PM.
-- **Day is bookable** when: within today … today+6, not a closed weekday, not in Holidays, bookings that date < 5, and (if today) current IST hour < 17.
-- **Count bookings by Date** (filter rows where `Date == requested date`) — never count the whole sheet.
-- **Next available:** scan forward from the requested date to the horizon; return the first bookable date.
-- **Duplicate patient:** a row with same `WhatsAppNumber` (normalized, last 10 digits) and same `Date` → return that booking.
-- **Duplicate-token flag:** after append, if two rows share Date+TokenNumber, include `warning` in the execution log and email (Error Alerts workflow) for manual fix.
-
-### 4.4 Function contracts
-
-**`check_availability`**
-
-Args: `requested_date` (string, `yyyy-MM-dd`, optional — empty means "earliest available").
-
-Responses:
-```json
-{ "ok": true, "available": true,  "date": "2026-10-21", "date_spoken": "Tuesday, the 21st of October",
-  "token": 3, "time_spoken": "seven thirty PM", "slots_left": 3 }
-
-{ "ok": true, "available": false, "reason": "full | closed | past_cutoff | out_of_range | invalid_date",
-  "requested_date_spoken": "Sunday, the 19th of October",
-  "next_available": { "date": "2026-10-20", "date_spoken": "Monday, the 20th of October", "time_spoken": "seven PM" } }
-```
-(`next_available` is `null` if nothing is free within 7 days.)
-
-**`book_appointment`**
-
-Args: `date` (yyyy-MM-dd, required), `patient_name` (≥2 chars), `age` (1–120), `reason` (one of the 5 labels), `reason_detail` (only for Other), `phone` (optional; defaults to caller ID).
-
-Responses:
-```json
-{ "ok": true, "booked": true, "token": 3, "date_spoken": "Tuesday, the 21st of October",
-  "time_spoken": "seven thirty PM", "reason": "Fillings" }
-
-{ "ok": true, "booked": false, "reason": "already_booked", "token": 2, "date_spoken": "...", "time_spoken": "seven fifteen PM" }
-
-{ "ok": true, "booked": false, "reason": "full | closed | past_cutoff",
-  "next_available": { "date": "...", "date_spoken": "...", "time_spoken": "..." } }
-
-{ "ok": false, "message": "Invalid age" }
-```
-
-Sheet row written (Bookings): `Date, Time (HH:mm), TokenNumber, PatientName, Age, Reason (incl. detail for Other), WhatsAppNumber (caller number), BookedAt (ISO), Channel=Voice, CallId`.
-
-### 4.5 Security
-- **Layer 1:** n8n Header Auth credential on the Webhook (e.g. `X-Clinic-Secret: <random>`); the same header is set on both Retell custom functions.
-- **Layer 2 (API key now available — build in v1):** verify Retell's `x-retell-signature` (Code node, HMAC with the API key from the n8n credential, per current Retell docs) right after the Webhook, before routing; reject with `{ok:false}` if invalid. Signature uses the same key that created the agent (CLAUDE_TANGO_KEY), so regenerating the key means updating the n8n credential too.
-
-### 4.6 Phase 1 tests (no Retell needed)
-Send Retell-shaped POSTs to the **test** webhook URL:
-
-| # | Case | Expect |
-|---|---|---|
-| 1 | Availability, open weekday | `available:true`, token = count+1 |
-| 2 | Date already has 5 bookings | `full` + next_available |
-| 3 | Sunday / Holidays date | `closed` + next_available |
-| 4 | Today after 5 PM IST | `past_cutoff` + tomorrow (or next open) |
-| 5 | Book same phone twice same day | second call → `already_booked` |
-| 6 | Sheets failure (bad sheet id in a copy) | `{ok:false}` + error email |
-| 7 | Missing/invalid secret header | rejected |
-| 8 | Bad args (age 0, empty name) | `{ok:false, message}` |
-
-Then verify a WhatsApp booking and a voice booking on the same date share the token count.
+### 3.4 Retell — Riya (agent `agent_e99b2cdd4f4da3d2c9f4e7cd8c`, LLM `llm_4e575cbe0649e32ca888e725d0f1`)
+- Prompts: `retell/universal.md` (identity, style, clinic facts, read-out rules, interruptions, safety) and `retell/states/` — `intro`, `booking`, `faq`, `manage_booking` (find / cancel / move), `transfer`, `closing`.
+- Functions and replies: `retell/functions.md` (the setup script reads the JSON schemas from it). `transfer_call` (to +91 91634 95068) and `end_call` are Retell built-ins in every state.
+- Settings: `retell/agent-settings.md`. `retell/setup-retell.js` creates or updates the LLM and agent from these files (ids in `retell/retell-ids.json`).
 
 ---
 
-## 5. Part 1 — Retell AI voice agent "Riya"
-
-Prompts are written with the **retell-voice-prompt** skill (identity → style → task breakdown → functions; multi-prompt rules; read-out rules).
-
-### 5.1 Files (this folder)
-```
-retell/
-├── universal.md          identity, style, speaking rules, language, silence, AI honesty
-├── states/
-│   ├── 01_intro.md       greeting + routing
-│   ├── 02_booking.md     check_availability → collect details → book_appointment
-│   ├── 03_faq.md         clinic facts (placeholders) only
-│   ├── 04_transfer.md    transfer_call + fallback
-│   └── 05_closing.md     anything else → end_call
-├── functions.md          schemas, URLs, which state uses each
-└── agent-settings.md     voice, model, timeouts, begin message, webhook
-```
-
-### 5.2 Universal prompt (how Riya speaks)
-- **Identity:** Riya, virtual receptionist for **Smile Care Dental Clinic** in **Kolkata**; books evening appointments, answers clinic questions, connects to staff; no diagnosis or treatment advice.
-- **Style:** 1–2 short sentences, one question at a time, warm, no formatting, never invent slots/prices.
-- **Speaking rules:** `{{current_time_Asia/Kolkata}}`; 12-hour times with AM/PM ("seven fifteen PM"); dates spoken naturally; phone numbers in digit groups; prices in rupees.
-- **Language:** reply in English, Hindi or Hinglish to match the caller.
-- **Silence:** check in once, then close politely and end the call.
-- **Safety:** dental emergency (heavy bleeding, facial swelling with fever, trauma) → advise calling 112 / nearest emergency department and offer transfer.
-- **Honesty:** if asked, Riya says she is the clinic's virtual assistant.
-- **Placeholders:** any `[BRACKET]` fact = unknown → offer transfer.
-
-### 5.3 States
-**01_intro** — Begin message:
-> "Thank you for calling Smile Care Dental Clinic. This is Riya, the clinic's virtual assistant. This call may be recorded. How can I help you today?"
-
-Transitions: booking intent → `booking`; questions about timings/location/fees/services → `faq`; human/emergency/complaint → `transfer`.
-
-**02_booking** — task breakdown:
-1. Ask preferred day ("Which day suits you? We see patients every evening from seven PM, Monday to Saturday."). Wait for user response.
-2. Convert the day to `yyyy-MM-dd` using current IST time; call `check_availability` ("One moment while I check.").
-   - available → offer the returned time and token; wait for user response.
-   - not available → say why in plain words and offer `next_available`; wait for user response.
-   - `ok:false` → apologize, offer transfer.
-3. Ask full name (spell if unclear). Wait for user response.
-4. Ask age. Wait for user response.
-5. Ask reason: consultation, filling, tooth extraction, gum treatment, or something else (short description). Wait for user response.
-6. Confirm phone: "I'll save the number you're calling from, ending in [last 4 digits of {{user_number}}] — is that right?" If no, take the number and read it back in groups.
-7. Read back day, date and time; ask "Shall I book it?" Wait for user response.
-8. Call `book_appointment`.
-   - booked → "You're booked. Your token number is three, on Tuesday, the 21st of October, at seven thirty PM. Please arrive ten minutes early."
-   - already_booked → tell them their existing token and time.
-   - full/closed/past_cutoff → offer `next_available`, return to step 7.
-   - `ok:false` / failure → never claim a booking; apologize and offer transfer.
-   Rule: **never say an appointment is booked unless `book_appointment` returned `booked:true`.**
-
-**03_faq** — facts block:
-
-| Fact | Value | How Riya says it |
-|---|---|---|
-| Clinic | Smile Care Dental Clinic, Kolkata | "our clinic" after the first mention |
-| Hours | Evenings, Monday to Saturday; appointment tokens 7:00–8:00 PM; closed Sunday | "We see patients every evening from seven PM, Monday to Saturday." |
-| Address | Ground Floor, 111, Muzaffar Ahmed Street, Esplanade, off Park Street area, Kolkata, West Bengal 700016 | Area first ("Muzaffar Ahmed Street, near Park Street, Esplanade"); full address only if asked; PIN read digit by digit "seven zero zero - zero one six" |
-| Landmark | Beside the Police Petrol Pump | "We're right beside the Police Petrol Pump." |
-| Parking | Paid parking outside the clinic for two-wheelers and cars | "There's paid parking right outside for both bikes and cars." |
-| Fees | ₹500 consultation; other treatment charges decided by the doctor after consultation | "The consultation is five hundred rupees. Charges for any treatment are decided by the doctor after the consultation." Never quote other prices. |
-| Payment | Cash, UPI, cards | "We accept cash, UPI and cards." |
-| Services | Consultation, fillings, tooth extraction, gum treatment (confirmed 2026-10-18: no others for now) | — |
-
-Unknown → offer transfer. Transition to `booking` if they want an appointment.
-
-**04_transfer** — "Let me connect you to our reception." → `transfer_call` to **+91 91634 95068** (reception). If not answered / outside hours: "Sorry, no one is available right now. You can message us on WhatsApp at nine one six three - four nine five - zero seven zero, or I can book an appointment for you now." (Clinic WhatsApp: **+91 91634 95070**.)
-
-**05_closing** — anything else? → goodbye → `end_call`.
-
-`end_call` and `transfer_call` are attached to **every** state so silence and "talk to a human" rules work anywhere.
-
-### 5.4 Functions in Retell
-| Name | Type | Used in | Notes |
-|---|---|---|---|
-| `check_availability` | Custom (webhook) | booking | URL = n8n production webhook; header `X-Clinic-Secret`; speak during execution ("One moment…"); timeout ~10 s |
-| `book_appointment` | Custom (webhook) | booking | same URL + header; speak during execution |
-| `transfer_call` | Built-in Transfer Call | all states | destination **+919163495068** (reception) |
-| `end_call` | Built-in End Call | all states | — |
-
-Parameter JSON schemas mirror §4.4.
-
-### 5.5 Agent settings
-- Voice: female Indian-English, Hindi-capable (shortlist 2–3 in Retell dashboard).
-- Model: fast Claude (Haiku-class) in Retell LLM; fallback fastest GPT-mini. Low temperature.
-- Language: multilingual / English-India; interruption sensitivity medium; end call after ~20 s silence; max call 10 min.
-- Post-call analysis fields (for Phase 3): `booked` (bool), `token`, `appointment_date`, `intent`, `transferred` (bool).
-- Webhook URL (Phase 3): n8n call-log webhook.
-
-### 5.6 Phase 2 tests (API key available)
-Web-call scenarios: happy path; day full → next day; Sunday request; after 5 PM same-day; duplicate caller; Hindi caller; interrupts mid-sentence; asks a fee question; asks for a human; stays silent; n8n down (`ok:false`). Check the sheet row and Retell transcript for each.
+## 4. Clinic rules (in `n8n/clinic-rules.js`)
+- Token *n* → `19:00 + (n-1) × 15 min`; times and dates are returned already in spoken form ("seven thirty PM", "Thursday, the 22nd of October").
+- A day is bookable only if it is today, open (not Sunday / not a holiday), between 9 AM and 5 PM IST, and has a free token not held by another caller.
+- Refusal reasons: `not_today`, `before_opening`, `past_cutoff`, `full`, `all_held`, `closed`, `past_date`, `invalid_date` — each with `call_back_spoken` where it makes sense.
+- Booking validation: real date, name ≥ 2 characters and written as words (spelled letters are rejected so the agent resends), age 1–120, one of the five reasons, phone exactly 10 digits after removing +91 / 0 (an extra or missing digit is refused, never trimmed).
+- Cancel and move only for today's active booking made with the same phone; bookings without a `BookingId` (WhatsApp) go to reception. Move goes to the earliest free token by default, or a named token.
 
 ---
 
-## 6. Phase 3 (optional) — Call log
-Workflow **`Dental Voice Booking - Call Log`**: Webhook (Retell agent webhook, `call_analyzed` event) → Set → Append to **Calls** tab: `CallId, StartedAt, From, DurationSec, Booked, Token, AppointmentDate, Transferred, Summary`. Verify signature once the API key exists.
-
-## 7. Phase 4 — Production phone number
-1. Choose carrier with Indian DIDs and SIP trunking (Plivo / Exotel / Twilio) and confirm AI/automated calls are permitted.
-2. Configure the SIP trunk in Retell; import the number; bind it to Riya (published version).
-3. Test calls from Jio/Airtel/Vi mobiles and a landline.
+## 5. Security
+- Webhook: `X-Clinic-Secret` Header Auth credential, plus Retell's `X-Retell-Signature` (HMAC-SHA256 of raw body + timestamp, ≤ 5 minutes old) checked with the built-in Crypto node, because this n8n instance blocks `$env` and the `crypto` module in Code nodes. A bad signature gets `{ok:false, message:"Unauthorized"}`.
+- Engine: only answers requests carrying its own secret.
+- Where secrets live (never in this repo): Windows user env vars `RETELL_API_KEY`, `CLINIC_WEBHOOK_SECRET`, `BOOKING_SCRIPT_SECRET`; n8n credentials "Retell Webhook - X-Clinic-Secret", "Retell API - CLAUDE_TANGO_KEY" (Crypto), "Booking Engine - Apps Script" (Query Auth); Apps Script property `SECRET`. The Retell key must carry Retell's **webhook** badge (it signs requests).
+- The Retell key was shared in a chat transcript: regenerate it before go-live and update the env var and the Crypto credential.
 
 ---
 
-## 8. Build order & checklist
-1. Phase 0 — sheet columns, Holidays tab, WhatsApp bug fix (+ Channel mapping).
-2. Phase 1 — n8n workflow (inactive) + Error Alerts workflow; run the 8 tests; export JSON to `n8n/`.
-3. Write `retell/` prompt files with the retell-voice-prompt skill; fill placeholders with the clinic.
-4. Set `RETELL_API_KEY` locally and the n8n Retell credential; create functions, LLM and agent in Retell (setup script reading the env var); signature verification is already in the Phase 1 workflow; activate n8n workflow; Phase 2 tests.
-5. Phase 3 call log (optional).
-6. Phase 4 Indian number; go live with monitoring (Retell call history + Calls tab + error emails).
+## 6. How to change and redeploy
+1. Edit the source files (`n8n/clinic-rules.js`, `apps-script/booking-engine.js`, `apps-script/sheet-adapter.gs.js`, `retell/*`).
+2. Run the tests: `node --test "Booking Appointment using Voice AI Agent/n8n/clinic-rules.test.js" "Booking Appointment using Voice AI Agent/apps-script/booking-engine.test.js"`.
+3. Rules or engine changed → `node "Booking Appointment using Voice AI Agent/apps-script/build-apps-script.js"`, paste `Code.gs` into the Apps Script editor, then **Deploy → Manage deployments → pencil → Version: New version → Deploy**. Check the version at the web app URL matches the build output.
+4. n8n changed → `node "Booking Appointment using Voice AI Agent/n8n/build-workflows.js"`, update the workflow and re-publish it.
+5. Prompts or agent settings changed → `node "Booking Appointment using Voice AI Agent/retell/setup-retell.js"` (needs `RETELL_API_KEY` and `CLINIC_WEBHOOK_SECRET`), then publish the agent for real phone calls.
+6. Live tests after 5 PM IST need a temporary webhook copy with the cutoff disabled; delete it afterwards and cancel TEST rows.
 
-## 9. Inputs
+---
 
-**Provided (2026-10-18):**
-| Input | Value |
-|---|---|
-| Clinic name / city | Smile Care Dental Clinic, Kolkata |
-| Address | Ground Floor, 111, Muzaffar Ahmed St, Esplanade, off Park Street area, Kolkata, West Bengal 700016 |
-| Landmark | Beside the Police Petrol Pump |
-| Parking | Paid parking outside, two-wheelers and cars |
-| Fees | ₹500 consultation; other charges decided by the doctor after consultation |
-| Payment | Cash, UPI, cards |
-| Reception (transfer) | +91 9163495068 |
-| Clinic WhatsApp | +91 9163495070 |
-| Error-alert email | taher.advisor@gmail.com |
-| Retell API key | Received — Retell key named **CLAUDE_TANGO_KEY**. Value is **never** stored in this repo. |
+## 7. Testing done
+- **Unit tests:** 46 `node:test` cases (rules + engine) — availability, same-day window, holidays, holds, duplicates, family bookings, cancel, move, phone and name validation.
+- **Live, 2026-10-19 → 22:** security (no secret → 403, bad signature refused), same-day rule, family bookings, duplicate refusal, find / cancel / move, move into a just-freed token, 2-minute holds, and simultaneous callers (five at once got distinct tokens or a correct "full").
+- **Voice test calls** found and fixed: wrong signing key, slow Sheets causing false "booking failed", fee and address unavailable mid-booking, name spelling and digit errors, the agent counting digits, reasoning spoken aloud, and cancel-then-move needing one step.
 
-**Where the API key lives:**
-- **Local machine** — Windows user env var `RETELL_API_KEY` (used by the Retell setup script in Phase 2).
-- **n8n** — a credential (Header Auth or generic credential named `Retell API - CLAUDE_TANGO_KEY`) used by the signature-check Code node and the call-log workflow. Not hard-coded in any node.
-- `.gitignore` already must exclude any `.env`; no key in `retell/` or `n8n/` exports (check exported JSON before committing).
-- The key was shared in a chat transcript; regenerate it in the Retell dashboard before go-live and update both places.
+---
 
-**Still needed:**
-- ~~Extra services~~ — keep the four for now (2026-10-18). Clinic name for this project: Smile Care Dental Clinic (the WhatsApp bot keeps "Dentoshine Clinic").
-- Confirm: clinic open only evenings Mon–Sat, closed Sunday; keep "please arrive ten minutes early".
-- Holidays for the next few months (optional).
-- Whether Riya should also speak **Bengali** (see note below).
+## 8. Next steps
+1. A real test call on the current version, then **publish the Retell agent**.
+2. **Indian phone number:** choose a carrier with Indian numbers and SIP trunking (Plivo / Exotel / Twilio), confirm AI calls are permitted, connect the SIP trunk in Retell, bind the number to the published agent, test from Jio / Airtel / Vi and a landline.
+3. Regenerate the Retell API key before go-live (see §5).
+4. Optional **call log**: Retell `call_analyzed` webhook → a **Calls** tab (`CallId, StartedAt, From, DurationSec, Booked, Token, AppointmentDate, Transferred, Summary`). Post-call fields are already configured on the agent.
+5. Optional clean-up: delete the unused n8n data table "Voice Slot Holds" (`ObMZfME6VuEdGL6a`).
 
-## 10. Out of scope for v1 (backlog)
-Cancel/reschedule (needs BookingId + Status columns) · WhatsApp confirmation template after booking · outbound reminder calls · closed-day support in the WhatsApp flow · moving bookings from Sheets to a database if volume grows.
+## 9. Open questions
+- Should Riya also speak **Bengali**?
+- Confirm "please arrive ten minutes early" stays in the booking confirmation.
+
+## 10. Backlog
+WhatsApp or SMS confirmation after booking · callback reminders for callers told to call back · changing a booking's details by voice · the WhatsApp bot using the same engine (holds, cancelled rows) · automated Retell test calls · Bengali.
+
+---
+
+## Change log
+- **2026-10-18** Plan approved; n8n webhook, Error Alerts and Retell prompts built; WhatsApp "today's bookings" date filter fixed.
+- **2026-10-19** Live tests; Riya created in Retell; Sheets-failure bug fixed; `Channel = WhatsApp` added.
+- **2026-10-21** Same-day booking only (9 AM–5 PM); Sonnet model and calm voice; interruption rules; family bookings; cancel by voice; 2-minute holds; name, phone and read-back fixes from test calls.
+- **2026-10-22** Move booking to an earlier time; booking engine moved to Google Apps Script with `LockService`; n8n webhook reduced to 11 nodes.
