@@ -524,6 +524,8 @@ function handleRequest(req, store, now, newId, config = DEFAULT_CONFIG) {
 // where SECRET is a Script Property. Only one request runs at a time (LockService), so two callers can
 // never be given the same token.
 
+// Web apps have no "active" spreadsheet (getActive() returns null), so open it by id.
+const SPREADSHEET_ID = '1bhlO4EFmgqcoXCNK4GrD6BSF-7izvMM1nsk1cgjAg9E'; // "Appointment Booking"
 const BOOKINGS_SHEET_ID = 1583914306; // "Bookings" tab
 const HOLIDAYS_TAB = 'Holidays';
 const HOLDS_TAB = 'Holds'; // created and hidden automatically
@@ -539,7 +541,7 @@ function doPost(e) {
     if (!lock.tryLock(20000)) return json_({ ok: false, message: 'System busy, please try again', system_error: 'lock timeout' });
     try {
       const now = new Date();
-      const result = handleRequest(req, sheetStore_(SpreadsheetApp.getActive(), now), now, newId_);
+      const result = handleRequest(req, sheetStore_(SpreadsheetApp.openById(SPREADSHEET_ID), now), now, newId_);
       SpreadsheetApp.flush(); // make the write visible before the next caller gets the lock
       return json_(result);
     } finally {
