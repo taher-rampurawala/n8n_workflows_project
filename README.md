@@ -295,7 +295,8 @@ Each project lives in its own folder containing the exported workflow JSON, read
 - 📞 Retell multi-prompt agent (intro → booking / FAQ / transfer → closing) with speech-friendly read-out rules for times, dates, phone numbers and rupee prices, an AI + recording disclosure, emergency guidance and silence handling
 - 🔐 Two webhook security layers: an `X-Clinic-Secret` Header Auth credential and Retell's `X-Retell-Signature` HMAC-SHA256, checked over the raw body with the built-in Crypto node and a credential-held key (no `$env` or `crypto` module needed)
 - 🧮 Clinic rules in one tested JavaScript module (`clinic-rules.js`, covered by `node:test`): 5 tokens from 7:00 PM, 15 minutes apart, same-day booking only between 9 AM and 5 PM IST, Sundays and a Holidays tab closed, and a spoken "call back" day for anything else. A build script embeds it into the Code nodes
-- 🔁 The agent never picks the token: n8n recounts the date at booking time, returns any existing booking for the same phone and day, and re-reads after appending to flag a duplicate token
+- 🔒 Bookings run through a Google Apps Script web app on the sheet that takes `LockService`'s script lock, so simultaneous callers queue and never share a token; a 2-minute hold keeps the offered token while the caller gives their details
+- 👪 Family bookings on one phone (duplicate = same name and phone), plus cancel and move-to-an-earlier-time by voice
 - 🚨 Every Sheets and Code step has an error output that answers `{ok:false}` so the agent never claims a booking, then fails the run so the Error Alerts workflow emails the owner
 
 **Use Cases:**
@@ -390,6 +391,7 @@ n8n_workflows_project/
     │   ├── build-workflows.js      # generates the two workflow JSON files
     │   ├── dental-voice-booking-retell-webhook.json
     │   └── dental-voice-booking-error-alerts.json
+    ├── apps-script/                # booking engine: Code.gs (generated) + engine, adapter, tests
     └── retell/                     # Riya: prompts, states, functions, settings, setup-retell.js
 ```
 

@@ -1,6 +1,6 @@
 # Functions — Riya (Smile Care Dental Clinic)
 
-Both custom functions POST to the **same** n8n webhook, which routes by the function `name`.
+All custom functions POST to the **same** n8n webhook. n8n verifies the request and forwards it to the Apps Script booking engine on the booking sheet, which handles every function under a script lock (one request at a time).
 
 - **URL (production):** `https://n8n.srv1789828.hstgr.cloud/webhook/retell/dental-booking`
 - **URL (testing, while the n8n editor is listening):** `https://n8n.srv1789828.hstgr.cloud/webhook-test/retell/dental-booking`
@@ -49,7 +49,7 @@ Responses:
   "requested_date_spoken": "Tuesday, the 20th of October",
   "call_back_spoken": "tomorrow after nine AM" }
 ```
-Only today, from 9 AM to 5 PM IST, is bookable. An offered token is **held for this call for 2 minutes** in the n8n data table "Voice Slot Holds"; other callers are offered other tokens, and `all_held` (call back "in a couple of minutes") means every free token is held by someone else. `book_appointment` uses the call's own hold. `call_back_spoken` is "today after nine AM" (before opening), the asked-for day (`not_today`), or the next open day (`past_cutoff`, `full`, `closed`), e.g. "on Monday, the 26th of October, after nine AM"; it is `null` for `past_date` / `invalid_date`. `requested_date_spoken` is `null` for `invalid_date`. Every `check_availability` reply also carries `caller_id_available` and `caller_id_last4_spoken` (`null` on web calls or withheld numbers).
+Only today, from 9 AM to 5 PM IST, is bookable. An offered token is **held for this call for 2 minutes** in the hidden `Holds` tab of the booking sheet; other callers are offered other tokens, and `all_held` (call back "in a couple of minutes") means every free token is held by someone else. `book_appointment` uses the call's own hold. `call_back_spoken` is "today after nine AM" (before opening), the asked-for day (`not_today`), or the next open day (`past_cutoff`, `full`, `closed`), e.g. "on Monday, the 26th of October, after nine AM"; it is `null` for `past_date` / `invalid_date`. `requested_date_spoken` is `null` for `invalid_date`. Every `check_availability` reply also carries `caller_id_available` and `caller_id_last4_spoken` (`null` on web calls or withheld numbers).
 
 ## `book_appointment`
 
@@ -157,6 +157,6 @@ Responses:
 
 { "ok": true, "moved": false, "reason": "no_earlier_slot | token_taken | not_found | needs_reception" }
 ```
-Tokens booked or held by other callers are skipped. After saving, n8n re-reads the sheet; if someone booked the same token at that moment, the move is undone (`token_taken`).
+Tokens booked or held by other callers are skipped. The move runs under the engine's lock, so no other booking can land on that token at the same moment.
 
 The sheet row written: `Date, Time (HH:mm), TokenNumber, PatientName, Age, Reason, WhatsAppNumber (91 + 10 digits), BookedAt (ISO), Channel = Voice, CallId, Status = Active, BookingId`.
