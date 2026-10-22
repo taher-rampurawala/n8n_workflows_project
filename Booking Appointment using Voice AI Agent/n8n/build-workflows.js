@@ -1,32 +1,26 @@
-// Builds the n8n workflow JSON files from clinic-rules.js so the Code nodes run the tested rules.
+// Builds the n8n workflow JSON files. The webhook verifies Retell's request and forwards it to the
+// Apps Script booking engine (apps-script/Code.gs), which applies the clinic rules under a script lock.
 // Run: node "Booking Appointment using Voice AI Agent/n8n/build-workflows.js"
 const fs = require('fs');
 const path = require('path');
 
-const SHEET_ID = '1bhlO4EFmgqcoXCNK4GrD6BSF-7izvMM1nsk1cgjAg9E';
-const BOOKINGS_GID = 1583914306;
 const CRED = {
-  sheets: { googleSheetsOAuth2Api: { id: 'UoP5i2rbCOyXAvdg', name: 'Google Sheets account' } },
   gmail: { gmailOAuth2: { id: 'yahjkfnlA7BBZg5G', name: 'Gmail account' } },
   webhookAuth: { httpHeaderAuth: { id: 'sV6s6l9O7OvJgxLb', name: 'Retell Webhook - X-Clinic-Secret' } },
   retellHmac: { crypto: { id: 'xm742sLTHXUVqWZ7', name: 'Retell API - CLAUDE_TANGO_KEY' } },
+  bookingEngine: { httpQueryAuth: { id: 'heQ4v5RTTreUrKjV', name: 'Booking Engine - Apps Script' } }, // ?key=<SECRET>
 };
-const { DEFAULT_CONFIG } = require('./clinic-rules');
+const ENGINE_URL = 'https://script.google.com/macros/s/AKfycbxOn15nLc9KAo9-ElAUZrohvihRpfYziU4pe4NUx8WTF-Khx9KHIef30j7vyUiKEr4pfA/exec';
 const ALERT_EMAIL = 'taher.advisor@gmail.com';
 const ERROR_WORKFLOW_ID = 'VvptA2WfaqA3OvDW'; // Dental Voice Booking - Error Alerts
-const HOLDS_TABLE_ID = 'ObMZfME6VuEdGL6a'; // Data table "Voice Slot Holds"
 
-// The rules module minus its CommonJS export, pasted ahead of each Code node's adapter.
+// The rules module minus its CommonJS export; only normalizeRequest is used here, the rest runs in Apps Script.
 const rules = fs
   .readFileSync(path.join(__dirname, 'clinic-rules.js'), 'utf8')
   .replace(/\r\n/g, '\n')
   .replace(/\nmodule\.exports = \{[\s\S]*?\};\s*$/, '\n');
 if (rules.includes('module.exports')) throw new Error('clinic-rules.js export block was not stripped');
 const withRules = (adapter) => `${rules}\n// ---- n8n adapter ----\n${adapter.trim()}\n`;
-
-const document = { __rl: true, mode: 'id', value: SHEET_ID, cachedResultName: 'Appointment Booking' };
-const bookingsSheet = { __rl: true, mode: 'id', value: BOOKINGS_GID, cachedResultName: 'Bookings' };
-const holidaysSheet = { __rl: true, mode: 'name', value: 'Holidays' };
 
 const nodes = [];
 function node(name, type, typeVersion, parameters, extra = {}, pos) {
@@ -40,27 +34,6 @@ const fallible = { onError: 'continueErrorOutput' };
 // Always HTTP 200: Retell hands the JSON to the LLM, and `ok: false` tells the agent to apologize / transfer.
 const respond = (name, body, pos) =>
   node(name, 'n8n-nodes-base.respondToWebhook', 1.5, { respondWith: 'json', responseBody: body, options: {} }, {}, pos);
-
-// Reads pass a failure on as a regular `{ error }` item instead of using an error output: with
-// alwaysOutputData (needed so an empty sheet still yields an item), a failing node would emit an empty
-// success item too, and the success branch would answer "all slots free". `rowsOf` turns that item into a throw.
-const readSheet = (name, sheet, pos, filtersUI) =>
-  node(
-    name,
-    'n8n-nodes-base.googleSheets',
-    4.7,
-    { documentId: document, sheetName: sheet, ...(filtersUI ? { filtersUI } : {}), options: {} },
-    { credentials: CRED.sheets, executeOnce: true, alwaysOutputData: true, onError: 'continueRegularOutput' },
-    pos,
-  );
-const ROWS_OF = `
-const rowsOf = (name) => {
-  const items = $(name).all().map((i) => i.json);
-  const failed = items.find((r) => r.error);
-  if (failed) throw new Error(\`\${name} failed: \${typeof failed.error === 'string' ? failed.error : failed.error.message ?? JSON.stringify(failed.error)}\`);
-  return items.filter((r) => r.Date);
-};
-`;
 
 const ifNode = (name, conditions, pos) =>
   node(
@@ -82,37 +55,6 @@ const isTrue = (id, leftValue) => ({ id, leftValue, rightValue: '', operator: { 
 
 const code = (name, jsCode, pos, extra = fallible) =>
   node(name, 'n8n-nodes-base.code', 2, { mode: 'runOnceForAllItems', jsCode }, extra, pos);
-
-// "Voice Slot Holds": data-table inserts never overwrite each other and get increasing ids, unlike Sheets rows.
-const holdsTable = { __rl: true, mode: 'id', value: HOLDS_TABLE_ID, cachedResultName: 'Voice Slot Holds' };
-const HOLD_COLUMNS = { date: 'string', token: 'number', holdId: 'string', callId: 'string', expiresAt: 'string' };
-const holdSchema = (cols) =>
-  cols.map((c) => ({ id: c, displayName: c, required: false, defaultMatch: false, display: true, type: HOLD_COLUMNS[c], canBeUsedToMatch: true }));
-const TODAY_IST = "={{ $now.setZone('Asia/Kolkata').toFormat('yyyy-MM-dd') }}";
-const readHolds = (name, pos) =>
-  node(
-    name,
-    'n8n-nodes-base.dataTable',
-    1.1,
-    {
-      resource: 'row',
-      operation: 'get',
-      dataTableId: holdsTable,
-      matchType: 'allConditions',
-      filters: { conditions: [{ keyName: 'date', condition: 'eq', keyValue: TODAY_IST }] },
-      returnAll: true,
-    },
-    { executeOnce: true, alwaysOutputData: true, onError: 'continueRegularOutput' },
-    pos,
-  );
-const HOLDS_OF = `
-const holdsOf = (name) => {
-  const items = $(name).all().map((i) => i.json);
-  const failed = items.find((r) => r.error);
-  if (failed) throw new Error(\`\${name} failed: \${typeof failed.error === 'string' ? failed.error : failed.error.message ?? JSON.stringify(failed.error)}\`);
-  return items.filter((r) => r.holdId);
-};
-`;
 
 // ---------------------------------------------------------------- main workflow
 node(
@@ -156,24 +98,7 @@ ifNode(
   at(3, 0),
 );
 
-respond('Respond Unauthorized', '={{ { ok: false, message: "Unauthorized" } }}', at(4, 2));
-
-node(
-  'Clinic Config',
-  'n8n-nodes-base.set',
-  3.4,
-  {
-    mode: 'raw',
-    jsonOutput: JSON.stringify(
-      DEFAULT_CONFIG,
-      null,
-      2,
-    ),
-    options: {},
-  },
-  {},
-  at(4, 0),
-);
+respond('Respond Unauthorized', '={{ { ok: false, message: "Unauthorized" } }}', at(4, 1));
 
 code(
   'Normalize Request',
@@ -182,295 +107,33 @@ let body;
 try { body = JSON.parse($('Prepare Signature').first().json.rawBody); } catch { body = {}; }
 return [{ json: normalizeRequest(body) }];
 `),
+  at(4, 0),
+);
+
+// One POST per Retell function call. The engine runs one request at a time under LockService, so a burst of
+// simultaneous callers queues for a few seconds; the timeout stays under Retell's 30 s function timeout.
+node(
+  'Call Booking Engine',
+  'n8n-nodes-base.httpRequest',
+  4.2,
+  {
+    method: 'POST',
+    url: ENGINE_URL,
+    authentication: 'genericCredentialType',
+    genericAuthType: 'httpQueryAuth',
+    sendBody: true,
+    specifyBody: 'json',
+    jsonBody: '={{ JSON.stringify($json) }}',
+    options: { timeout: 25000, redirect: { redirect: { followRedirects: true, maxRedirects: 5 } } },
+  },
+  { credentials: CRED.bookingEngine, ...fallible },
   at(5, 0),
 );
 
-const rule = (value) => ({
-  conditions: {
-    options: { caseSensitive: true, leftValue: '', typeValidation: 'strict', version: 1 },
-    conditions: [{ leftValue: '={{ $json.fnName }}', rightValue: value, operator: { type: 'string', operation: 'equals' } }],
-    combinator: 'and',
-  },
-  renameOutput: true,
-  outputKey: value,
-});
-node(
-  'Route by Function',
-  'n8n-nodes-base.switch',
-  3.4,
-  {
-    rules: { values: ['check_availability', 'book_appointment', 'find_booking', 'cancel_booking', 'move_booking'].map(rule) },
-    options: { fallbackOutput: 'extra', renameFallbackOutput: 'unknown' },
-  },
-  {},
-  at(6, 0),
-);
-
-// check_availability
-readSheet('Read Bookings - Availability', bookingsSheet, at(7, -4));
-readSheet('Read Holidays - Availability', holidaysSheet, at(8, -4));
-readHolds('Read Holds - Availability', at(9, -4));
-code(
-  'Compute Availability',
-  withRules(`
-${ROWS_OF}
-${HOLDS_OF}
-const req = $('Normalize Request').first().json;
-const config = $('Clinic Config').first().json;
-const now = new Date();
-const response = checkAvailability({
-  bookings: rowsOf('Read Bookings - Availability'),
-  holidays: rowsOf('Read Holidays - Availability'),
-  holds: holdsOf('Read Holds - Availability'),
-  callId: req.callId,
-  args: req.args,
-  now,
-  config,
-});
-// Hold the offered token for this call while the caller gives their details.
-const hold = response.available
-  ? newHold({ date: response.date, token: response.token, holdId: \`H-\${Date.now()}-\${Math.random().toString(36).slice(2, 8)}\`, callId: req.callId, now, config })
-  : null;
-return [{ json: { hold, response: { ...response, ...callerIdInfo(req.callerNumber) } } }];
-`),
-  at(10, -4),
-);
-ifNode('Hold Needed?', [isTrue('hold-needed', '={{ !!$json.hold }}')], at(11, -4));
-respond('Respond Availability', '={{ $json.response }}', at(12, -3));
-node(
-  'Insert Hold',
-  'n8n-nodes-base.dataTable',
-  1.1,
-  {
-    resource: 'row',
-    operation: 'insert',
-    dataTableId: holdsTable,
-    columns: {
-      mappingMode: 'defineBelow',
-      value: Object.fromEntries(Object.keys(HOLD_COLUMNS).map((c) => [c, `={{ $json.hold.${c} }}`])),
-      schema: holdSchema(Object.keys(HOLD_COLUMNS)),
-    },
-    options: {},
-  },
-  { ...fallible },
-  at(12, -5),
-);
-readHolds('Read Holds - Verify', at(13, -5));
-code(
-  'Resolve Hold',
-  withRules(`
-${ROWS_OF}
-${HOLDS_OF}
-const { hold } = $('Compute Availability').first().json;
-const result = resolveHold({
-  bookings: rowsOf('Read Bookings - Availability'),
-  holidays: rowsOf('Read Holidays - Availability'),
-  holds: holdsOf('Read Holds - Verify'),
-  holdId: hold.holdId,
-  now: new Date(),
-  config: $('Clinic Config').first().json,
-});
-// A moved hold gets its new token; a squeezed-out hold is released by expiring it now.
-const update = { token: result.token ?? hold.token, expiresAt: result.token === null ? new Date().toISOString() : hold.expiresAt };
-const response = { ...result.response, ...callerIdInfo($('Normalize Request').first().json.callerNumber) };
-return [{ json: { changed: result.changed, holdId: hold.holdId, update, response } }];
-`),
-  at(14, -5),
-);
-ifNode('Hold Moved?', [isTrue('hold-moved', '={{ $json.changed }}')], at(15, -5));
-node(
-  'Update Hold',
-  'n8n-nodes-base.dataTable',
-  1.1,
-  {
-    resource: 'row',
-    operation: 'update',
-    dataTableId: holdsTable,
-    matchType: 'allConditions',
-    filters: { conditions: [{ keyName: 'holdId', condition: 'eq', keyValue: '={{ $json.holdId }}' }] },
-    columns: {
-      mappingMode: 'defineBelow',
-      value: { token: '={{ $json.update.token }}', expiresAt: '={{ $json.update.expiresAt }}' },
-      schema: holdSchema(['token', 'expiresAt']),
-    },
-    options: {},
-  },
-  { ...fallible },
-  at(16, -6),
-);
-respond('Respond Held', "={{ $('Resolve Hold').first().json.response }}", at(17, -5));
-
-// book_appointment
-code(
-  'Validate Booking Args',
-  withRules(`
-const req = $('Normalize Request').first().json;
-const result = validateBookingArgs(req.args, req.callerNumber);
-return [{ json: result.ok ? { valid: true, booking: result.value } : { valid: false, response: result } }];
-`),
-  at(7, 0),
-);
-ifNode('Args Valid?', [isTrue('args-valid', '={{ $json.valid }}')], at(8, 0));
-respond('Respond Invalid Args', '={{ $json.response }}', at(9, 1));
-readSheet('Read Bookings - Booking', bookingsSheet, at(9, 0));
-readSheet('Read Holidays - Booking', holidaysSheet, at(10, 0));
-readHolds('Read Holds - Booking', at(10, 1));
-code(
-  'Decide Booking',
-  withRules(`
-${ROWS_OF}
-${HOLDS_OF}
-const decision = decideBooking({
-  bookings: rowsOf('Read Bookings - Booking'),
-  holidays: rowsOf('Read Holidays - Booking'),
-  holds: holdsOf('Read Holds - Booking'),
-  booking: $('Validate Booking Args').first().json.booking,
-  callId: $('Normalize Request').first().json.callId,
-  // Identifies this row for the clash check and for cancelling later.
-  bookingId: \`VB-\${Date.now()}-\${Math.random().toString(36).slice(2, 8)}\`,
-  now: new Date(),
-  config: $('Clinic Config').first().json,
-});
-return [{ json: decision }];
-`),
-  at(11, 0),
-);
-ifNode('Can Book?', [isTrue('can-book', '={{ $json.canBook }}')], at(12, 0));
-respond('Respond Not Booked', '={{ $json.response }}', at(13, 1));
-
-const COLUMNS = ['Date', 'Time', 'TokenNumber', 'PatientName', 'Age', 'Reason', 'WhatsAppNumber', 'BookedAt', 'Channel', 'CallId', 'Status', 'BookingId'];
-const columnsOf = (matchingColumns) => ({
-  mappingMode: 'defineBelow',
-  value: Object.fromEntries(COLUMNS.map((c) => [c, `={{ $json.row.${c} }}`])),
-  matchingColumns,
-  schema: COLUMNS.map((c) => ({ id: c, displayName: c, required: false, defaultMatch: false, display: true, type: 'string', canBeUsedToMatch: true })),
-});
-const sheetWrite = (name, operation, matchingColumns, pos) =>
-  node(
-    name,
-    'n8n-nodes-base.googleSheets',
-    4.7,
-    { resource: 'sheet', operation, authentication: 'oAuth2', documentId: document, sheetName: bookingsSheet, columns: columnsOf(matchingColumns), options: {} },
-    { credentials: CRED.sheets, ...fallible },
-    pos,
-  );
-
-sheetWrite('Append Booking', 'append', [], at(13, 0));
-// Re-read after saving so two callers booking at the same moment cannot both keep the same token.
-readSheet('Read Bookings - Verify', bookingsSheet, at(14, 0), {
-  values: [{ lookupColumn: 'Date', lookupValue: "={{ $('Decide Booking').first().json.row.Date }}" }],
-});
-code(
-  'Resolve Token',
-  withRules(`
-${ROWS_OF}
-const result = resolveToken({
-  bookings: rowsOf('Read Bookings - Verify'),
-  holidays: rowsOf('Read Holidays - Booking'),
-  bookingId: $('Decide Booking').first().json.row.BookingId,
-  now: new Date(),
-  config: $('Clinic Config').first().json,
-});
-return [{ json: result }];
-`),
-  at(15, 0),
-);
-ifNode('Token Changed?', [isTrue('token-changed', '={{ $json.changed }}')], at(16, 0));
-sheetWrite('Update Booking Row', 'update', ['BookingId'], at(17, -1));
-respond('Respond Booked', "={{ $('Resolve Token').first().json.response }}", at(18, 0));
-
-// find_booking
-readSheet('Read Bookings - Find', bookingsSheet, at(7, 3));
-code(
-  'Find Bookings',
-  withRules(`
-${ROWS_OF}
-const req = $('Normalize Request').first().json;
-const response = findBookings({
-  bookings: rowsOf('Read Bookings - Find'),
-  phone: req.args.phone || req.callerNumber,
-  now: new Date(),
-  config: $('Clinic Config').first().json,
-});
-return [{ json: { response } }];
-`),
-  at(8, 3),
-);
-respond('Respond Find', '={{ $json.response }}', at(9, 3));
-
-// cancel_booking
-readSheet('Read Bookings - Cancel', bookingsSheet, at(7, 5));
-code(
-  'Plan Cancel',
-  withRules(`
-${ROWS_OF}
-const req = $('Normalize Request').first().json;
-const plan = planCancel({
-  bookings: rowsOf('Read Bookings - Cancel'),
-  token: req.args.token,
-  phone: req.args.phone || req.callerNumber,
-  now: new Date(),
-  config: $('Clinic Config').first().json,
-});
-return [{ json: plan }];
-`),
-  at(8, 5),
-);
-ifNode('Can Cancel?', [isTrue('can-cancel', '={{ $json.canCancel }}')], at(9, 5));
-sheetWrite('Cancel Booking Row', 'update', ['BookingId'], at(10, 4));
-respond('Respond Cancel', "={{ $('Plan Cancel').first().json.response }}", at(11, 5));
-
-// move_booking: change today's booking to another free token (earliest free by default).
-readSheet('Read Bookings - Move', bookingsSheet, at(7, 7));
-readHolds('Read Holds - Move', at(8, 7));
-code(
-  'Plan Move',
-  withRules(`
-${ROWS_OF}
-${HOLDS_OF}
-const req = $('Normalize Request').first().json;
-const plan = planMove({
-  bookings: rowsOf('Read Bookings - Move'),
-  holds: holdsOf('Read Holds - Move'),
-  callId: req.callId,
-  token: req.args.token,
-  to_token: req.args.to_token,
-  phone: req.args.phone || req.callerNumber,
-  now: new Date(),
-  config: $('Clinic Config').first().json,
-});
-return [{ json: plan }];
-`),
-  at(9, 7),
-);
-ifNode('Can Move?', [isTrue('can-move', '={{ $json.canMove }}')], at(10, 7));
-respond('Respond Move', "={{ $('Plan Move').first().json.response }}", at(11, 8));
-sheetWrite('Move Booking Row', 'update', ['BookingId'], at(11, 6));
-readSheet('Read Bookings - Move Verify', bookingsSheet, at(12, 6), {
-  values: [{ lookupColumn: 'Date', lookupValue: "={{ $('Plan Move').first().json.row.Date }}" }],
-});
-code(
-  'Check Move',
-  withRules(`
-${ROWS_OF}
-const plan = $('Plan Move').first().json;
-const config = $('Clinic Config').first().json;
-const clash = moveClashes({ bookings: rowsOf('Read Bookings - Move Verify'), bookingId: plan.row.BookingId });
-// Someone booked the same token at the same moment: put this booking back on its old token.
-const oldToken = plan.response.old_token;
-const row = { ...plan.row, TokenNumber: oldToken, Time: hhmm(slotMinutesOfDay(oldToken, config)) };
-const response = clash ? { ok: true, moved: false, reason: 'token_taken' } : plan.response;
-return [{ json: { clash, row, response } }];
-`),
-  at(13, 6),
-);
-ifNode('Move Clashed?', [isTrue('move-clashed', '={{ $json.clash }}')], at(14, 6));
-sheetWrite('Revert Move Row', 'update', ['BookingId'], at(15, 5));
-respond('Respond Moved', "={{ $('Check Move').first().json.response }}", at(16, 6));
-
-// fallback + errors
-respond('Respond Unknown Function', '={{ { ok: false, message: "Unknown function" } }}', at(7, 7));
-respond('Respond System Error', '={{ { ok: false, message: "System problem, please offer a transfer" } }}', at(9, 9));
+// The engine reports its own failures as { ok:false, system_error }: answer the agent, then alert the owner.
+ifNode('Engine Error?', [isTrue('engine-error', '={{ !!$json.system_error || $json.message === "Unauthorized" }}')], at(6, 0));
+respond('Respond Result', '={{ $json }}', at(7, 1));
+respond('Respond System Error', '={{ { ok: false, message: "System problem, please offer a transfer" } }}', at(7, -1));
 node(
   'Raise Error Alert',
   'n8n-nodes-base.stopAndError',
@@ -478,10 +141,10 @@ node(
   {
     errorType: 'errorMessage',
     errorMessage:
-      "={{ 'Voice booking failed: ' + (typeof $json.error === 'string' ? $json.error : ($json.error?.message || JSON.stringify($json).slice(0, 500))) }}",
+      "={{ 'Voice booking failed: ' + ($json.system_error || $json.message || (typeof $json.error === 'string' ? $json.error : ($json.error?.message || JSON.stringify($json).slice(0, 500)))) }}",
   },
   {},
-  at(10, 9),
+  at(8, -1),
 );
 
 const main = (...targets) => ({ main: targets.map((t) => (t ? [].concat(t).map((n) => ({ node: n, type: 'main', index: 0 })) : [])) });
@@ -491,48 +154,10 @@ const connections = {
   Webhook: main('Prepare Signature'),
   'Prepare Signature': withError('Compute HMAC'),
   'Compute HMAC': withError('Signature Valid?'),
-  'Signature Valid?': main('Clinic Config', 'Respond Unauthorized'),
-  'Clinic Config': main('Normalize Request'),
-  'Normalize Request': withError('Route by Function'),
-  'Route by Function': main('Read Bookings - Availability', 'Validate Booking Args', 'Read Bookings - Find', 'Read Bookings - Cancel', 'Read Bookings - Move', 'Respond Unknown Function'),
-  'Read Bookings - Availability': main('Read Holidays - Availability'),
-  'Read Holidays - Availability': main('Read Holds - Availability'),
-  'Read Holds - Availability': main('Compute Availability'),
-  'Compute Availability': withError('Hold Needed?'),
-  'Hold Needed?': main('Insert Hold', 'Respond Availability'),
-  'Insert Hold': withError('Read Holds - Verify'),
-  'Read Holds - Verify': main('Resolve Hold'),
-  'Resolve Hold': withError('Hold Moved?'),
-  'Hold Moved?': main('Update Hold', 'Respond Held'),
-  'Update Hold': withError('Respond Held'),
-  'Validate Booking Args': withError('Args Valid?'),
-  'Args Valid?': main('Read Bookings - Booking', 'Respond Invalid Args'),
-  'Read Bookings - Booking': main('Read Holidays - Booking'),
-  'Read Holidays - Booking': main('Read Holds - Booking'),
-  'Read Holds - Booking': main('Decide Booking'),
-  'Decide Booking': withError('Can Book?'),
-  'Can Book?': main('Append Booking', 'Respond Not Booked'),
-  'Append Booking': withError('Read Bookings - Verify'),
-  // A failure after the append answers {ok:false}; the agent retries and gets already_booked.
-  'Read Bookings - Verify': main('Resolve Token'),
-  'Resolve Token': withError('Token Changed?'),
-  'Token Changed?': main('Update Booking Row', 'Respond Booked'),
-  'Update Booking Row': withError('Respond Booked'),
-  'Read Bookings - Find': main('Find Bookings'),
-  'Find Bookings': withError('Respond Find'),
-  'Read Bookings - Cancel': main('Plan Cancel'),
-  'Plan Cancel': withError('Can Cancel?'),
-  'Can Cancel?': main('Cancel Booking Row', 'Respond Cancel'),
-  'Cancel Booking Row': withError('Respond Cancel'),
-  'Read Bookings - Move': main('Read Holds - Move'),
-  'Read Holds - Move': main('Plan Move'),
-  'Plan Move': withError('Can Move?'),
-  'Can Move?': main('Move Booking Row', 'Respond Move'),
-  'Move Booking Row': withError('Read Bookings - Move Verify'),
-  'Read Bookings - Move Verify': main('Check Move'),
-  'Check Move': withError('Move Clashed?'),
-  'Move Clashed?': main('Revert Move Row', 'Respond Moved'),
-  'Revert Move Row': withError('Respond Moved'),
+  'Signature Valid?': main('Normalize Request', 'Respond Unauthorized'),
+  'Normalize Request': withError('Call Booking Engine'),
+  'Call Booking Engine': withError('Engine Error?'),
+  'Engine Error?': main('Respond System Error', 'Respond Result'),
   'Respond System Error': main('Raise Error Alert'),
 };
 

@@ -17,6 +17,7 @@ function memoryStore() {
     holds: () => s.holdRows.map((r, i) => ({ ...r, id: i + 1 })),
     addBooking: (row) => s.bookingRows.push({ ...row }),
     addHold: (h) => s.holdRows.push({ ...h }),
+    endHolds: (callId, now) => s.holdRows.filter((h) => h.callId === callId).forEach((h) => { h.expiresAt = now.toISOString(); }),
     updateBooking: (row) => {
       const i = s.bookingRows.findIndex((r) => r.BookingId === row.BookingId);
       if (i < 0) throw new Error(`no booking ${row.BookingId}`);
@@ -81,4 +82,13 @@ test('validation errors and unknown functions come back as ok:false', () => {
   });
   assert.deepEqual(handleRequest(req('reschedule_everything', {}, 'c'), store, NOW, newId), { ok: false, message: 'Unknown function' });
   assert.equal(store.s.bookingRows.length, 0);
+});
+
+test('a hold ends when its call books, so a later cancel really frees the token', () => {
+  const store = memoryStore();
+  handleRequest(req('check_availability', { requested_date: '' }, 'call-A'), store, NOW, newId); // holds token 1
+  handleRequest(req('book_appointment', { date: '2026-10-19', patient_name: 'Asha', age: 30, reason: 'Consultation' }, 'call-A'), store, NOW, newId);
+  handleRequest(req('cancel_booking', { token: 1 }, 'call-A'), store, NOW, newId);
+  const other = handleRequest(req('check_availability', { requested_date: '' }, 'call-B', '+919811111111'), store, later(10000), newId);
+  assert.equal(other.token, 1); // not blocked by call-A's used hold
 });

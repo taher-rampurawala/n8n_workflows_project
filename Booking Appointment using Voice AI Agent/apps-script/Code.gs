@@ -480,7 +480,7 @@ function normalizeRequest(body) {
 // Booking engine run inside the Apps Script lock: one request at a time, so no clash handling is needed.
 // The same file runs in Node for tests; build-apps-script.js strips the node-only blocks.
 
-// store: { bookings(), holidays(), holds(), addBooking(row), addHold(hold), updateBooking(row) }
+// store: { bookings(), holidays(), holds(), addBooking(row), addHold(hold), endHolds(callId, now), updateBooking(row) }
 // req:   { fnName, args, callId, callerNumber } as produced by n8n's Normalize Request.
 function handleRequest(req, store, now, newId, config = DEFAULT_CONFIG) {
   const args = req.args || {};
@@ -499,7 +499,11 @@ function handleRequest(req, store, now, newId, config = DEFAULT_CONFIG) {
       const valid = validateBookingArgs(args, callerNumber);
       if (!valid.ok) return valid;
       const decision = decideBooking({ ...base, holds: store.holds(), booking: valid.value, callId, bookingId: newId('VB') });
-      if (decision.canBook) store.addBooking(decision.row);
+      if (decision.canBook) {
+        store.addBooking(decision.row);
+        // The hold became this booking; ending it means a later cancel frees the token at once.
+        store.endHolds(callId, now);
+      }
       return decision.response;
     }
     case 'find_booking':
@@ -616,6 +620,12 @@ function sheetStore_(ss, now) {
     holidays: () => (holidaysSheet ? readTable_(holidaysSheet).rows.filter((r) => String(r.Date || '').trim()) : []),
     holds: () => readTable_(holds).rows.filter((r) => r.holdId).map((r) => ({ ...r, id: r.row_number })),
     addHold: (h) => holds.appendRow(HOLD_HEADERS.map((k) => cell_(h[k]))),
+    endHolds: (callId, now) => {
+      const col = HOLD_HEADERS.indexOf('expiresAt') + 1;
+      readTable_(holds)
+        .rows.filter((r) => r.callId === callId && new Date(r.expiresAt) > now)
+        .forEach((r) => holds.getRange(r.row_number, col).setValue(cell_(now.toISOString())));
+    },
     addBooking: (row) => {
       const missing = Object.keys(row).filter((k) => !header.includes(k));
       if (missing.length) throw new Error(`Bookings tab is missing columns: ${missing.join(', ')}`);

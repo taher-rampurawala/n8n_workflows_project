@@ -14,7 +14,7 @@ const {
 } = require('../n8n/clinic-rules');
 // @node-only-end
 
-// store: { bookings(), holidays(), holds(), addBooking(row), addHold(hold), updateBooking(row) }
+// store: { bookings(), holidays(), holds(), addBooking(row), addHold(hold), endHolds(callId, now), updateBooking(row) }
 // req:   { fnName, args, callId, callerNumber } as produced by n8n's Normalize Request.
 function handleRequest(req, store, now, newId, config = DEFAULT_CONFIG) {
   const args = req.args || {};
@@ -33,7 +33,11 @@ function handleRequest(req, store, now, newId, config = DEFAULT_CONFIG) {
       const valid = validateBookingArgs(args, callerNumber);
       if (!valid.ok) return valid;
       const decision = decideBooking({ ...base, holds: store.holds(), booking: valid.value, callId, bookingId: newId('VB') });
-      if (decision.canBook) store.addBooking(decision.row);
+      if (decision.canBook) {
+        store.addBooking(decision.row);
+        // The hold became this booking; ending it means a later cancel frees the token at once.
+        store.endHolds(callId, now);
+      }
       return decision.response;
     }
     case 'find_booking':

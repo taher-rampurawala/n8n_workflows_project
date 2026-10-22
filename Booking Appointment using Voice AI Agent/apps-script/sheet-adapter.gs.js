@@ -95,6 +95,12 @@ function sheetStore_(ss, now) {
     holidays: () => (holidaysSheet ? readTable_(holidaysSheet).rows.filter((r) => String(r.Date || '').trim()) : []),
     holds: () => readTable_(holds).rows.filter((r) => r.holdId).map((r) => ({ ...r, id: r.row_number })),
     addHold: (h) => holds.appendRow(HOLD_HEADERS.map((k) => cell_(h[k]))),
+    endHolds: (callId, now) => {
+      const col = HOLD_HEADERS.indexOf('expiresAt') + 1;
+      readTable_(holds)
+        .rows.filter((r) => r.callId === callId && new Date(r.expiresAt) > now)
+        .forEach((r) => holds.getRange(r.row_number, col).setValue(cell_(now.toISOString())));
+    },
     addBooking: (row) => {
       const missing = Object.keys(row).filter((k) => !header.includes(k));
       if (missing.length) throw new Error(`Bookings tab is missing columns: ${missing.join(', ')}`);
