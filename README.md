@@ -288,23 +288,24 @@ Each project lives in its own folder containing the exported workflow JSON, read
 
 **Folder:** [`Booking Appointment using Voice AI Agent/`](./Booking%20Appointment%20using%20Voice%20AI%20Agent/)
 
-**Description:** Patients phone the dental clinic and talk to **Riya**, a multi-prompt Retell AI voice agent that speaks English, Hindi and Hinglish. Riya books evening appointment tokens, answers clinic questions, and transfers to reception. For slots and bookings she calls two custom functions, `check_availability` and `book_appointment`, which hit a single n8n webhook. n8n is the only source of truth: it applies the clinic rules and writes to the **same Google Sheet tab as the WhatsApp booking bot**, so both channels share the same five tokens per evening.
+**Description:** Patients phone the dental clinic and talk to **Riya**, a multi-prompt Retell AI voice agent (Claude Sonnet, calm Indian-English voice) that speaks English, Hindi and Hinglish. Riya books same-day evening tokens, answers clinic questions, cancels or moves a booking, and transfers to reception. Five custom functions (`check_availability`, `book_appointment`, `find_booking`, `cancel_booking`, `move_booking`) call one n8n webhook, which verifies the request and forwards it to a **Google Apps Script booking engine** on the sheet. The engine applies the clinic rules under a script lock and writes to the **same Google Sheet tab as the WhatsApp booking bot**, so both channels share the same five tokens per evening.
 
 **Key Features:**
 
-- 📞 Retell multi-prompt agent (intro → booking / FAQ / transfer → closing) with speech-friendly read-out rules for times, dates, phone numbers and rupee prices, an AI + recording disclosure, emergency guidance and silence handling
-- 🔐 Two webhook security layers: an `X-Clinic-Secret` Header Auth credential and Retell's `X-Retell-Signature` HMAC-SHA256, checked over the raw body with the built-in Crypto node and a credential-held key (no `$env` or `crypto` module needed)
-- 🧮 Clinic rules in one tested JavaScript module (`clinic-rules.js`, covered by `node:test`): 5 tokens from 7:00 PM, 15 minutes apart, same-day booking only between 9 AM and 5 PM IST, Sundays and a Holidays tab closed, and a spoken "call back" day for anything else. A build script embeds it into the Code nodes
-- 🔒 Bookings run through a Google Apps Script web app on the sheet that takes `LockService`'s script lock, so simultaneous callers queue and never share a token; a 2-minute hold keeps the offered token while the caller gives their details
-- 👪 Family bookings on one phone (duplicate = same name and phone), plus cancel and move-to-an-earlier-time by voice
-- 🚨 Every Sheets and Code step has an error output that answers `{ok:false}` so the agent never claims a booking, then fails the run so the Error Alerts workflow emails the owner
+- 📞 Retell multi-prompt agent (intro → booking / FAQ / manage booking / transfer → closing) with speech-friendly read-out rules for times, dates, phone numbers and rupee prices, an AI + recording disclosure, emergency guidance, silence handling, and rules to yield when the caller interrupts and never narrate its reasoning
+- 🔐 Two webhook security layers: an `X-Clinic-Secret` Header Auth credential and Retell's `X-Retell-Signature` HMAC-SHA256, checked over the raw body with the built-in Crypto node and a credential-held key (no `$env` or `crypto` module needed); the engine itself only answers requests carrying its own secret
+- 🔒 The booking engine is a Google Apps Script web app that takes `LockService`'s script lock, so simultaneous callers queue and never share a token; an offered token is held for 2 minutes (hidden `Holds` tab) while the caller gives their details
+- 🧮 One tested JavaScript rules module (`clinic-rules.js`, `node:test`): 5 tokens from 7:00 PM, 15 minutes apart, same-day booking only between 9 AM and 5 PM IST, Sundays and a Holidays tab closed, and a spoken "call back" day for anything else. `build-apps-script.js` generates the engine's `Code.gs` from it, with a content-hash version the health check reports
+- 👪 Family bookings on one phone (a duplicate is the same name and phone), cancel by voice (the freed token is reused), and moving a booking to an earlier free time in one step
+- 🗣️ Accuracy safeguards learned from test calls: names are spelled back and saved as words, phone digits are counted by code rather than the model, and the saved name and number are read back after booking
+- 🚨 Engine or network failures answer `{ok:false}` so the agent never claims a booking, then fail the run so the Error Alerts workflow emails the owner
 
 **Use Cases:**
 
 - Voice booking for a small clinic, sharing capacity with an existing WhatsApp bot
-- Reference pattern for Retell custom functions backed by n8n, including signature verification on self-hosted n8n
+- Reference pattern for Retell custom functions backed by n8n, with signature verification on self-hosted n8n and a lock-protected Google Sheets back end
 
-> **Setup:** See [`PLAN.md`](./Booking%20Appointment%20using%20Voice%20AI%20Agent/PLAN.md). Add the `Channel` and `CallId` columns and a `Holidays` tab to the sheet. In n8n, set a random value in the "Retell Webhook - X-Clinic-Secret" credential, create a **Crypto** credential holding the Retell API key as the HMAC secret, and select it in **Compute HMAC**. Then configure the agent in Retell from `retell/` (`functions.md` has the URLs and JSON schemas). Run `node "Booking Appointment using Voice AI Agent/n8n/build-workflows.js"` after editing the rules, and `node --test "Booking Appointment using Voice AI Agent/n8n/clinic-rules.test.js"` to run the tests.
+> **Setup:** See [`PLAN.md`](./Booking%20Appointment%20using%20Voice%20AI%20Agent/PLAN.md). The Bookings tab needs the `Channel`, `CallId`, `Status` and `BookingId` columns, plus a `Holidays` tab. Paste `apps-script/Code.gs` into the sheet's Apps Script editor, add a `SECRET` script property, and deploy it as a web app (Execute as: Me, Who has access: Anyone); after each change publish a **New version** in Manage deployments and check the version at the web app URL. In n8n, create a **Query Auth** credential (`key` = the same secret), set a random value in the "Retell Webhook - X-Clinic-Secret" credential, and create a **Crypto** credential holding the Retell API key as the HMAC secret. `node retell/setup-retell.js` creates or updates the Retell agent from the `retell/` files. After editing the rules, run `node "Booking Appointment using Voice AI Agent/apps-script/build-apps-script.js"` and `node "Booking Appointment using Voice AI Agent/n8n/build-workflows.js"`; tests: `node --test "Booking Appointment using Voice AI Agent/n8n/clinic-rules.test.js" "Booking Appointment using Voice AI Agent/apps-script/booking-engine.test.js"`.
 
 ---
 
@@ -330,6 +331,7 @@ Each project lives in its own folder containing the exported workflow JSON, read
 - **LinkedIn API** — posting to a personal profile via the LinkedIn node and the REST Images/Posts APIs (multi-image posts)
 - **GitHub** — public contents/raw API for fetching n8n workflow JSON to ground project-showcase posts
 - **Retell AI** — multi-prompt voice agent with custom webhook functions, call transfer and signed requests
+- **Google Apps Script** — web app booking engine on the sheet, serialized with `LockService`
 
 ### n8n Features
 
@@ -386,9 +388,9 @@ n8n_workflows_project/
 └── Booking Appointment using Voice AI Agent/
     ├── PLAN.md                     # design plan
     ├── n8n/
-    │   ├── clinic-rules.js         # booking rules (embedded into Code nodes)
+    │   ├── clinic-rules.js         # booking rules (shared by the engine and tests)
     │   ├── clinic-rules.test.js    # node:test suite
-    │   ├── build-workflows.js      # generates the two workflow JSON files
+    │   ├── build-workflows.js      # generates the two workflow JSON files (webhook + alerts)
     │   ├── dental-voice-booking-retell-webhook.json
     │   └── dental-voice-booking-error-alerts.json
     ├── apps-script/                # booking engine: Code.gs (generated) + engine, adapter, tests
