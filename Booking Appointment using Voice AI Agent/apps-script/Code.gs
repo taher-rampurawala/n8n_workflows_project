@@ -523,6 +523,8 @@ function handleRequest(req, store, now, newId, config = DEFAULT_CONFIG) {
   }
 }
 
+const ENGINE_VERSION = 'af555bea';
+
 // ---- Apps Script adapter: web app entry point, lock and sheet storage ----
 // Deploy as a web app (Execute as: Me, Who has access: Anyone). Requests must carry ?key=<SECRET>,
 // where SECRET is a Script Property. Only one request runs at a time (LockService), so two callers can
@@ -558,7 +560,7 @@ function doPost(e) {
 
 // Health check for the browser: confirms the deployment works without revealing anything.
 function doGet() {
-  return json_({ ok: true, service: 'Smile Care booking engine' });
+  return json_({ ok: true, service: 'Smile Care booking engine', version: ENGINE_VERSION });
 }
 
 function json_(obj) {

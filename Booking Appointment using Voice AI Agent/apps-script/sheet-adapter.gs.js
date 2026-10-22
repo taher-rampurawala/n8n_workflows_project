@@ -33,7 +33,7 @@ function doPost(e) {
 
 // Health check for the browser: confirms the deployment works without revealing anything.
 function doGet() {
-  return json_({ ok: true, service: 'Smile Care booking engine' });
+  return json_({ ok: true, service: 'Smile Care booking engine', version: ENGINE_VERSION });
 }
 
 function json_(obj) {
