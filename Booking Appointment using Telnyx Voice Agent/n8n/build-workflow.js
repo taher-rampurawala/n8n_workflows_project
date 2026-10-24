@@ -1,15 +1,16 @@
-// Builds the n8n workflow for the Telnyx voice agent. It forwards each Telnyx webhook-tool call to the same
-// Apps Script booking engine the Retell agent uses (one lock, one sheet, shared tokens).
+// Builds the n8n workflow for the Telnyx voice agent. It forwards each Telnyx webhook-tool call to the Telnyx
+// project's own Apps Script booking engine, which writes to the sheet shared with the Retell agent.
 // Run: node "Booking Appointment using Telnyx Voice Agent/n8n/build-workflow.js"
 const fs = require('fs');
 const path = require('path');
 
 const CRED = {
-  // Same X-Clinic-Secret as the Retell webhook; Telnyx sends it from an integration secret.
-  webhookAuth: { httpHeaderAuth: { id: 'sV6s6l9O7OvJgxLb', name: 'Retell Webhook - X-Clinic-Secret' } },
-  bookingEngine: { httpQueryAuth: { id: 'heQ4v5RTTreUrKjV', name: 'Booking Engine - Apps Script' } }, // ?key=<SECRET>
+  // Telnyx sends X-Clinic-Secret from a Telnyx integration secret (env TELNYX_WEBHOOK_SECRET).
+  webhookAuth: { httpHeaderAuth: { id: '6jMMWhqTtcFIEjM5', name: 'Telnyx Webhook - X-Clinic-Secret' } },
+  bookingEngine: { httpQueryAuth: { id: '1tKoYd5QttIBsnh9', name: 'Booking Engine (Telnyx) - Apps Script' } }, // ?key=<SECRET>, env TELNYX_ENGINE_SECRET
 };
-const ENGINE_URL = 'https://script.google.com/macros/s/AKfycbxOn15nLc9KAo9-ElAUZrohvihRpfYziU4pe4NUx8WTF-Khx9KHIef30j7vyUiKEr4pfA/exec';
+// The Telnyx project's own Apps Script web app "Smile Care Booking Engine (Telnyx)".
+const ENGINE_URL = 'https://script.google.com/macros/s/AKfycbz6CN7dyYZWDdnhlQf-ZWAaZwhvMZOiycPISNMFUdCGjxEysoa_FKrgRk62JtGBAgTR/exec';
 const ERROR_WORKFLOW_ID = 'VvptA2WfaqA3OvDW'; // Dental Voice Booking - Error Alerts (shared)
 const WEBHOOK_PATH = 'telnyx/dental-booking';
 
@@ -64,7 +65,7 @@ return [{
   at(1, 0),
 );
 
-// One POST per tool call. The engine runs one request at a time under LockService, shared with the Retell agent.
+// One POST per tool call. The engine runs one Telnyx request at a time under its LockService script lock.
 node(
   'Call Booking Engine',
   'n8n-nodes-base.httpRequest',

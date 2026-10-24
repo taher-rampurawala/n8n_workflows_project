@@ -20,8 +20,8 @@
       "webhookId": "c7e1a2b3-4d5e-4f60-8a71-0e1f2a3b4c5d",
       "credentials": {
         "httpHeaderAuth": {
-          "id": "sV6s6l9O7OvJgxLb",
-          "name": "Retell Webhook - X-Clinic-Secret"
+          "id": "6jMMWhqTtcFIEjM5",
+          "name": "Telnyx Webhook - X-Clinic-Secret"
         }
       }
     },
@@ -51,7 +51,7 @@
       ],
       "parameters": {
         "method": "POST",
-        "url": "https://script.google.com/macros/s/AKfycbxOn15nLc9KAo9-ElAUZrohvihRpfYziU4pe4NUx8WTF-Khx9KHIef30j7vyUiKEr4pfA/exec",
+        "url": "https://script.google.com/macros/s/AKfycbz6CN7dyYZWDdnhlQf-ZWAaZwhvMZOiycPISNMFUdCGjxEysoa_FKrgRk62JtGBAgTR/exec",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpQueryAuth",
         "sendBody": true,
@@ -69,8 +69,8 @@
       },
       "credentials": {
         "httpQueryAuth": {
-          "id": "heQ4v5RTTreUrKjV",
-          "name": "Booking Engine - Apps Script"
+          "id": "1tKoYd5QttIBsnh9",
+          "name": "Booking Engine (Telnyx) - Apps Script"
         }
       },
       "onError": "continueErrorOutput"
