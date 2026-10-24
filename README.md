@@ -18,6 +18,7 @@ A curated portfolio of [n8n](https://n8n.io) automation projects, showcasing pra
     - [8. WhatsApp CRM](#8-whatsapp-crm)
     - [9. LinkedIn Content Generator](#9-linkedin-content-generator)
     - [10. Booking Appointment using Voice AI Agent](#10-booking-appointment-using-voice-ai-agent)
+    - [11. Booking Appointment using Telnyx Voice Agent](#11-booking-appointment-using-telnyx-voice-agent)
   - [🛠️ Technologies Used](#️-technologies-used)
     - [Integrations](#integrations)
     - [n8n Features](#n8n-features)
@@ -309,6 +310,29 @@ Each project lives in its own folder containing the exported workflow JSON, read
 
 ---
 
+### 11. Booking Appointment using Telnyx Voice Agent
+
+**Folder:** [`Booking Appointment using Telnyx Voice Agent/`](./Booking%20Appointment%20using%20Telnyx%20Voice%20Agent/) — project README: [`README.md`](./Booking%20Appointment%20using%20Telnyx%20Voice%20Agent/README.md)
+
+**Description:** The same dental receptionist, **Riya**, rebuilt as a **Telnyx AI Assistant** (Claude Haiku 4.5, Azure "Neerja Indic" Indian-English voice, Deepgram nova-3 for English / Hindi). It is a separate project from #10 — its own prompt, n8n workflow and Google Apps Script booking engine — but writes to the same Google Sheet, so the Retell agent, the Telnyx agent and the WhatsApp bot share the same five tokens per evening.
+
+**Key Features:**
+
+- 🧩 Five Telnyx **webhook tools** (check, book, find, cancel, move) plus built-in transfer and hangup. Telnyx sends only the model's arguments, so the tool URL carries the function name (`?fn=`) and templated headers carry the caller's number and call id
+- 🔐 The webhook password is a Telnyx **integration secret**, checked by an n8n Header Auth credential; the booking engine has its own secret via an n8n Query Auth credential
+- 🔒 Own Apps Script engine under `LockService`; because the Retell agent has a separate engine, the Telnyx engine re-reads the sheet after saving and settles any same-moment clash; a shared hidden Holds tab keeps offered tokens for 2 minutes across both agents
+- 🧮 Same tested rules (48 `node:test` cases): same-day booking 9 AM–5 PM IST, Sundays and holidays closed, family bookings, cancel and move, name and phone validation; bookings are labelled `Channel = Telnyx Voice`
+- 🗣️ One instructions prompt generated from sectioned source files, with the same calm, interruption-friendly behaviour as the Retell agent; `setup-telnyx.js` creates or updates the assistant through the Telnyx API
+
+**Use Cases:**
+
+- Comparing two voice-AI platforms (Retell and Telnyx) on the same clinic, rules and data
+- Reference pattern for Telnyx AI Assistant webhook tools backed by n8n and a lock-protected Google Sheets back end
+
+> **Setup:** See the project [`README.md`](./Booking%20Appointment%20using%20Telnyx%20Voice%20Agent/README.md) and [`PLAN.md`](./Booking%20Appointment%20using%20Telnyx%20Voice%20Agent/PLAN.md): build and deploy `apps-script/Code.gs` as a standalone web app, create the n8n Header Auth and Query Auth credentials and the Telnyx integration secret `clinic_webhook_secret`, then run `telnyx/build-instructions.js` and `telnyx/setup-telnyx.js`.
+
+---
+
 ## 🛠️ Technologies Used
 
 ### Integrations
@@ -331,6 +355,7 @@ Each project lives in its own folder containing the exported workflow JSON, read
 - **LinkedIn API** — posting to a personal profile via the LinkedIn node and the REST Images/Posts APIs (multi-image posts)
 - **GitHub** — public contents/raw API for fetching n8n workflow JSON to ground project-showcase posts
 - **Retell AI** — multi-prompt voice agent with custom webhook functions, call transfer and signed requests
+- **Telnyx AI Assistants** — voice agent with webhook tools, integration secrets, transfer and hangup
 - **Google Apps Script** — web app booking engine on the sheet, serialized with `LockService`
 
 ### n8n Features
@@ -385,16 +410,23 @@ n8n_workflows_project/
 ├── LinkedIn Content Generator/
 │   ├── LinkedIn Content Generator.json
 │   └── linkedin-agent-n8n-plan.md  # design plan for the workflow
-└── Booking Appointment using Voice AI Agent/
-    ├── PLAN.md                     # design plan
-    ├── n8n/
-    │   ├── clinic-rules.js         # booking rules (shared by the engine and tests)
-    │   ├── clinic-rules.test.js    # node:test suite
-    │   ├── build-workflows.js      # generates the two workflow JSON files (webhook + alerts)
-    │   ├── dental-voice-booking-retell-webhook.json
-    │   └── dental-voice-booking-error-alerts.json
-    ├── apps-script/                # booking engine: Code.gs (generated) + engine, adapter, tests
-    └── retell/                     # Riya: prompts, states, functions, settings, setup-retell.js
+├── Booking Appointment using Voice AI Agent/
+│   ├── PLAN.md                     # design plan
+│   ├── n8n/
+│   │   ├── clinic-rules.js         # booking rules (shared by the engine and tests)
+│   │   ├── clinic-rules.test.js    # node:test suite
+│   │   ├── build-workflows.js      # generates the two workflow JSON files (webhook + alerts)
+│   │   ├── dental-voice-booking-retell-webhook.json
+│   │   └── dental-voice-booking-error-alerts.json
+│   ├── apps-script/                # booking engine: Code.gs (generated) + engine, adapter, tests
+│   └── retell/                     # Riya: prompts, states, functions, settings, setup-retell.js
+└── Booking Appointment using Telnyx Voice Agent/
+    ├── README.md                   # project overview and setup
+    ├── PLAN.md                     # design, decisions, status
+    ├── engine/                     # booking rules + tests (Channel = Telnyx Voice)
+    ├── apps-script/                # own booking engine: Code.gs (generated) + handler, adapter, tests
+    ├── n8n/                        # Telnyx webhook workflow + build script
+    └── telnyx/                     # prompt sources, tools, setup-telnyx.js
 ```
 
 Each project folder is self-contained and includes the exported workflow JSON. New projects will be added as additional top-level folders following the same convention.
