@@ -92,13 +92,3 @@ test('a hold ends when its call books, so a later cancel really frees the token'
   const other = handleRequest(req('check_availability', { requested_date: '' }, 'call-B', '+919811111111'), store, later(10000), newId);
   assert.equal(other.token, 1); // not blocked by call-A's used hold
 });
-
-test('the Channel column records which agent booked; unknown labels fall back to Voice', () => {
-  const store = memoryStore();
-  const book = (channel, name) =>
-    handleRequest({ ...req('book_appointment', { date: '2026-10-19', patient_name: name, age: 30, reason: 'Consultation' }, `c-${name}`), channel }, store, NOW, newId);
-  book('Telnyx Voice', 'Asha');
-  book(undefined, 'Ravi');
-  book('=HACKED', 'Meera');
-  assert.deepEqual(store.s.bookingRows.map((r) => r.Channel), ['Telnyx Voice', 'Voice', 'Voice']);
-});

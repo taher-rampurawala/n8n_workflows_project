@@ -223,7 +223,7 @@ function bookedResponse(row, config) {
 
 // Decides a validated booking against a fresh read of the sheet. The agent never picks the token.
 // A duplicate is the same patient name on the same phone on the same day; family members on one phone are fine.
-function decideBooking({ bookings, holidays, holds = [], booking, callId, bookingId, channel = 'Voice', now, config = DEFAULT_CONFIG }) {
+function decideBooking({ bookings, holidays, holds = [], booking, callId, bookingId, now, config = DEFAULT_CONFIG }) {
   const ctx = makeContext({ bookings, holidays, holds, callId, now, config });
 
   const existing = activeOn(bookings, booking.date).find(
@@ -268,7 +268,7 @@ function decideBooking({ bookings, holidays, holds = [], booking, callId, bookin
     Reason: booking.reason,
     WhatsAppNumber: `91${booking.phone}`,
     BookedAt: now.toISOString(),
-    Channel: channel,
+    Channel: 'Voice',
     CallId: callId,
     Status: 'Active',
     BookingId: bookingId,

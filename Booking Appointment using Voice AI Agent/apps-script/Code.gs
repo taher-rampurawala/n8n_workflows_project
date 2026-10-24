@@ -228,7 +228,7 @@ function bookedResponse(row, config) {
 
 // Decides a validated booking against a fresh read of the sheet. The agent never picks the token.
 // A duplicate is the same patient name on the same phone on the same day; family members on one phone are fine.
-function decideBooking({ bookings, holidays, holds = [], booking, callId, bookingId, channel = 'Voice', now, config = DEFAULT_CONFIG }) {
+function decideBooking({ bookings, holidays, holds = [], booking, callId, bookingId, now, config = DEFAULT_CONFIG }) {
   const ctx = makeContext({ bookings, holidays, holds, callId, now, config });
 
   const existing = activeOn(bookings, booking.date).find(
@@ -273,7 +273,7 @@ function decideBooking({ bookings, holidays, holds = [], booking, callId, bookin
     Reason: booking.reason,
     WhatsAppNumber: `91${booking.phone}`,
     BookedAt: now.toISOString(),
-    Channel: channel,
+    Channel: 'Voice',
     CallId: callId,
     Status: 'Active',
     BookingId: bookingId,
@@ -480,17 +480,13 @@ function normalizeRequest(body) {
 // Booking engine run inside the Apps Script lock: one request at a time, so no clash handling is needed.
 // The same file runs in Node for tests; build-apps-script.js strips the node-only blocks.
 
-// Labels the Channel column may take: the Retell agent sends none (Voice), the Telnyx agent sends 'Telnyx Voice'.
-const CHANNELS = ['Voice', 'Telnyx Voice'];
-
 // store: { bookings(), holidays(), holds(), addBooking(row), addHold(hold), endHolds(callId, now), updateBooking(row) }
-// req:   { fnName, args, callId, callerNumber, channel? } as produced by n8n's Normalize Request.
+// req:   { fnName, args, callId, callerNumber } as produced by n8n's Normalize Request.
 function handleRequest(req, store, now, newId, config = DEFAULT_CONFIG) {
   const args = req.args || {};
   const callId = String(req.callId || '');
   const callerNumber = String(req.callerNumber || '');
   const phone = args.phone || callerNumber;
-  const channel = CHANNELS.includes(req.channel) ? req.channel : 'Voice';
   const base = { bookings: store.bookings(), holidays: store.holidays(), now, config };
 
   switch (req.fnName) {
@@ -502,7 +498,7 @@ function handleRequest(req, store, now, newId, config = DEFAULT_CONFIG) {
     case 'book_appointment': {
       const valid = validateBookingArgs(args, callerNumber);
       if (!valid.ok) return valid;
-      const decision = decideBooking({ ...base, holds: store.holds(), booking: valid.value, callId, bookingId: newId('VB'), channel });
+      const decision = decideBooking({ ...base, holds: store.holds(), booking: valid.value, callId, bookingId: newId('VB') });
       if (decision.canBook) {
         store.addBooking(decision.row);
         // The hold became this booking; ending it means a later cancel frees the token at once.
@@ -527,7 +523,7 @@ function handleRequest(req, store, now, newId, config = DEFAULT_CONFIG) {
   }
 }
 
-const ENGINE_VERSION = '0ebcd34b';
+const ENGINE_VERSION = 'af555bea';
 
 // ---- Apps Script adapter: web app entry point, lock and sheet storage ----
 // Deploy as a web app (Execute as: Me, Who has access: Anyone). Requests must carry ?key=<SECRET>,
