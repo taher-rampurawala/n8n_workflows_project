@@ -1,6 +1,6 @@
 # Plan — Dental Clinic Appointment Booking with a Telnyx Voice Agent
 
-**Status (2026-10-22):** Plan approved; building. Decisions 1–4 confirmed 2026-10-22; the phone number (decision 5) is decided at go-live.
+**Status (2026-10-24):** Built and connected. Telnyx assistant `assistant-ef449469-3e09-4eed-90bc-3aefbd9700c8` (Claude Haiku 4.5, voice `Azure.en-IN-NeerjaIndicNeural`, deepgram/nova-3) → n8n workflow `v5uqxIwH3TuJR4WT` → own Apps Script "Smile Care Booking Engine (Telnyx)" (version `60bc1cf8`) → shared sheet. Telnyx tool tests pass. **Next:** booking tests inside the 9 AM–5 PM window (including a Retell and a Telnyx booking at the same moment), a web test call, then a phone number (decision 5).
 
 **Based on:** `Booking Appointment using Voice AI Agent/` (the Retell agent "Riya"). Same clinic and rules, kept as a **separate project** (decided 2026-10-24): its own copy of the rules and its **own Google Apps Script booking engine**, writing to the **same Google Sheet**, so Retell callers, Telnyx callers and the WhatsApp bot share the same 5 tokens per evening.
 
@@ -123,8 +123,8 @@ Booking Appointment using Telnyx Voice Agent/
     ├── build-instructions.js      # one prompt from the Retell agent's prompt files
     ├── instructions.md            # generated
     ├── tools.md                   # tool names, URLs, schemas, headers
-    ├── assistant-settings.md      # model, voice, transcription, telephony
-    ├── setup-telnyx.js            # creates / updates the assistant via the Telnyx API
+    ├── prompt/                    # universal.md + sections/ (the Telnyx project's own prompt sources)
+    ├── setup-telnyx.js            # creates / updates the assistant (model, voice, transcription, tools, telephony)
     └── telnyx-ids.json            # assistant id (no secrets)
 ```
 
