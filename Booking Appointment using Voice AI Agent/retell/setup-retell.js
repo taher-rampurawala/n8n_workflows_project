@@ -1,8 +1,11 @@
 // Creates or updates Riya in Retell from the prompt files in this folder.
-//   node "Booking Appointment using Voice AI Agent/retell/setup-retell.js" [--no-secret]
+//   node "Booking Appointment using Voice AI Agent/retell/setup-retell.js" [--no-secret] [--dry-run]
 // Env: RETELL_API_KEY (required), CLINIC_WEBHOOK_SECRET (the n8n "Retell Webhook - X-Clinic-Secret" value).
 // --no-secret creates the custom functions without the X-Clinic-Secret header (n8n rejects them until rerun).
-// Created ids are kept in retell-ids.json so reruns update the same LLM and agent.
+// Riya is a conversation flow agent: each state file becomes a subagent node (prompt + tools), its
+// "## Transitions" lines become edges, and universal.md is the global prompt. Retell retired
+// multi-prompt agents (support ends 2026-12-15).
+// Created ids are kept in retell-ids.json so reruns update the same conversation flow and agent.
 const fs = require('fs');
 const path = require('path');
 
@@ -28,14 +31,18 @@ const STATES = {
   manage_booking: 'states/06_manage_booking.md',
 };
 
-function edgesFrom(md) {
+function edgesFrom(name, md) {
   const section = md.split('## Transitions')[1]?.split('\n## ')[0] ?? '';
   const byDest = {};
   for (const line of section.split('\n')) {
     const m = line.match(/^- (.*transition to `(\w+)`.*)$/);
     if (m) (byDest[m[2]] ??= []).push(m[1]);
   }
-  return Object.entries(byDest).map(([destination_state_name, lines]) => ({ destination_state_name, description: lines.join(' ') }));
+  return Object.entries(byDest).map(([destination_node_id, lines]) => ({
+    id: `${name}_to_${destination_node_id}`,
+    transition_condition: { type: 'prompt', prompt: lines.join(' ') },
+    destination_node_id,
+  }));
 }
 
 // The JSON schema for each custom function is the first ```json block under its heading in functions.md.
@@ -48,6 +55,7 @@ const descriptionFor = (name) =>
 
 const customTool = (name, waitLine) => ({
   type: 'custom',
+  tool_id: name,
   name,
   description: descriptionFor(name),
   url: WEBHOOK_URL,
@@ -62,7 +70,21 @@ const customTool = (name, waitLine) => ({
   args_at_root: false,
 });
 
-// Custom (n8n webhook) functions attached to each state; transfer_call / end_call are general tools.
+// Every node gets transfer_call / end_call (they were general tools in the multi-prompt agent).
+const COMMON_TOOLS = [
+  { type: 'end_call', name: 'end_call', description: 'End the call after saying goodbye, or when the caller stays silent after one check-in.' },
+  {
+    type: 'transfer_call',
+    name: 'transfer_call',
+    description: 'Connect the caller to the clinic reception staff.',
+    transfer_destination: { type: 'predefined', number: RECEPTION },
+    transfer_option: { type: 'cold_transfer' },
+  },
+];
+
+// Custom (n8n webhook) functions per node. They are defined once at flow level and referenced by tool_id:
+// Retell snake_cases the keys of tools defined inside a node, which turned X-Clinic-Secret into
+// _x_clinic_secret and made n8n reject every call with 403. Flow-level tools keep their keys.
 const STATE_TOOLS = {
   booking: [
     customTool('check_availability', 'Say a short line like "One moment while I check."'),
@@ -75,39 +97,31 @@ const STATE_TOOLS = {
   ],
 };
 
-const beginMessage = read(STATES.intro).match(/^> (.*)$/m)[1];
-
-const llm = {
-  model: 'claude-5.5-sonnet', // haiku miscounted digits and mis-copied names into tool args
-  model_temperature: 0.2,
+// Flows have no begin message: the intro node's instruction opens with the line to say first.
+const flow = {
+  model_config: { type: 'cascading', primary: { model: 'claude-5.5-sonnet' }, temperature: 0.2 }, // haiku miscounted digits and mis-copied names into tool args
   start_speaker: 'agent',
-  begin_message: beginMessage,
-  general_prompt: read('universal.md'),
-  general_tools: [
-    { type: 'end_call', name: 'end_call', description: 'End the call after saying goodbye, or when the caller stays silent after one check-in.' },
-    {
-      type: 'transfer_call',
-      name: 'transfer_call',
-      description: 'Connect the caller to the clinic reception staff.',
-      transfer_destination: { type: 'predefined', number: RECEPTION },
-      transfer_option: { type: 'cold_transfer' },
-    },
-  ],
-  states: Object.entries(STATES).map(([name, file]) => {
+  global_prompt: read('universal.md'),
+  tools: Object.values(STATE_TOOLS).flat(),
+  nodes: Object.entries(STATES).map(([name, file], i) => {
     const md = read(file);
     return {
+      id: name,
       name,
-      state_prompt: md,
-      edges: edgesFrom(md),
-      tools: STATE_TOOLS[name] ?? [],
+      type: 'subagent',
+      instruction: { type: 'prompt', text: md },
+      edges: edgesFrom(name, md),
+      tools: COMMON_TOOLS,
+      tool_ids: (STATE_TOOLS[name] ?? []).map((t) => t.tool_id),
+      display_position: { x: 400 * i, y: 0 },
     };
   }),
-  starting_state: 'intro',
+  start_node_id: 'intro',
 };
 
-const agent = (llmId) => ({
+const agent = (flowId) => ({
   agent_name: 'Riya - Smile Care Dental Clinic',
-  response_engine: { type: 'retell-llm', llm_id: llmId },
+  response_engine: { type: 'conversation-flow', conversation_flow_id: flowId },
   voice_id: '11labs-Monika',
   voice_temperature: 0.2, // steady, even delivery; the default 1 lets the voice get excited
   language: ['en-IN', 'hi-IN'],
@@ -143,26 +157,33 @@ async function call(method, route, body) {
 
 (async () => {
   if (process.argv.includes('--dry-run')) {
-    const summary = { ...llm, general_prompt: `${llm.general_prompt.length} chars`, states: llm.states.map((s) => ({ ...s, state_prompt: `${s.state_prompt.length} chars` })) };
-    for (const s of summary.states) for (const t of s.tools) t.headers = Object.keys(t.headers);
+    const summary = {
+      ...flow,
+      global_prompt: `${flow.global_prompt.length} chars`,
+      tools: flow.tools.map((t) => ({ ...t, description: '…', parameters: Object.keys(t.parameters.properties), headers: Object.keys(t.headers) })),
+      nodes: flow.nodes.map((n) => ({ ...n, instruction: `${n.instruction.text.length} chars`, tools: n.tools.map((t) => t.name) })),
+    };
     return console.log(JSON.stringify(summary, null, 2));
   }
-  const ids =fs.existsSync(IDS_FILE) ? JSON.parse(fs.readFileSync(IDS_FILE, 'utf8')) : {};
+  const ids = fs.existsSync(IDS_FILE) ? JSON.parse(fs.readFileSync(IDS_FILE, 'utf8')) : {};
 
-  const savedLlm = ids.llm_id ? await call('PATCH', `/update-retell-llm/${ids.llm_id}`, llm) : await call('POST', '/create-retell-llm', llm);
-  ids.llm_id = savedLlm.llm_id;
+  const savedFlow = ids.conversation_flow_id
+    ? await call('PATCH', `/update-conversation-flow/${ids.conversation_flow_id}`, flow)
+    : await call('POST', '/create-conversation-flow', flow);
+  ids.conversation_flow_id = savedFlow.conversation_flow_id;
+  fs.writeFileSync(IDS_FILE, `${JSON.stringify(ids, null, 2)}\n`); // keep the flow id even if the agent call fails
 
   const savedAgent = ids.agent_id
-    ? await call('PATCH', `/update-agent/${ids.agent_id}`, agent(ids.llm_id))
-    : await call('POST', '/create-agent', agent(ids.llm_id));
+    ? await call('PATCH', `/update-agent/${ids.agent_id}`, agent(ids.conversation_flow_id))
+    : await call('POST', '/create-agent', agent(ids.conversation_flow_id));
   ids.agent_id = savedAgent.agent_id;
 
   fs.writeFileSync(IDS_FILE, `${JSON.stringify(ids, null, 2)}\n`);
   console.log(
     JSON.stringify({
-      llm_id: ids.llm_id,
+      conversation_flow_id: ids.conversation_flow_id,
       agent_id: ids.agent_id,
-      states: llm.states.map((s) => `${s.name} → ${s.edges.map((e) => e.destination_state_name).join(', ')}`),
+      nodes: flow.nodes.map((n) => `${n.id} → ${n.edges.map((e) => e.destination_node_id).join(', ')}`),
       secretHeader: !!secret,
     }, null, 2),
   );

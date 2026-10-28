@@ -290,11 +290,11 @@ Each project lives in its own folder containing the exported workflow JSON, read
 
 **Folder:** [`Booking Appointment using Voice AI Agent/`](./Booking%20Appointment%20using%20Voice%20AI%20Agent/)
 
-**Description:** Patients phone the dental clinic and talk to **Riya**, a multi-prompt Retell AI voice agent (Claude Sonnet, calm Indian-English voice) that speaks English, Hindi and Hinglish. Riya books same-day evening tokens, answers clinic questions, cancels or moves a booking, and transfers to reception. Five custom functions (`check_availability`, `book_appointment`, `find_booking`, `cancel_booking`, `move_booking`) call one n8n webhook, which verifies the request and forwards it to a **Google Apps Script booking engine** on the sheet. The engine applies the clinic rules under a script lock and writes to the **same Google Sheet tab as the WhatsApp booking bot**, so both channels share the same five tokens per evening.
+**Description:** Patients phone the dental clinic and talk to **Riya**, a Retell AI conversation flow voice agent (Claude Sonnet, calm Indian-English voice) that speaks English, Hindi and Hinglish. Riya books same-day evening tokens, answers clinic questions, cancels or moves a booking, and transfers to reception. Five custom functions (`check_availability`, `book_appointment`, `find_booking`, `cancel_booking`, `move_booking`) call one n8n webhook, which verifies the request and forwards it to a **Google Apps Script booking engine** on the sheet. The engine applies the clinic rules under a script lock and writes to the **same Google Sheet tab as the WhatsApp booking bot**, so both channels share the same five tokens per evening.
 
 **Key Features:**
 
-- 📞 Retell multi-prompt agent (intro → booking / FAQ / manage booking / transfer → closing) with speech-friendly read-out rules for times, dates, phone numbers and rupee prices, an AI + recording disclosure, emergency guidance, silence handling, and rules to yield when the caller interrupts and never narrate its reasoning
+- 📞 Retell conversation flow agent (intro → booking / FAQ / manage booking / transfer → closing) with speech-friendly read-out rules for times, dates, phone numbers and rupee prices, an AI + recording disclosure, emergency guidance, silence handling, and rules to yield when the caller interrupts and never narrate its reasoning
 - 🔐 Two webhook security layers: an `X-Clinic-Secret` Header Auth credential and Retell's `X-Retell-Signature` HMAC-SHA256, checked over the raw body with the built-in Crypto node and a credential-held key (no `$env` or `crypto` module needed); the engine itself only answers requests carrying its own secret
 - 🔒 The booking engine is a Google Apps Script web app that takes `LockService`'s script lock, so simultaneous callers queue and never share a token; an offered token is held for 2 minutes (hidden `Holds` tab) while the caller gives their details
 - 🧮 One tested JavaScript rules module (`clinic-rules.js`, `node:test`): 5 tokens from 7:00 PM, 15 minutes apart, same-day booking only between 9 AM and 5 PM IST, Sundays and a Holidays tab closed, and a spoken "call back" day for anything else. `build-apps-script.js` generates the engine's `Code.gs` from it, with a content-hash version the health check reports
@@ -381,7 +381,7 @@ Each project lives in its own folder containing the exported workflow JSON, read
 - **Model Context Protocol (MCP)** — server exposing the WhatsApp CRM's own API to Claude/Cursor and other AI assistants
 - **LinkedIn API** — posting to a personal profile via the LinkedIn node and the REST Images/Posts APIs (multi-image posts)
 - **GitHub** — public contents/raw API for fetching n8n workflow JSON to ground project-showcase posts
-- **Retell AI** — multi-prompt voice agent with custom webhook functions, call transfer and signed requests
+- **Retell AI** — conversation flow voice agent with custom webhook functions, call transfer and signed requests
 - **Telnyx AI Assistants** — voice agent with webhook tools, integration secrets, transfer and hangup
 - **Google Apps Script** — web app booking engine on the sheet, serialized with `LockService`
 
