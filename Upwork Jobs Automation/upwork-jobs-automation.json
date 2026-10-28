@@ -1,0 +1,631 @@
+{
+  "name": "Upwork Jobs Automation",
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true,
+    "binaryMode": "separate"
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 */2 * * *"
+            }
+          ]
+        }
+      },
+      "id": "f0eba892-8ad6-4f16-9482-04ffa506cec7",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -160,
+        -16
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f1",
+              "name": "title",
+              "value": "={{ $json.title || \"Untitled job\" }}",
+              "type": "string"
+            },
+            {
+              "id": "f2",
+              "name": "description",
+              "value": "={{ $json.description || \"\" }}",
+              "type": "string"
+            },
+            {
+              "id": "f3",
+              "name": "budget",
+              "value": "={{ $json.price_type === \"Fixed-price\" ? ($json.price != null ? \"$\" + $json.price + \" fixed\" : \"Fixed price, not specified\") : (($json.price_min != null || $json.price_max != null) ? \"$\" + ($json.price_min ?? \"?\") + \"-$\" + ($json.price_max ?? \"?\") + \"/hr\" : \"Hourly, rate not specified\") }}",
+              "type": "string"
+            },
+            {
+              "id": "f4",
+              "name": "client_rating",
+              "value": "={{ $json.buyer_score ?? \"Unknown\" }}",
+              "type": "string"
+            },
+            {
+              "id": "f5",
+              "name": "client_spend",
+              "value": "={{ $json.total_spent != null ? \"$\" + $json.total_spent : \"Unknown\" }}",
+              "type": "string"
+            },
+            {
+              "id": "f6",
+              "name": "posted_time",
+              "value": "={{ $json.date_posted || \"\" }}",
+              "type": "string"
+            },
+            {
+              "id": "f7",
+              "name": "url",
+              "value": "={{ $json.url || \"\" }}",
+              "type": "string"
+            },
+            {
+              "id": "f8",
+              "name": "payment_verified",
+              "value": "={{ String($json.buyer_payment_verified ?? \"unknown\") }}",
+              "type": "string"
+            },
+            {
+              "id": "f9",
+              "name": "proposals",
+              "value": "={{ $json.client_total_applicants ?? \"Unknown\" }}",
+              "type": "string"
+            },
+            {
+              "id": "f10",
+              "name": "allowed_countries",
+              "value": "={{ $json.qual_countries?.length ? $json.qual_countries.join(\", \") : \"Any\" }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "2595c547-bc2c-41b3-aa13-ee5e8cddc2a1",
+      "name": "Normalize Job Fields",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        288,
+        -16
+      ]
+    },
+    {
+      "parameters": {
+        "text": "=Title: {{ $json.title }}\nBudget: {{ $json.budget }}\nClient rating: {{ $json.client_rating }}, total spend: {{ $json.client_spend }}, payment verified: {{ $json.payment_verified }}\nProposals so far: {{ $json.proposals }}\nApplicants allowed from: {{ $json.allowed_countries }}\nPosted: {{ $json.posted_time }}\n\nDescription:\n{{ $json.description }}",
+        "attributes": {
+          "attributes": [
+            {
+              "name": "score",
+              "type": "number",
+              "description": "Score this Upwork job post from 1 to 10 for fit with Taher, a senior engineer freelancing in AI automation.\n\nTaher's skills: n8n workflow automation; AI agents and agentic workflows with tool calling; AI voice agents for inbound and outbound calls, appointment booking and lead qualification (Retell AI, Twilio, Telnyx); RAG chatbots and knowledge assistants that answer from a client's own documents; AI chatbots for websites and WhatsApp; WhatsApp automation; AI-powered business websites with a built-in chatbot; LLM integration (OpenAI, Claude, Gemini); API, webhook and REST integrations; CRM automation, lead generation and lead qualification; invoice automation, document processing and data extraction; AI content creation workflows (images, video, social posts). Java/Spring Boot and AWS are supporting skills only, not a target market.\n\nScoring tiers:\n- 9-10: the core of the job is one of Taher's skills (for example: build an n8n workflow, an AI agent, an AI voice agent, a RAG or AI chatbot, a WhatsApp automation), with a clear brief and a budget that fits the scope.\n- 7-8: one of Taher's skills is central, but there is a minor gap: the brief is somewhat thin, the budget is tight, or part of the work falls outside his skills.\n- 4-6: adjacent work that does not need the AI/agent skillset: Zapier or Make builds and migrations, generic API integration, general web development.\n- 2-3: budget/scope mismatch (for example a full AI SaaS for under $200), requests for unpaid trial work, or briefs too vague to evaluate confidently.\n- 1: unrelated to Taher's skills (pure Java/backend/enterprise roles, mobile apps, graphic design, data entry), or applicants are restricted to countries that do not include India, since Taher is based in India and cannot apply.\n\nAdjustments, applied after choosing the tier (minimum score 1):\n- If the client's payment is not verified, subtract 2 points.\n- If the job already has 50 or more proposals, subtract 1 point, since Taher has no Upwork reviews yet and high-competition jobs are hard to win.",
+              "required": true
+            },
+            {
+              "name": "reasoning",
+              "description": "One or two sentences explaining the score.",
+              "required": true
+            },
+            {
+              "name": "red_flags",
+              "description": "Comma-separated list of red flags found in this job post (budget/scope mismatch, unpaid trial work, too vague to score, country restriction excludes India), or the word 'none' if there are none.",
+              "required": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "86d5c7b6-497a-4d7f-a094-0c39af6b8e3d",
+      "name": "Score Job Fit",
+      "type": "@n8n/n8n-nodes-langchain.informationExtractor",
+      "typeVersion": 1.2,
+      "position": [
+        736,
+        -16
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "id",
+          "value": "gpt-5.4-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "6e88851e-2e97-4ad8-9e3e-9be8a947ad81",
+      "name": "Scoring Model (GPT-5.4 mini)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        816,
+        208
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "oO733vMXxp5JKJnB",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.score }}",
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              },
+              "rightValue": 7
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "49959c67-e2e6-4105-9cc7-15d2e1d41305",
+      "name": "Filter Qualifying Jobs",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.3,
+      "position": [
+        1312,
+        -16
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Write a tailored Upwork proposal for this job:\n\nTitle: {{ $json.title }}\nBudget: {{ $json.budget }}\nDescription: {{ $json.description }}\n\nMirror the client's own language, restate their need briefly, reference the most relevant portfolio project, and close with a clear call to action. Keep it under 150 words.",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "You are writing Upwork proposals on behalf of Taher Rampurawala, an AI automation engineer with 13 years as a senior engineer building banking and fintech systems (Java/Spring Boot microservices, REST/SOAP integrations, AWS/Azure, CI/CD), where \"it mostly works\" isn't acceptable. He now builds n8n workflow automations, AI voice agents (Retell AI, Twilio, Telnyx), AI agents with tool calling (connected to CRMs, GHL and internal tools), RAG chatbots that answer from a client's own documents, and AI-powered websites with built-in chatbots. Everything he ships has retries, error handling, cost caps and monitoring, plus plain-language docs and a handover video.\n\nHis portfolio projects (self-built, to demonstrate this skill set) include: AI invoice processing automation (cut invoice handling from 2 hours to 10 minutes), an AI voice agent that books appointments 24/7, WhatsApp appointment booking for a dental clinic, AI lead generation and qualification, an AI travel assistant chatbot with tool calling, an AI Gmail inbox assistant that sorts mail and drafts replies, an AI LinkedIn content workflow with human approval, and an AI UGC image and video ad generator.\n\nWrite in first person as Taher. Mirror the client's own language back to them, restate their need in your own words, reference whichever portfolio project is most relevant to this job, and close with a clear, specific call to action, such as offering a free walkthrough of how he would automate their process. Do not claim past Upwork clients or name former employers' clients. Keep the proposal concise (under 150 words), confident, and non-generic, with no boilerplate openers like I am excited to apply."
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "id": "6d918f5d-3639-4825-b4d3-8584815d244b",
+      "name": "Generate Proposal",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        1536,
+        -16
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "1FmlBdJmWX1b9X0lYUPuAWYfnzh81BZ9VO3k10zXAsFU",
+          "cachedResultName": "Upwork Jobs",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1FmlBdJmWX1b9X0lYUPuAWYfnzh81BZ9VO3k10zXAsFU/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": 1054362860,
+          "cachedResultName": "sample-jobs-sheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1FmlBdJmWX1b9X0lYUPuAWYfnzh81BZ9VO3k10zXAsFU/edit#gid=1054362860"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [],
+          "value": {
+            "Job Title": "={{ $json.title }}",
+            "Job Description": "={{ $json.description }}",
+            "URL": "={{ $json.url }}",
+            "Budget": "={{ $json.budget }}",
+            "Client Rating": "={{ $json.client_rating }}",
+            "Client Spend": "={{ $json.client_spend }}",
+            "Score": "={{ $json.score }}",
+            "Reasoning": "={{ $json.reasoning }}",
+            "Red Flags": "={{ $json.red_flags }}",
+            "Proposal": "={{ $json.proposal }}",
+            "Status": "={{ $json.status }}",
+            "Date Logged": "={{ $now.toFormat(\"yyyy-MM-dd HH:mm\") }}"
+          },
+          "schema": [
+            {
+              "id": "Job Title",
+              "displayName": "Job Title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Job Description",
+              "displayName": "Job Description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "URL",
+              "displayName": "URL",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Budget",
+              "displayName": "Budget",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Client Rating",
+              "displayName": "Client Rating",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Client Spend",
+              "displayName": "Client Spend",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Score",
+              "displayName": "Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Reasoning",
+              "displayName": "Reasoning",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Red Flags",
+              "displayName": "Red Flags",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Proposal",
+              "displayName": "Proposal",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Date Logged",
+              "displayName": "Date Logged",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "e7556c71-15ea-4977-b9d5-6508b166d2a0",
+      "name": "Log to Google Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2112,
+        -16
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "UoP5i2rbCOyXAvdg",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Setup\n\nOpenAI, Apify and Google Sheets credentials are wired to your existing accounts. Results go to the \"Upwork Jobs\" Google Sheet.\n\nActor: hyperbach/upwork-scraper-ai (notifications_only: each run returns only jobs new since the last run, billed once). Runs every 2 hours, up to 20 jobs per run, payment-verified clients only, human-role jobs excluded; Skip Already Seen Jobs drops any job an earlier run already handled. If a proposal fails, the job is still logged with Status \"Proposal failed\".",
+        "height": 280,
+        "width": 540,
+        "color": 5
+      },
+      "id": "bb334bfa-3837-4517-90ea-273b2379216a",
+      "name": "Sticky Note 23f1f15a",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -320,
+        -480
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "removeItemsSeenInPreviousExecutions",
+        "dedupeValue": "={{ $json.url }}",
+        "options": {}
+      },
+      "id": "7c1e9a4e-2d3b-4f6a-9b8e-5a1d2c3b4e5f",
+      "name": "Skip Already Seen Jobs",
+      "type": "n8n-nodes-base.removeDuplicates",
+      "typeVersion": 2,
+      "position": [
+        512,
+        -16
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "Run actor and get dataset",
+        "actorId": {
+          "__rl": true,
+          "value": "RDMDCh3d2XZKng8Mz",
+          "mode": "list",
+          "cachedResultName": "Upwork Job Scraper (hyperbach/upwork-scraper-ai)",
+          "cachedResultUrl": "https://console.apify.com/actors/RDMDCh3d2XZKng8Mz/input"
+        },
+        "customBody": "{\n  \"any_words\": [\n    \"n8n\",\n    \"workflow automation\",\n    \"AI agent\",\n    \"voice agent\",\n    \"voice AI\",\n    \"RAG\",\n    \"chatbot automation\"\n  ],\n  \"none_words\": [\n    \"customer support\",\n    \"customer service\",\n    \"virtual assistant\",\n    \"video editor\",\n    \"video editing\",\n    \"data entry\",\n    \"evaluator\",\n    \"translator\",\n    \"transcription\",\n    \"appointment setter\",\n    \"cold calling\",\n    \"sales representative\",\n    \"social media manager\",\n    \"graphic designer\"\n  ],\n  \"buyer_payment_verified\": true,\n  \"date_posted\": \"3h\",\n  \"notifications_only\": true,\n  \"clientId\": \"upwork-jobs-automation\",\n  \"limit\": 20,\n  \"whats_new\": false\n}",
+        "timeout": 300
+      },
+      "id": "79e43b31-bba3-4835-b2b0-079c5c21bfa1",
+      "name": "Scrape Upwork Jobs (Apify)",
+      "type": "@apify/n8n-nodes-apify.apify",
+      "typeVersion": 1,
+      "position": [
+        64,
+        -16
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "apifyApi": {
+          "id": "GRYOlwr0P80PeVFA",
+          "name": "Apify account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "id",
+          "value": "gpt-5.4"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "6f5d6cd9-db8d-44d6-8437-d3156dace19e",
+      "name": "Proposal Model (GPT-5.4)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        1616,
+        208
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "oO733vMXxp5JKJnB",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={{ { ...$('Normalize Job Fields').item.json, score: $json.output?.score ?? $json.score, reasoning: $json.output?.reasoning ?? $json.reasoning, red_flags: $json.output?.red_flags ?? $json.red_flags } }}",
+        "options": {}
+      },
+      "id": "c0b1a2d3-0001-4e5f-9a8b-7c6d5e4f3a21",
+      "name": "Combine Job and Score",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1088,
+        -16
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Generate Proposal emits one item per input, in order, so index i matches the i-th qualifying job.\nconst jobs = $('Filter Qualifying Jobs').all();\n\nreturn $input.all().map((item, i) => {\n  const proposal = item.json.text ?? '';\n  return {\n    json: {\n      ...jobs[i].json,\n      proposal,\n      status: proposal ? 'Pending Review' : 'Proposal failed',\n    },\n  };\n});"
+      },
+      "id": "c0b1a2d3-0002-4e5f-9a8b-7c6d5e4f3a22",
+      "name": "Attach Proposal to Job",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1888,
+        -16
+      ]
+    }
+  ],
+  "connections": {
+    "Normalize Job Fields": {
+      "main": [
+        [
+          {
+            "node": "Skip Already Seen Jobs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Scrape Upwork Jobs (Apify)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scrape Upwork Jobs (Apify)": {
+      "main": [
+        [
+          {
+            "node": "Normalize Job Fields",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Scoring Model (GPT-5.4 mini)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Score Job Fit",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Proposal Model (GPT-5.4)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Generate Proposal",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Skip Already Seen Jobs": {
+      "main": [
+        [
+          {
+            "node": "Score Job Fit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Qualifying Jobs": {
+      "main": [
+        [
+          {
+            "node": "Generate Proposal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Score Job Fit": {
+      "main": [
+        [
+          {
+            "node": "Combine Job and Score",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combine Job and Score": {
+      "main": [
+        [
+          {
+            "node": "Filter Qualifying Jobs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Proposal": {
+      "main": [
+        [
+          {
+            "node": "Attach Proposal to Job",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Attach Proposal to Job": {
+      "main": [
+        [
+          {
+            "node": "Log to Google Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

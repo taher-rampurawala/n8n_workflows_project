@@ -19,6 +19,7 @@ A curated portfolio of [n8n](https://n8n.io) automation projects, showcasing pra
     - [9. LinkedIn Content Generator](#9-linkedin-content-generator)
     - [10. Booking Appointment using Voice AI Agent](#10-booking-appointment-using-voice-ai-agent)
     - [11. Booking Appointment using Telnyx Voice Agent](#11-booking-appointment-using-telnyx-voice-agent)
+    - [12. Upwork Jobs Automation](#12-upwork-jobs-automation)
   - [🛠️ Technologies Used](#️-technologies-used)
     - [Integrations](#integrations)
     - [n8n Features](#n8n-features)
@@ -333,6 +334,32 @@ Each project lives in its own folder containing the exported workflow JSON, read
 
 ---
 
+### 12. Upwork Jobs Automation
+
+**Folder:** [`Upwork Jobs Automation/`](./Upwork%20Jobs%20Automation/)
+
+**Description:** A scheduled Upwork job-hunting pipeline for a freelancer. Every 2 hours an Apify actor fetches matching Upwork jobs posted since the previous run. GPT-5.4 mini scores each job from 1 to 10 against the freelancer's skills, and GPT-5.4 drafts a tailored proposal for every job scoring 7 or higher. Qualifying jobs, their scores and proposals are logged to a Google Sheet for review. Proposals are never submitted automatically; Upwork restricts automated proposals, so a person reviews and sends each one.
+
+**Key Features:**
+
+- ⏰ Runs every 2 hours with the `hyperbach/upwork-scraper-ai` Apify actor in `notifications_only` mode: each run returns only jobs that are new since the previous run and under 3 hours old, so every job is billed once
+- 💸 Built to fit Apify's free plan ($5/month credit): filtering happens at the source (keywords, payment-verified clients only, human-role jobs such as customer support or data entry excluded), measured with the actor's estimate mode at ~61 jobs/day, ~$3.68/month
+- 🎯 LLM fit scoring with an Information Extractor (structured `score` / `reasoning` / `red_flags`), using defined score tiers built from the freelancer's real skills; jobs that only accept applicants from countries excluding India are scored 1
+- ✍️ Proposals grounded in the freelancer's Upwork profile and portfolio, written in the client's own language, with no invented client history
+- 🔁 Cross-run deduplication with the Remove Duplicates node ("items seen in previous executions"), keyed on the job URL
+- 🛡️ A failed proposal is still logged with Status `Proposal failed` instead of being lost; scrape and Sheet failures fail the run so they show in the executions list
+- 🧩 Job data and score are merged before the LLM step and the proposal is attached by position afterwards, avoiding paired-item lookups through the LLM chain node
+
+**Use Cases:**
+
+- Daily Upwork (or other marketplace) job triage for a freelancer or small agency
+- AI-drafted, human-reviewed proposals at a predictable monthly cost
+- Reference pattern for scheduled scrape → LLM score → filter → LLM draft → Sheet pipelines
+
+> **Setup:** Install the Apify community node (`@apify/n8n-nodes-apify`) and create an Apify, an OpenAI and a Google Sheets credential. Create a Google Sheet from `sample-jobs-sheet.csv` to get the column headers, then select it and its tab in **Log to Google Sheet**. Edit the keywords and filters in **Scrape Upwork Jobs (Apify)**, and the skills in the **Score Job Fit** and **Generate Proposal** prompts, for your own profile. Send the actor only the input keys you mean: the Apify console fills every checkbox field with `false` when it saves input, and this actor treats `false` as a filter. `docs/freelance-bio.md` is the profile the proposals are based on, and `CONTEXT.md` records the domain terms and design decisions.
+
+---
+
 ## 🛠️ Technologies Used
 
 ### Integrations
@@ -343,7 +370,7 @@ Each project lives in its own folder containing the exported workflow JSON, read
 - **Google Sheets** — booking, lead, invoice, and job-search data logging
 - **Google Drive** — invoice/receipt file watching and storage
 - **Pinecone** — vector store for retrieval-augmented email replies
-- **Apify** — third-party actors for lead scraping and job scraping
+- **Apify** — third-party actors for lead scraping, job scraping and Upwork job feeds
 - **OpenAI** — GPT models for conversational agents and classifiers, Whisper for voice transcription, embeddings for RAG
 - **Google Gemini** — vision-capable LLM for invoice OCR extraction
 - **Kie.ai** — unified API for Nano Banana 2 (image) and Veo 3.1 (video) generation
@@ -377,6 +404,8 @@ Each project lives in its own folder containing the exported workflow JSON, read
 - Structured Output Parser with auto-fix, wired to its own model connection
 - Form trigger with file upload
 - Human-in-the-loop approval — Wait node resumed by a webhook from a Telegram inline-button tap
+- Remove Duplicates across executions — skips items already processed in earlier runs
+- Information Extractor for structured LLM scoring
 
 ---
 
@@ -420,13 +449,19 @@ n8n_workflows_project/
 │   │   └── dental-voice-booking-error-alerts.json
 │   ├── apps-script/                # booking engine: Code.gs (generated) + engine, adapter, tests
 │   └── retell/                     # Riya: prompts, states, functions, settings, setup-retell.js
-└── Booking Appointment using Telnyx Voice Agent/
-    ├── README.md                   # project overview and setup
-    ├── PLAN.md                     # design, decisions, status
-    ├── engine/                     # booking rules + tests (Channel = Telnyx Voice)
-    ├── apps-script/                # own booking engine: Code.gs (generated) + handler, adapter, tests
-    ├── n8n/                        # Telnyx webhook workflow + build script
-    └── telnyx/                     # prompt sources, tools, setup-telnyx.js
+├── Booking Appointment using Telnyx Voice Agent/
+│   ├── README.md                   # project overview and setup
+│   ├── PLAN.md                     # design, decisions, status
+│   ├── engine/                     # booking rules + tests (Channel = Telnyx Voice)
+│   ├── apps-script/                # own booking engine: Code.gs (generated) + handler, adapter, tests
+│   ├── n8n/                        # Telnyx webhook workflow + build script
+│   └── telnyx/                     # prompt sources, tools, setup-telnyx.js
+└── Upwork Jobs Automation/
+    ├── upwork-jobs-automation.json # the workflow (synced from the published n8n version)
+    ├── CONTEXT.md                  # domain terms and design decisions
+    ├── sample-jobs-sheet.csv       # Google Sheet column headers + example rows
+    └── docs/
+        └── freelance-bio.md        # freelancer profile the proposals are based on
 ```
 
 Each project folder is self-contained and includes the exported workflow JSON. New projects will be added as additional top-level folders following the same convention.
