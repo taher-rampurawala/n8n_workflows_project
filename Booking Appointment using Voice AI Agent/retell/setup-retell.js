@@ -55,6 +55,7 @@ const descriptionFor = (name) =>
 
 const customTool = (name, waitLine) => ({
   type: 'custom',
+  tool_id: name,
   name,
   description: descriptionFor(name),
   url: WEBHOOK_URL,
@@ -81,7 +82,9 @@ const COMMON_TOOLS = [
   },
 ];
 
-// Custom (n8n webhook) functions per node.
+// Custom (n8n webhook) functions per node. They are defined once at flow level and referenced by tool_id:
+// Retell snake_cases the keys of tools defined inside a node, which turned X-Clinic-Secret into
+// _x_clinic_secret and made n8n reject every call with 403. Flow-level tools keep their keys.
 const STATE_TOOLS = {
   booking: [
     customTool('check_availability', 'Say a short line like "One moment while I check."'),
@@ -99,6 +102,7 @@ const flow = {
   model_config: { type: 'cascading', primary: { model: 'claude-5.5-sonnet' }, temperature: 0.2 }, // haiku miscounted digits and mis-copied names into tool args
   start_speaker: 'agent',
   global_prompt: read('universal.md'),
+  tools: Object.values(STATE_TOOLS).flat(),
   nodes: Object.entries(STATES).map(([name, file], i) => {
     const md = read(file);
     return {
@@ -107,7 +111,8 @@ const flow = {
       type: 'subagent',
       instruction: { type: 'prompt', text: md },
       edges: edgesFrom(name, md),
-      tools: [...COMMON_TOOLS, ...(STATE_TOOLS[name] ?? [])],
+      tools: COMMON_TOOLS,
+      tool_ids: (STATE_TOOLS[name] ?? []).map((t) => t.tool_id),
       display_position: { x: 400 * i, y: 0 },
     };
   }),
@@ -155,11 +160,8 @@ async function call(method, route, body) {
     const summary = {
       ...flow,
       global_prompt: `${flow.global_prompt.length} chars`,
-      nodes: flow.nodes.map((n) => ({
-        ...n,
-        instruction: `${n.instruction.text.length} chars`,
-        tools: n.tools.map((t) => (t.headers ? { ...t, description: '…', parameters: '…', headers: Object.keys(t.headers) } : t.name)),
-      })),
+      tools: flow.tools.map((t) => ({ ...t, description: '…', parameters: Object.keys(t.parameters.properties), headers: Object.keys(t.headers) })),
+      nodes: flow.nodes.map((n) => ({ ...n, instruction: `${n.instruction.text.length} chars`, tools: n.tools.map((t) => t.name) })),
     };
     return console.log(JSON.stringify(summary, null, 2));
   }
