@@ -4,7 +4,7 @@
 
 **Job** — An Upwork job posting scraped via an Apify actor on a schedule. Raw jobs are cleaned/normalized before scoring.
 
-**Target Niche** — n8n / AI-automation work only (workflow builds, agentic chatbots, RAG agents). Explicitly excludes the freelancer's enterprise Java/Spring Boot/backend-integration background — that market isn't sourced through Upwork's open marketplace.
+**Target Niche** — Jobs that involve n8n, alone or combined with other work (AI agents, voice agents, RAG, chatbots, CRM, WhatsApp, APIs). A Job that never mentions n8n is out of scope, however close the rest of it is. Explicitly excludes the freelancer's enterprise Java/Spring Boot/backend-integration background — that market isn't sourced through Upwork's open marketplace.
 
 **Fit Score** — A 1–10 score an LLM assigns to a Job against the Target Niche criteria (skills match, budget reasonableness, client quality).
 
@@ -22,9 +22,10 @@
 
 ## Decisions
 
-- **Apify actor**: `hyperbach/upwork-scraper-ai` (id `RDMDCh3d2XZKng8Mz`), chosen to fit Apify's free plan ($5/month credit): $0.002/job, no platform fees, empty runs free. `neatrat/upwork-job-scraper` was dropped because it refuses free-plan accounts. `notifications_only` returns only jobs new since the last run, so each Job is billed once. Request: `any_words` keywords, `none_words` excluding human-role jobs (customer support, video editor, data entry…), payment-verified clients only, posted in the last 3 hours. Measured with the actor's estimate mode on 2026-10-28: ~61 jobs/day, ~$3.68/month (without the exclusions and payment filter: ~139/day, $8.35). Send only the keys you mean — the Apify console adds `false` for every checkbox field, and this actor treats `false` as a filter. A saved copy lives in Apify as task `tangohi5/upwork-jobs-automation`, but n8n calls the actor directly.
-- **Schedule**: every 2 hours, around the clock, up to 20 Jobs/run (not hourly, to keep Apify and LLM costs down). The 1-hour overlap between runs prevents gaps; a Remove Duplicates node keyed on job URL ensures each Job is processed once.
+- **Apify actor**: `hyperbach/upwork-scraper-ai` (id `RDMDCh3d2XZKng8Mz`), chosen to fit Apify's free plan ($5/month credit): $0.002/job, no platform fees, empty runs free. `neatrat/upwork-job-scraper` was dropped because it refuses free-plan accounts. `notifications_only` returns only jobs new since the last run, so each Job is billed once. Request: `all_words: ["n8n"]` (every Job must mention n8n), `none_words` excluding human-role jobs (customer support, video editor, data entry…), payment-verified clients only, posted in the last 3 hours. Until 2026-10-29 the request used `any_words` (n8n OR "workflow automation" OR "AI agent"…), measured at ~61 jobs/day, ~$3.68/month; that let in GoHighLevel-only and Claude Code jobs with no n8n, so it was narrowed. The scorer also gives any Job without n8n a score of 1, as a backstop. Send only the keys you mean — the Apify console adds `false` for every checkbox field, and this actor treats `false` as a filter. A saved copy lives in Apify as task `tangohi5/upwork-jobs-automation`, but n8n calls the actor directly.
+- **Schedule**: every 2 hours, around the clock, up to 25 Jobs/run (not hourly, to keep Apify and LLM costs down). The 1-hour overlap between runs prevents gaps; a Remove Duplicates node keyed on job URL ensures each Job is processed once.
 - **AI split**: OpenAI only. `gpt-5.4-mini` scores every Job; `gpt-5.4` drafts Proposals only for Qualifying Jobs.
-- **Search keywords**: "n8n", "workflow automation", "AI agent", "voice agent", "voice AI", "RAG", "chatbot automation".
+- **Experience level**: Jobs marked Expert are dropped right after normalizing (the freelancer has no Upwork reviews yet). This happens in n8n, not in the Apify request, because the actor's `experience_level` filter takes one exact value and can't exclude one; so Expert Jobs are still billed by Apify but never scored. Jobs with no level set are kept.
+- **Search keywords**: every Job must contain "n8n" (title, description or skills); everything else it involves is left to the Fit Score.
 - **Output**: logged to a new, dedicated Google Sheet (not an existing one).
 - **Infra**: runs on the freelancer's existing self-hosted n8n instance (Hostinger); finished workflow exported as JSON and imported there.

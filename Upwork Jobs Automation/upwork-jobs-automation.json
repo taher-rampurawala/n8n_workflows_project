@@ -90,6 +90,18 @@
               "name": "allowed_countries",
               "value": "={{ $json.qual_countries?.length ? $json.qual_countries.join(\", \") : \"Any\" }}",
               "type": "string"
+            },
+            {
+              "id": "f11",
+              "name": "skills",
+              "value": "={{ $json.skills || \"\" }}",
+              "type": "string"
+            },
+            {
+              "id": "f12",
+              "name": "experience_level",
+              "value": "={{ $json.experience_level || \"\" }}",
+              "type": "string"
             }
           ]
         },
@@ -106,13 +118,13 @@
     },
     {
       "parameters": {
-        "text": "=Title: {{ $json.title }}\nBudget: {{ $json.budget }}\nClient rating: {{ $json.client_rating }}, total spend: {{ $json.client_spend }}, payment verified: {{ $json.payment_verified }}\nProposals so far: {{ $json.proposals }}\nApplicants allowed from: {{ $json.allowed_countries }}\nPosted: {{ $json.posted_time }}\n\nDescription:\n{{ $json.description }}",
+        "text": "=Title: {{ $json.title }}\nBudget: {{ $json.budget }}\nClient rating: {{ $json.client_rating }}, total spend: {{ $json.client_spend }}, payment verified: {{ $json.payment_verified }}\nProposals so far: {{ $json.proposals }}\nApplicants allowed from: {{ $json.allowed_countries }}\nPosted: {{ $json.posted_time }}\nSkills: {{ $json.skills }}\n\nDescription:\n{{ $json.description }}",
         "attributes": {
           "attributes": [
             {
               "name": "score",
               "type": "number",
-              "description": "Score this Upwork job post from 1 to 10 for fit with Taher, a senior engineer freelancing in AI automation.\n\nTaher's skills: n8n workflow automation; AI agents and agentic workflows with tool calling; AI voice agents for inbound and outbound calls, appointment booking and lead qualification (Retell AI, Twilio, Telnyx); RAG chatbots and knowledge assistants that answer from a client's own documents; AI chatbots for websites and WhatsApp; WhatsApp automation; AI-powered business websites with a built-in chatbot; LLM integration (OpenAI, Claude, Gemini); API, webhook and REST integrations; CRM automation, lead generation and lead qualification; invoice automation, document processing and data extraction; AI content creation workflows (images, video, social posts). Java/Spring Boot and AWS are supporting skills only, not a target market.\n\nScoring tiers:\n- 9-10: the core of the job is one of Taher's skills (for example: build an n8n workflow, an AI agent, an AI voice agent, a RAG or AI chatbot, a WhatsApp automation), with a clear brief and a budget that fits the scope.\n- 7-8: one of Taher's skills is central, but there is a minor gap: the brief is somewhat thin, the budget is tight, or part of the work falls outside his skills.\n- 4-6: adjacent work that does not need the AI/agent skillset: Zapier or Make builds and migrations, generic API integration, general web development.\n- 2-3: budget/scope mismatch (for example a full AI SaaS for under $200), requests for unpaid trial work, or briefs too vague to evaluate confidently.\n- 1: unrelated to Taher's skills (pure Java/backend/enterprise roles, mobile apps, graphic design, data entry), or applicants are restricted to countries that do not include India, since Taher is based in India and cannot apply.\n\nAdjustments, applied after choosing the tier (minimum score 1):\n- If the client's payment is not verified, subtract 2 points.\n- If the job already has 50 or more proposals, subtract 1 point, since Taher has no Upwork reviews yet and high-competition jobs are hard to win.",
+              "description": "Score this Upwork job post from 1 to 10 for fit with Taher, a senior engineer freelancing in AI automation.\n\nTaher's skills: n8n workflow automation; AI agents and agentic workflows with tool calling; AI voice agents for inbound and outbound calls, appointment booking and lead qualification (Retell AI, Twilio, Telnyx); RAG chatbots and knowledge assistants that answer from a client's own documents; AI chatbots for websites and WhatsApp; WhatsApp automation; AI-powered business websites with a built-in chatbot; LLM integration (OpenAI, Claude, Gemini); API, webhook and REST integrations; CRM automation, lead generation and lead qualification; invoice automation, document processing and data extraction; AI content creation workflows (images, video, social posts). Java/Spring Boot and AWS are supporting skills only, not a target market.\n\nTaher only bids on n8n jobs. If the job does not mention n8n anywhere (title, description or skills), the score is 1, whatever else it involves. n8n combined with other work (AI agents, voice agents, RAG, chatbots, CRM, WhatsApp, APIs) is the target.\n\nScoring tiers:\n- 9-10: the core of the job is one of Taher's skills (for example: build an n8n workflow, an AI agent, an AI voice agent, a RAG or AI chatbot, a WhatsApp automation), with a clear brief and a budget that fits the scope.\n- 7-8: one of Taher's skills is central, but there is a minor gap: the brief is somewhat thin, the budget is tight, or part of the work falls outside his skills.\n- 4-6: adjacent work that does not need the AI/agent skillset: Zapier or Make builds and migrations, generic API integration, general web development.\n- 2-3: budget/scope mismatch (for example a full AI SaaS for under $200), requests for unpaid trial work, or briefs too vague to evaluate confidently.\n- 1: unrelated to Taher's skills (pure Java/backend/enterprise roles, mobile apps, graphic design, data entry), or applicants are restricted to countries that do not include India, since Taher is based in India and cannot apply.\n\nAdjustments, applied after choosing the tier (minimum score 1):\n- If the client's payment is not verified, subtract 2 points.\n- If the job already has 50 or more proposals, subtract 1 point, since Taher has no Upwork reviews yet and high-competition jobs are hard to win.",
               "required": true
             },
             {
@@ -122,7 +134,7 @@
             },
             {
               "name": "red_flags",
-              "description": "Comma-separated list of red flags found in this job post (budget/scope mismatch, unpaid trial work, too vague to score, country restriction excludes India), or the word 'none' if there are none.",
+              "description": "Comma-separated list of red flags found in this job post (budget/scope mismatch, unpaid trial work, too vague to score, country restriction excludes India, n8n not mentioned), or the word 'none' if there are none.",
               "required": true
             }
           ]
@@ -390,7 +402,7 @@
     },
     {
       "parameters": {
-        "content": "## Setup\n\nOpenAI, Apify and Google Sheets credentials are wired to your existing accounts. Results go to the \"Upwork Jobs\" Google Sheet.\n\nActor: hyperbach/upwork-scraper-ai (notifications_only: each run returns only jobs new since the last run, billed once). Runs every 2 hours, up to 20 jobs per run, payment-verified clients only, human-role jobs excluded; Skip Already Seen Jobs drops any job an earlier run already handled. If a proposal fails, the job is still logged with Status \"Proposal failed\".",
+        "content": "## Setup\n\nOpenAI, Apify and Google Sheets credentials are wired to your existing accounts. Results go to the \"Upwork Jobs\" Google Sheet.\n\nActor: hyperbach/upwork-scraper-ai (notifications_only: each run returns only jobs new since the last run, billed once). Runs every 2 hours, up to 25 jobs per run, jobs must mention n8n, payment-verified clients only, human-role jobs excluded; Skip Expert-Level Jobs drops jobs marked Expert; Skip Already Seen Jobs drops any job an earlier run already handled. If a proposal fails, the job is still logged with Status \"Proposal failed\".",
         "height": 280,
         "width": 540,
         "color": 5
@@ -429,7 +441,7 @@
           "cachedResultName": "Upwork Job Scraper (hyperbach/upwork-scraper-ai)",
           "cachedResultUrl": "https://console.apify.com/actors/RDMDCh3d2XZKng8Mz/input"
         },
-        "customBody": "{\n  \"any_words\": [\n    \"n8n\",\n    \"workflow automation\",\n    \"AI agent\",\n    \"voice agent\",\n    \"voice AI\",\n    \"RAG\",\n    \"chatbot automation\"\n  ],\n  \"none_words\": [\n    \"customer support\",\n    \"customer service\",\n    \"virtual assistant\",\n    \"video editor\",\n    \"video editing\",\n    \"data entry\",\n    \"evaluator\",\n    \"translator\",\n    \"transcription\",\n    \"appointment setter\",\n    \"cold calling\",\n    \"sales representative\",\n    \"social media manager\",\n    \"graphic designer\"\n  ],\n  \"buyer_payment_verified\": true,\n  \"date_posted\": \"3h\",\n  \"notifications_only\": true,\n  \"clientId\": \"upwork-jobs-automation\",\n  \"limit\": 20,\n  \"whats_new\": false\n}",
+        "customBody": "{\n  \"all_words\": [\n    \"n8n\"\n  ],\n  \"none_words\": [\n    \"customer support\",\n    \"customer service\",\n    \"virtual assistant\",\n    \"video editor\",\n    \"video editing\",\n    \"data entry\",\n    \"evaluator\",\n    \"translator\",\n    \"transcription\",\n    \"appointment setter\",\n    \"cold calling\",\n    \"sales representative\",\n    \"social media manager\",\n    \"graphic designer\"\n  ],\n  \"buyer_payment_verified\": true,\n  \"date_posted\": \"3h\",\n  \"notifications_only\": true,\n  \"clientId\": \"upwork-jobs-automation\",\n  \"limit\": 25,\n  \"whats_new\": false\n}",
         "timeout": 300
       },
       "id": "79e43b31-bba3-4835-b2b0-079c5c21bfa1",
@@ -502,6 +514,39 @@
         1888,
         -16
       ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "exp1",
+              "leftValue": "={{ $json.experience_level }}",
+              "rightValue": "Expert",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "c0b1a2d3-0003-4e5f-9a8b-7c6d5e4f3a23",
+      "name": "Skip Expert-Level Jobs",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.3,
+      "position": [
+        400,
+        160
+      ]
     }
   ],
   "connections": {
@@ -509,7 +554,7 @@
       "main": [
         [
           {
-            "node": "Skip Already Seen Jobs",
+            "node": "Skip Expert-Level Jobs",
             "type": "main",
             "index": 0
           }
@@ -621,6 +666,17 @@
         [
           {
             "node": "Log to Google Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Skip Expert-Level Jobs": {
+      "main": [
+        [
+          {
+            "node": "Skip Already Seen Jobs",
             "type": "main",
             "index": 0
           }

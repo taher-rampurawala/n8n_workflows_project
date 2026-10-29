@@ -338,14 +338,15 @@ Each project lives in its own folder containing the exported workflow JSON, read
 
 **Folder:** [`Upwork Jobs Automation/`](./Upwork%20Jobs%20Automation/)
 
-**Description:** A scheduled Upwork job-hunting pipeline for a freelancer. Every 2 hours an Apify actor fetches matching Upwork jobs posted since the previous run. GPT-5.4 mini scores each job from 1 to 10 against the freelancer's skills, and GPT-5.4 drafts a tailored proposal for every job scoring 7 or higher. Qualifying jobs, their scores and proposals are logged to a Google Sheet for review. Proposals are never submitted automatically; Upwork restricts automated proposals, so a person reviews and sends each one.
+**Description:** A scheduled Upwork job-hunting pipeline for a freelancer. Every 2 hours an Apify actor fetches Upwork jobs that mention n8n, posted since the previous run. GPT-5.4 mini scores each job from 1 to 10 against the freelancer's skills, and GPT-5.4 drafts a tailored proposal for every job scoring 7 or higher. Qualifying jobs, their scores and proposals are logged to a Google Sheet for review. Proposals are never submitted automatically; Upwork restricts automated proposals, so a person reviews and sends each one.
 
 **Key Features:**
 
 - ⏰ Runs every 2 hours with the `hyperbach/upwork-scraper-ai` Apify actor in `notifications_only` mode: each run returns only jobs that are new since the previous run and under 3 hours old, so every job is billed once
-- 💸 Built to fit Apify's free plan ($5/month credit): filtering happens at the source (keywords, payment-verified clients only, human-role jobs such as customer support or data entry excluded), measured with the actor's estimate mode at ~61 jobs/day, ~$3.68/month
-- 🎯 LLM fit scoring with an Information Extractor (structured `score` / `reasoning` / `red_flags`), using defined score tiers built from the freelancer's real skills; jobs that only accept applicants from countries excluding India are scored 1
+- 💸 Built to fit Apify's free plan ($5/month credit): filtering happens at the source (every job must mention n8n, payment-verified clients only, human-role jobs such as customer support or data entry excluded), and the actor's estimate mode was used to check volume and monthly cost before scheduling
+- 🎯 LLM fit scoring with an Information Extractor (structured `score` / `reasoning` / `red_flags`), using defined score tiers built from the freelancer's real skills; jobs that only accept applicants from countries excluding India, or that never mention n8n, are scored 1
 - ✍️ Proposals grounded in the freelancer's Upwork profile and portfolio, written in the client's own language, with no invented client history
+- 🚫 Expert-level jobs are dropped before scoring, since the freelancer has no Upwork reviews yet
 - 🔁 Cross-run deduplication with the Remove Duplicates node ("items seen in previous executions"), keyed on the job URL
 - 🛡️ A failed proposal is still logged with Status `Proposal failed` instead of being lost; scrape and Sheet failures fail the run so they show in the executions list
 - 🧩 Job data and score are merged before the LLM step and the proposal is attached by position afterwards, avoiding paired-item lookups through the LLM chain node
